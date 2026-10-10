@@ -27,7 +27,8 @@ import { importGoogleDoc } from './gdoc-import.js';
 import { createVersionRouter } from './version-routes.js';
 import { clearVersionsCache } from './versions.js';
 import { removeDocFromAllWorkspaces } from './workspaces.js';
-import { resolveDocPath, getDataDir, getActiveProfile, setActiveProfile, isProfilePinned, listProfiles, createProfile, deleteProfile, listTrashedProfiles, restoreProfile, saveConfig, readConfig } from './helpers.js';
+import { authorizeGatewayRequest, isPublicOrigin, publicUrl } from './hosted.js';
+import { HOSTED, resolveDocPath, getDataDir, getActiveProfile, setActiveProfile, isProfilePinned, listProfiles, createProfile, deleteProfile, listTrashedProfiles, restoreProfile, saveConfig, readConfig } from './helpers.js';
 import { claimDataLock, releaseDataLock } from './server-lock.js';
 import { createImageRouter } from './image-upload.js';
 import { createExportRouter } from './export-routes.js';
@@ -54,7 +55,7 @@ const __dirname = dirname(__filename);
 // before the server has booted — matches the default option.
 let runtimePort = 5050;
 export function getRuntimePort(): number { return runtimePort; }
-export function getBaseUrl(): string { return `http://localhost:${runtimePort}`; }
+export function getBaseUrl(): string { return HOSTED ? publicUrl() : `http://localhost:${runtimePort}`; }
 
 // ---- Trust boundary (anti-DNS-rebinding + CSRF) — MCP-5 ----
 // The HTTP API binds to loopback and historically trusted "localhost = the
@@ -134,7 +135,12 @@ function securityGate(port: number) {
       ].join('; '),
     );
 
-    if (!isAllowedHost(req.headers.host, port)) {
+    // Hosted mode swaps the loopback Host check for the gateway's signed
+    // identity — one or the other, never neither. adr: adr/hosted-gateway-trust.md
+    if (HOSTED) {
+      const refusal = authorizeGatewayRequest(req.headers);
+      if (refusal) { res.status(refusal).json({ error: refusal === 401 ? 'Unauthorized' : 'Forbidden' }); return; }
+    } else if (!isAllowedHost(req.headers.host, port)) {
       res.status(403).json({ error: 'Forbidden' });
       return;
     }
@@ -142,10 +148,11 @@ function securityGate(port: number) {
     if (STATE_CHANGING.has(req.method)) {
       const origin = req.headers.origin;
       const referer = req.headers.referer;
+      const sameOrigin = (v: string) => (HOSTED ? isPublicOrigin(v) : isAllowedOrigin(v, port));
       if (origin) {
-        if (!isAllowedOrigin(origin, port)) { res.status(403).json({ error: 'Forbidden' }); return; }
+        if (!sameOrigin(origin)) { res.status(403).json({ error: 'Forbidden' }); return; }
       } else if (referer) {
-        if (!isAllowedOrigin(referer, port)) { res.status(403).json({ error: 'Forbidden' }); return; }
+        if (!sameOrigin(referer)) { res.status(403).json({ error: 'Forbidden' }); return; }
       }
       // No Origin and no Referer: non-browser local client; Host gate above
       // already constrained it to loopback. Allow.
@@ -167,6 +174,9 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
   logger.info('state', 'server-boot', `OpenWriter starting on port ${port}`, { port });
 
   const app = express();
+  // Fly's health check: the one route open without the gateway signature.
+  // Answers before the gate and says nothing. adr: adr/hosted-gateway-trust.md
+  if (HOSTED) app.get('/healthz', (_req, res) => { res.status(200).type('text/plain').send('ok'); });
   // Trust boundary FIRST — reject cross-host / cross-origin before body
   // parsing or any route handler runs. Covers every route, including the
   // unauth state-changers /api/profiles/switch, /api/plugins/enable,
@@ -885,6 +895,9 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
   });
 
   app.post('/api/documents/open', (req, res) => {
+    // Opens any absolute path on the machine: the HTTP twin of open_file,
+    // absent in hosted mode. adr: adr/hosted-gateway-trust.md
+    if (HOSTED) { res.status(404).json({ error: 'Not available in the web app' }); return; }
     try {
       const { path } = req.body;
       if (!path) {
@@ -1180,6 +1193,15 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
 
 
   // ---- Profile management ----
+  // A hosted machine serves one writer's one profile: only the reads exist.
+  // adr: adr/hosted-gateway-trust.md
+  if (HOSTED) {
+    app.use('/api/profiles', (req, res, next) => {
+      if (req.method === 'GET') { next(); return; }
+      res.status(404).json({ error: 'Profiles are fixed in the web app' });
+    });
+  }
+
   app.get('/api/profiles', (_req, res) => {
     res.json({ profiles: listProfiles(), active: getActiveProfile() });
   });
@@ -1455,7 +1477,7 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
 
   // Broadcast agent status now that WS is ready
   broadcastAgentStatus(true);
-  console.log(`OpenWriter running at http://localhost:${port}`);
+  console.log(`OpenWriter running at ${HOSTED ? `${getBaseUrl()} (hosted, port ${port})` : `http://localhost:${port}`}`);
 
   // Read every document once now, so the first sidebar load is served from cache.
   setImmediate(() => { try { warmListingCache(); } catch { /* first listing reads instead */ } });
@@ -1484,7 +1506,7 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
 
   // Open browser unless --no-open or running as MCP stdio pipe
   const isMcpStdio = !process.stdout.isTTY;
-  if (!options.noOpen && !isMcpStdio) {
+  if (!options.noOpen && !isMcpStdio && !HOSTED) {
     const open = await import('open');
     const url = existsSync(clientDir)
       ? `http://localhost:${port}`

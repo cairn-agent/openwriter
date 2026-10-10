@@ -7,14 +7,15 @@ import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { dirname } from 'path';
-import { homedir } from 'os';
 import { createRequire } from 'module';
 import type { PluginCategory, PluginConfigField } from './plugin-types.js';
+import { HOSTED, ROOT_DIR } from './helpers.js';
+import { HOSTED_EXCLUDED_PLUGINS } from './hosted.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const USER_PLUGINS_DIR = join(homedir(), '.openwriter', 'plugins');
+const USER_PLUGINS_DIR = join(ROOT_DIR, 'plugins');
 
 export interface DiscoveredPlugin {
   /** npm package name (e.g. "@openwriter/plugin-authors-voice") */
@@ -156,6 +157,10 @@ const BUNDLED_ORDER = [
  * Deduplicates by name (bundled takes priority).
  */
 export function discoverPlugins(): DiscoveredPlugin[] {
+  // Hosted mode runs a fixed bundled set: no user installs, and no plugins that
+  // need the writer's own computer. adr: adr/hosted-gateway-trust.md
+  if (HOSTED) return discoverBundledPlugins().filter((p) => !HOSTED_EXCLUDED_PLUGINS.has(p.name));
+
   const bundled = discoverBundledPlugins();
   const user = discoverUserPlugins();
 

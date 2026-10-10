@@ -43,3 +43,8 @@ A server now holds `server.lock` in its profile folder (adr/single-server-owners
 test instance on its own profile is unaffected; one started on a profile another server already
 serves becomes that server's client, and the main server refuses to switch into a profile a test
 instance holds.
+
+### 2026-10-10 — hosted mode fixes the profile without pinning it
+A hosted machine always serves `Default` and ignores `--profile`, but is not pinned: its config
+(plugin settings, publish key) lives on its own volume and must persist. Profile create, switch,
+delete and restore answer 404 there instead. Details: `adr/hosted-gateway-trust.md`.

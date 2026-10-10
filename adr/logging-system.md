@@ -108,3 +108,7 @@ document content publicly.
   - Migration of remaining `console.log` callsites — current shim
     re-routes the most diagnostic-critical ones (overlay/ws/lock)
     via `diagLog`, others stay on stdout. Will migrate piecewise.
+### 2026-10-10 — log-config.json follows the data root
+- `log-config.json` is read from `ROOT_DIR` (`server/helpers.ts`) instead of a hard-coded
+  `~/.openwriter`, so a hosted machine reads it from its data volume. Locally `ROOT_DIR` is
+  still `~/.openwriter`; nothing else changed. See `adr/hosted-gateway-trust.md`.

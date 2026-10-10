@@ -43,7 +43,10 @@ export interface PluginConfigField {
 export interface PluginRouteContext {
   app: Router;
   config: Record<string, string>;
-  dataDir: string;
+  /** The active profile's folder. Read it when a request needs it, never keep a copy: it follows a profile switch. */
+  readonly dataDir: string;
+  /** OpenWriter's config.json (under ~/.openwriter locally, the data volume when hosted). */
+  configFile: string;
 }
 
 export interface PluginMcpTool {

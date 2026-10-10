@@ -42,9 +42,11 @@ export function createBillingRouter(): Router {
   router.post('/api/billing/portal', async (_req, res) => {
     if (!isAuthenticated()) return res.status(401).json({ error: 'Not authenticated' });
     try {
+      // Back to this OpenWriter: its real port locally, the public address when hosted.
+      const { getBaseUrl } = await import('./index.js');
       const upstream = await platformFetch('/billing/portal', {
         method: 'POST',
-        body: JSON.stringify({ return_url: 'http://localhost:5050' }),
+        body: JSON.stringify({ return_url: getBaseUrl() }),
       });
       const data = await upstream.json();
       res.status(upstream.status).json(data);

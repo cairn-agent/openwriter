@@ -76,3 +76,7 @@ guarantee belongs.
   writeback). It was the first plugin-owned active-doc metadata write whose
   effect was visible in the UI, so the missing-broadcast gap only became
   reachable once something rendered off it.
+
+### 2026-10-10 — bridge gains rootDir (no change to this invariant)
+
+- The github `ServerModules` bridge now also exposes `rootDir` (the server's `ROOT_DIR`), so the blog clone and inspect caches follow the configured data root instead of a hard-coded `~/.openwriter`. Broadcast rules are untouched.

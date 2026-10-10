@@ -8,7 +8,21 @@ import { join, isAbsolute, basename, dirname, resolve, sep } from 'path';
 import { homedir } from 'os';
 import { randomUUID } from 'crypto';
 
-export const ROOT_DIR = join(homedir(), '.openwriter');
+/**
+ * Hosted mode (`OW_HOSTED=1`): this process is one writer's private copy behind the sign-in
+ * gateway, with its data folder on a mounted volume (`OW_DATA_DIR`). Everything that lives under
+ * `~/.openwriter` locally lives under that folder instead. adr: adr/hosted-gateway-trust.md
+ */
+export const HOSTED = process.env.OW_HOSTED === '1';
+
+function resolveRootDir(): string {
+  if (!HOSTED) return join(homedir(), '.openwriter');
+  const dir = process.env.OW_DATA_DIR?.trim();
+  if (!dir) throw new Error('OW_HOSTED=1 requires OW_DATA_DIR (the writer\'s data volume)');
+  return resolve(dir);
+}
+
+export const ROOT_DIR = resolveRootDir();
 export const TEMP_PREFIX = '_untitled-';
 
 // ---- Profile state ----
@@ -65,7 +79,7 @@ export function ensureDataDir(): void {
   // Ensure ROOT_DIR exists (with legacy migration)
   if (!existsSync(ROOT_DIR)) {
     const legacyDir = join(homedir(), '.superwriter');
-    if (existsSync(legacyDir)) {
+    if (!HOSTED && existsSync(legacyDir)) {
       renameSync(legacyDir, ROOT_DIR);
     } else {
       mkdirSync(ROOT_DIR, { recursive: true });

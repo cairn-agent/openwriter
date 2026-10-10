@@ -6,6 +6,8 @@
 export interface ServerModules {
   // helpers.js
   getDataDir: () => string;
+  /** OpenWriter's root folder (~/.openwriter locally, the data volume when hosted). */
+  rootDir: string;
   readConfig: () => any;
   saveConfig: (patch: Record<string, any>) => void;
   // state.js
@@ -75,6 +77,7 @@ export async function getServerModules(): Promise<ServerModules> {
   }
   _cached = {
     getDataDir: helpers.getDataDir,
+    rootDir: helpers.ROOT_DIR,
     readConfig: helpers.readConfig,
     saveConfig: helpers.saveConfig,
     save: state.save,

@@ -43,7 +43,8 @@ import {
 import { switchDocument, createDocument, deleteDocument, getActiveFilename, promoteTempFile, cachedDocIndex, acceptPendingTitle, rejectPendingTitle, getPendingTitle, resolveDocId } from './documents.js';
 import { removeDocFromAllWorkspaces } from './workspaces.js';
 import { commitFromFile } from './commits.js';
-import { canonicalizeIdentifier } from './helpers.js';
+import { canonicalizeIdentifier, HOSTED } from './helpers.js';
+import { authorizeGatewayRequest, isPublicOrigin } from './hosted.js';
 import { loadDocFromDisk } from './pending-overlay.js';
 import { nodeTextPreview, diagLog } from './pending-overlay.js';
 import { generateRequestId, withRequestId } from './logger.js';
@@ -207,19 +208,30 @@ function buildDocumentSwitchedPayload(
 export function setupWebSocket(server: Server): void {
   const wss = new WebSocketServer({
     server,
-    verifyClient: ({ req }: { req: import('http').IncomingMessage }) => {
+    verifyClient: ({ req }: { req: import('http').IncomingMessage }, done: (ok: boolean, code?: number) => void) => {
       const origin = req.headers.origin;
-      // Allow connections with no origin (non-browser clients like MCP)
-      // and localhost origins only (blocks cross-site WebSocket hijacking)
-      if (!origin) return true;
-      try {
-        const url = new URL(origin);
-        return url.hostname === 'localhost' || url.hostname === '127.0.0.1';
-      } catch {
-        return false;
+      // Hosted mode: the upgrade carries the gateway's signature like any request,
+      // and a browser Origin must be the public address. adr: adr/hosted-gateway-trust.md
+      if (HOSTED) {
+        const refusal = authorizeGatewayRequest(req.headers);
+        if (refusal) return done(false, refusal);
+        return done(!origin || isPublicOrigin(origin), 403);
       }
+      done(isLocalOrigin(origin));
     },
   });
+
+  // Allow connections with no origin (non-browser clients like MCP)
+  // and localhost origins only (blocks cross-site WebSocket hijacking)
+  function isLocalOrigin(origin: string | undefined): boolean {
+    if (!origin) return true;
+    try {
+      const url = new URL(origin);
+      return url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+    } catch {
+      return false;
+    }
+  }
 
   // Push agent changes to all browser clients
   onChanges((changes: NodeChange[], version: number) => {

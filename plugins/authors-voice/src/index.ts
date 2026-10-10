@@ -9,21 +9,19 @@
 
 import type { Express, Request, Response } from 'express';
 import { readFileSync } from 'fs';
-import { homedir } from 'os';
-import { join } from 'path';
 
 const PLUGIN_NAME = '@openwriter/plugin-authors-voice';
 
 /**
- * Live-read the model tier from ~/.openwriter/config.json per request.
+ * Live-read the model tier from OpenWriter's config.json per request.
  * The host passes plugin config ONCE at registerRoutes and never reloads it on save, so the
  * dropdown's value would otherwise require a server restart. Reading the file per request
  * makes a model-picker change take effect on the very next Enhance. Falls back to the
  * load-time value on any error.
  */
-function liveModelTier(fallback: string): string {
+function liveModelTier(configFile: string, fallback: string): string {
   try {
-    const cfg = JSON.parse(readFileSync(join(homedir(), '.openwriter', 'config.json'), 'utf8'));
+    const cfg = JSON.parse(readFileSync(configFile, 'utf8'));
     const v = cfg?.plugins?.[PLUGIN_NAME]?.config?.model;
     return typeof v === 'string' ? v : fallback;
   } catch {
@@ -54,6 +52,7 @@ interface PluginConfigField {
 interface PluginRouteContext {
   app: Express;
   config: Record<string, string>;
+  configFile: string;
 }
 
 interface PluginContextMenuItem {
@@ -139,7 +138,7 @@ const plugin: OpenWriterPlugin = {
     // immediately, no restart). Pure pass-through: the AV API validates the slug and falls
     // back to its own default if absent/unknown. Blank → nothing injected.
     const withModel = (body: unknown): unknown => {
-      const tier = liveModelTier(modelTier);
+      const tier = liveModelTier(ctx.configFile, modelTier);
       if (!tier || !body || typeof body !== 'object') return body;
       return { ...(body as Record<string, unknown>), modelTier: tier };
     };

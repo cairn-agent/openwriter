@@ -9,7 +9,6 @@ import { execFile } from 'child_process';
 import { existsSync, mkdirSync, readFileSync, copyFileSync, writeFileSync, readdirSync, statSync, rmSync } from 'fs';
 import { join, extname, dirname, basename } from 'path';
 import { randomUUID } from 'crypto';
-import { homedir } from 'os';
 import {
   getServerModules,
   listBlogSites,
@@ -72,8 +71,8 @@ function slugify(s: string): string {
   return s.toLowerCase().replace(/['"]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
 }
 
-function owRoot(): string {
-  return join(homedir(), '.openwriter');
+async function owRoot(): Promise<string> {
+  return (await getServerModules()).rootDir;
 }
 
 // ---- inspect_blog_repo helpers ----
@@ -692,7 +691,7 @@ export function blogTools(): PluginMcpTool[] {
         const owner = parts[0];
         const repo = parts[1];
 
-        const cacheRoot = join(owRoot(), '_blog-inspect-cache');
+        const cacheRoot = join(await owRoot(), '_blog-inspect-cache');
         mkdirSync(cacheRoot, { recursive: true });
         const cloneDir = join(cacheRoot, `${owner}-${repo}`);
 
@@ -1012,7 +1011,7 @@ export function blogTools(): PluginMcpTool[] {
 
         const blogCtx: Record<string, any> = metadata.blogContext || {};
 
-        const cloneRoot = join(owRoot(), '_blog-clones');
+        const cloneRoot = join(await owRoot(), '_blog-clones');
         mkdirSync(cloneRoot, { recursive: true });
         const clonePath = join(cloneRoot, site.id);
 

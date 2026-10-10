@@ -37,3 +37,7 @@ Without an invariant on the writer side, every plugin enable/disable, config edi
 ### 2026-06-01 — Writeback site touched (no change to this invariant)
 
 - The `post_to_blog` `blogContext.lastPublish` writeback (which bears this ADR's marker because it writes through `setMetadata`'s deep-merge) gained two WS broadcasts after `save()` so connected clients converge live. This does **not** alter the slot-persistence model documented here — `setMetadata`'s deep-merge of `blogContext` still preserves sibling keys, and config-slot nested-data persistence is untouched. The broadcast convention is documented separately in [adr/plugin-metadata-broadcast.md](plugin-metadata-broadcast.md).
+
+### 2026-10-10 — plugin route context reads the data folder live
+
+- `PluginManager.enable` used to pass `dataDir: getDataDir()` once, as a string, so after a profile switch the image-gen and x-api routes kept writing `_images` into the old profile. The context now carries `dataDir` as a getter and a `configFile` path (OpenWriter's config.json, which follows the hosted data volume), and image-gen and authors-voice read config through it instead of `~/.openwriter`. Slot persistence is unchanged.

@@ -7,7 +7,6 @@
 import { join } from 'path';
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
 import { randomUUID } from 'crypto';
-import { homedir } from 'os';
 import type { Express, Request, Response } from 'express';
 
 interface PluginConfigField {
@@ -21,6 +20,7 @@ interface PluginRouteContext {
   app: Express;
   config: Record<string, string>;
   dataDir: string;
+  configFile: string;
 }
 
 interface PluginContextMenuItem {
@@ -45,10 +45,10 @@ interface OpenWriterPlugin {
 async function generateViaPlatform(
   prompt: string,
   dataDir: string,
+  configPath: string,
   imageApiKey?: string,
   aspectRatio: string = '16:9',
 ): Promise<{ success: true; src: string } | null> {
-  const configPath = join(homedir(), '.openwriter', 'config.json');
   if (!existsSync(configPath)) return null;
 
   const config = JSON.parse(readFileSync(configPath, 'utf8'));
@@ -160,7 +160,7 @@ const plugin: OpenWriterPlugin = {
         } else {
           // Fallback: generate via publish platform API.
           // Pass the user's own image key (if set) so the worker bills it instead of the shared allotment.
-          const platformResult = await generateViaPlatform(prompt, ctx.dataDir, ctx.config['imageApiKey']);
+          const platformResult = await generateViaPlatform(prompt, ctx.dataDir, ctx.configFile, ctx.config['imageApiKey']);
           if (!platformResult) {
             res.status(400).json({ success: false, error: 'No GEMINI_API_KEY and publish platform not configured. Set GEMINI_API_KEY or log in to the publish plugin.' });
             return;

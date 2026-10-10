@@ -26,8 +26,7 @@
 import { existsSync, mkdirSync, statSync, renameSync, unlinkSync, appendFileSync, readFileSync, watch, type FSWatcher } from 'fs';
 import { join } from 'path';
 import { AsyncLocalStorage } from 'async_hooks';
-import { homedir } from 'os';
-import { getDataDir } from './helpers.js';
+import { getDataDir, ROOT_DIR } from './helpers.js';
 
 // ============================================================================
 // TYPES
@@ -74,7 +73,7 @@ interface LogEvent {
 // CONFIG
 // ============================================================================
 
-const CONFIG_PATH = join(homedir(), '.openwriter', 'log-config.json');
+const CONFIG_PATH = join(ROOT_DIR, 'log-config.json');
 
 const DEFAULT_CONFIG: LogConfig = {
   level: 'error',     // safe-for-public: errors only

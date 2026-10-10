@@ -7,7 +7,7 @@ import type { Express, Router, Request, Response, NextFunction } from 'express';
 import { Router as createRouter } from 'express';
 import { discoverPlugins, loadPluginModule, type DiscoveredPlugin } from './plugin-discovery.js';
 import { registerPluginTools, removePluginTools } from './mcp.js';
-import { readConfig, saveConfig, getDataDir } from './helpers.js';
+import { readConfig, saveConfig, getDataDir, getConfigFile } from './helpers.js';
 import type { OpenWriterPlugin, PluginConfigField, PluginContextMenuItem, PluginSidebarMenuItem } from './plugin-types.js';
 import { broadcastPluginsChanged } from './ws.js';
 import { isAllowedPublishApiUrl } from './connections.js';
@@ -98,7 +98,14 @@ export class PluginManager {
     // Register routes via togglable middleware
     if (plugin.registerRoutes) {
       const router = createRouter();
-      await plugin.registerRoutes({ app: router, config: resolvedConfig, dataDir: getDataDir() });
+      // dataDir is a getter, not a copy taken now: a plugin route reading it after
+      // a profile switch must write into the new profile, not the one active at enable.
+      await plugin.registerRoutes({
+        app: router,
+        config: resolvedConfig,
+        get dataDir() { return getDataDir(); },
+        configFile: getConfigFile(),
+      });
       managed.router = router;
 
       // Wrap in middleware that skips when disabled

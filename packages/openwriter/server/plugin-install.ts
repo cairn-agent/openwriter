@@ -5,10 +5,10 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
 import { execSync } from 'child_process';
+import { ROOT_DIR } from './helpers.js';
 
-const PLUGINS_DIR = join(homedir(), '.openwriter', 'plugins');
+const PLUGINS_DIR = join(ROOT_DIR, 'plugins');
 const PLUGINS_PKG = join(PLUGINS_DIR, 'package.json');
 
 const VALID_NAME = /^(@openwriter\/plugin-[\w-]+|openwriter-plugin-[\w-]+|@[\w-]+\/openwriter-plugin-[\w-]+)$/;

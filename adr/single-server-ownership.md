@@ -72,3 +72,10 @@ folder, so a `--profile` test instance on its own profile still runs beside the
 main one. Tested on an isolated home: a second server on another port went
 client mode and left its port free; after the first was killed, the next start
 took over.
+
+### 2026-10-10 — hosted mode skips the lock and client mode
+With `OW_HOSTED=1` the machine runs one OpenWriter only, so `bin/pad.ts` binds `0.0.0.0:$PORT`,
+exits if the bind fails (no client mode), and takes no `server.lock`. On a restarted machine a
+leftover lock could name a pid that is now another process, and its port check would reach this
+process's own placeholder listener and send the server into client mode of itself. Local
+startup is unchanged. Details: `adr/hosted-gateway-trust.md`.
