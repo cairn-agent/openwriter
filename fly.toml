@@ -1,0 +1,41 @@
+# Template for the per-writer OpenWriter machines (hosted mode).
+# Each writer gets one Machine and one volume in this app; the gateway at
+# app.openwriter.io routes their traffic to it. Not deployed from here.
+# Secrets (set with `fly secrets set`, never in this file): OW_GATEWAY_SECRET.
+# adr: adr/hosted-gateway-trust.md
+
+app = "openwriter-writers"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  OW_HOSTED = "1"
+  OW_DATA_DIR = "/data"
+  OW_PUBLIC_URL = "https://app.openwriter.io"
+  PORT = "8080"
+
+[mounts]
+  source = "writer_data"
+  destination = "/data"
+  initial_size = "1gb"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Sleep when the writer is idle, wake on their next request.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/healthz"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "20s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

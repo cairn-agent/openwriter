@@ -45,6 +45,11 @@ could otherwise drive every route, including `/api/mcp-call`, which runs any too
   the old lock would name a pid that may now be this process's own port holder), and the stdio
   MCP server is not started.
 
+- **Packaging.** `Dockerfile` builds the monorepo and runs `dist/bin/pad.js` with `OW_HOSTED=1`,
+  `OW_DATA_DIR=/data`, `PORT=8080`. `fly.toml` is a template for the `openwriter-writers` app:
+  volume at `/data`, internal port 8080, machines stop when idle and start on request, `/healthz`
+  check. `OW_GATEWAY_SECRET` is a Fly secret, never in the file.
+
 ## Decision log
 
 ### 2026-10-10 — gateway HMAC header, one writer per machine
