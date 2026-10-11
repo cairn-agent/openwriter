@@ -15,6 +15,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - OpenWriter can run inside another Node program (`startOpenWriter` from `openwriter/server`), with its own request check, tool and plugin filters, and plugins passed in directly. `OW_DATA_DIR` moves OpenWriter's data folder.
 - The GitHub plugin can bring in changes from GitHub when OpenWriter starts (`pullOnStart`, off by default).
 
+### Removed
+- The old newsletter send is gone: the `send_newsletter` and `resend_to_unopened` tools, the newsletter view's Send button and the resend panel in newsletter analytics. They mailed an old subscriber list nobody joins any more. To email your readers, publish to your site (`publish_to_site` with `send_email`); site posts are emailed to the site's members. Past issues and their analytics stay.
+
 ### Fixed
 - The Publish plugin no longer calls OpenWriter over its own network port; it asks it in-process.
 

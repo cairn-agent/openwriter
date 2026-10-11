@@ -6,7 +6,6 @@
  */
 
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import NewsletterComposeModal, { type SendResult } from '../newsletter/NewsletterComposeModal';
 import SchedulePostModal from '../sidebar/SchedulePostModal';
 import './NewsletterComposeView.css';
 
@@ -44,19 +43,16 @@ interface NewsletterComposeViewProps {
   filename?: string;
   title?: string;
   onTitleChange?: (title: string) => void;
-  onBeforeSend?: () => Promise<void>;
 }
 
-export function TextNewsletterView({ children, newsletterContext, filename, title, onTitleChange, onBeforeSend }: NewsletterComposeViewProps) {
+export function TextNewsletterView({ children, newsletterContext, filename, title, onTitleChange }: NewsletterComposeViewProps) {
   const ctx = newsletterContext || {};
   const [subject, setSubject] = useState(ctx.subject || '');
   const [previewText, setPreviewText] = useState(ctx.previewText || '');
   const [connections, setConnections] = useState<NewsletterConnection[]>([]);
-  const [showSendModal, setShowSendModal] = useState<string | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [lastSend, setLastSend] = useState<SendResult | null>(
-    ctx.lastSend?.sentAt ? { sentCount: ctx.lastSend.sentCount, issueId: ctx.lastSend.issueId || null, sentAt: ctx.lastSend.sentAt } : null
-  );
+  // Sends made with the retired old newsletter send, kept in the doc's metadata.
+  const lastSend = ctx.lastSend?.sentAt ? ctx.lastSend : null;
   // Track last subject value we auto-synced to the title
   const autoSyncedSubject = useRef<string | null>(null);
   const prevFilename = useRef(filename);
@@ -86,11 +82,9 @@ export function TextNewsletterView({ children, newsletterContext, filename, titl
         lastSavedPreview.current = incomingPreview;
       }
     }
-    // Always sync lastSend (server-driven state from newsletter sends)
-    setLastSend(ctx.lastSend?.sentAt ? { sentCount: ctx.lastSend.sentCount, issueId: ctx.lastSend.issueId || null, sentAt: ctx.lastSend.sentAt } : null);
   }, [newsletterContext, filename]);
 
-  // Fetch newsletter connections for Send button
+  // A connected publish platform can email this doc as a site post
   useEffect(() => {
     fetch('/api/connections')
       .then(r => r.json())
@@ -140,16 +134,6 @@ export function TextNewsletterView({ children, newsletterContext, filename, titl
   const previewFull = previewCharCount >= 90;
   const previewOverLimit = previewCharCount > 150;
 
-  const handleSend = () => {
-    if (connections.length === 1) {
-      setShowSendModal(connections[0].id);
-    }
-    // If multiple connections, could show picker — for now use first
-    if (connections.length > 1) {
-      setShowSendModal(connections[0].id);
-    }
-  };
-
   return (
     <div className="nl-compose-wrapper">
       {lastSend && (
@@ -193,12 +177,7 @@ export function TextNewsletterView({ children, newsletterContext, filename, titl
       {filename && (
         <div className="nl-compose-footer">
           {connections.length > 0 && (
-            <button className="nl-footer-btn nl-footer-btn--primary" onClick={handleSend}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
-              </svg>
-              Send
-            </button>
+            <span className="nl-footer-hint">To email your readers, ask your agent to publish this to your site.</span>
           )}
           <button className="nl-footer-btn" onClick={() => setShowScheduleModal(true)}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -209,21 +188,6 @@ export function TextNewsletterView({ children, newsletterContext, filename, titl
         </div>
       )}
 
-      {showSendModal && filename && (
-        <NewsletterComposeModal
-          connectionId={showSendModal}
-          subject={subject || title || 'Untitled'}
-          filename={filename}
-          onBeforeSend={onBeforeSend}
-          onClose={(result) => {
-            setShowSendModal(null);
-            if (result) {
-              setLastSend(result);
-              saveNewsletterMeta({ lastSend: { sentCount: result.sentCount, sentAt: result.sentAt, issueId: result.issueId || undefined } });
-            }
-          }}
-        />
-      )}
       {showScheduleModal && filename && (
         <SchedulePostModal
           filename={filename}

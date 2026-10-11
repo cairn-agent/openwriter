@@ -119,6 +119,7 @@ console.log('\nTest 3: the site parameter and the old list');
   assert(calls[0].headers['X-Site'] === 'friend', 'site param sends X-Site');
   const names = newsletterTools({}).map((t) => t.name);
   assert(!names.some((n) => /subscriber|subscribe_embed/.test(n)), 'newsletter tools no longer carry subscriber tools (no duplicate names)');
+  assert(!names.includes('send_newsletter') && !names.includes('resend_to_unopened'), 'the old newsletter send is gone: site posts are the one way to email readers');
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

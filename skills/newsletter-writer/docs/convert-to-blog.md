@@ -23,13 +23,13 @@ Convert a sent newsletter into a blog-type document in OpenWriter. The newslette
 
 If the user specifies a newsletter by name, find it via `list_documents`. Otherwise, read the current pad via `read_pad` and `get_metadata`.
 
-**Verify it's a newsletter:** Check that `newsletterContext` exists and `lastSend` is present. If not sent yet, warn the user — we only archive sent newsletters.
+**Verify it's a newsletter:** Check that `newsletterContext` exists and the issue went out: `sitePost` is present (published to the site) or, for issues sent before site posts, `lastSend`. If not sent yet, warn the user — we only archive sent newsletters.
 
 Extract from metadata:
 - `title` — newsletter title (e.g. "The Sleep Brief #1")
 - `newsletterContext.previewText` — becomes blog description input
-- `newsletterContext.lastSend.sentAt` — becomes blog date
-- `newsletterContext.lastSend.sentCount` — note for reference
+- `newsletterContext.lastSend.sentAt` — becomes blog date (a site post has no send date in metadata: ask the user, or use today)
+- `newsletterContext.lastSend.sentCount` — note for reference, when present
 
 ## Step 2: Identify target project
 

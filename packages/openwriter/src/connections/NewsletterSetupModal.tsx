@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import '../newsletter/NewsletterComposeModal.css';
+import './NewsletterSetupModal.css';
 
 interface Connection {
   id: string;

@@ -33,7 +33,7 @@ This newsletter is **behind the scenes**, not a content recap. Readers can go re
 - `/newsletter scaffold` — Create doc with empty skeleton structure (header, HRs, placeholder sections, footer)
 - `/newsletter gather` — Data collection only (metrics, top tweets, article)
 - `/newsletter review` — Pre-send checklist + /polish 90/100 scoring on every section
-- `/newsletter send` — Send via OpenWriter newsletter system
+- `/newsletter send` — Publish to your OpenWriter site, which emails it to your subscribers
 - `/newsletter status` — Subscriber count, last sent, domain status
 
 ## Critical Rules
@@ -491,13 +491,14 @@ Present the full review to the author. Fix any issues. Then proceed to send.
 
 ## Phase 7: Send
 
-After author approves the review:
+After author approves the review, publish the issue to the author's site and email it to their subscribers:
 ```
-mcp__openwriter__send_newsletter({
-  subject: "The Sleep Brief #N — [hook]",
-  format: "html"
+mcp__openwriter__publish_to_site({
+  title: "The Sleep Brief #N — [hook]",
+  send_email: true
 })
 ```
+Add `email_only: true` to send it by email without putting it on the site. A post is emailed once.
 
 ## Newsletter Structure
 
@@ -614,4 +615,4 @@ Brand-specific config lives next to this skill: [config.md](config.md) — newsl
 $0/week. All data sources are free:
 - Tweet metrics: fxtwitter (free)
 - Article content: OpenWriter docs (local)
-- Newsletter send: via OpenWriter's newsletter system
+- Newsletter send: a post on the author's OpenWriter site, emailed to its subscribers

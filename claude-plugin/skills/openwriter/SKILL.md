@@ -644,7 +644,6 @@ Requires authentication via `request_login_code` + `verify_login`. All publish t
 
 | Tool | Key Params | Description |
 |------|-----------|-------------|
-| `send_newsletter` | `subject?`, `format?`, `test_email?`, `subscriber_ids?`, `exclude_issue_id?` | Send current document as newsletter to all subscribers, a subset, or a test address |
 | `list_subscribers` | `limit?`, `offset?` | List newsletter subscribers with IDs, emails, names |
 | `add_subscriber` | `email`, `name?` | Add a single subscriber |
 | `import_subscribers` | `file?`, `csv_text?` | Bulk import from CSV (auto-detects ConvertKit, Mailchimp, Substack, Beehiiv formats) |
@@ -652,10 +651,7 @@ Requires authentication via `request_login_code` + `verify_login`. All publish t
 | `get_newsletter_analytics` | `issue_id` | Detailed drill-down: delivery stats, per-subscriber events, recipient list |
 | `get_subscribe_embed` | *(none)* | Get public subscribe URL + HTML/JS embed snippets for signup forms on external sites |
 
-**Subscriber selection** — `send_newsletter` supports targeting:
-- **All subscribers** (default) — omit both params
-- **Specific subscribers** — pass `subscriber_ids: ["id1", "id2"]` (use `list_subscribers` for IDs)
-- **Send to remaining** — pass `exclude_issue_id: "..."` to send to everyone who did NOT receive that issue (use `list_newsletter_issues` for issue IDs)
+**Sending:** to email your subscribers, publish the document to your site with `publish_to_site({ send_email: true })` (add `email_only: true` to keep it off the site). Site posts are emailed to the site's members; see *Publishing to your site* below.
 
 **Analytics workflow:**
 ```

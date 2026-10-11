@@ -71,10 +71,6 @@ export default function NewsletterAnalyticsModal({ docId, title, onClose }: News
   const [activeTab, setActiveTab] = useState<'links' | 'activity'>('links');
   const [eventFilter, setEventFilter] = useState<EventFilter>('all');
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
-  const [resendOpen, setResendOpen] = useState(false);
-  const [resendSubject, setResendSubject] = useState('');
-  const [resendSending, setResendSending] = useState(false);
-  const [resendResult, setResendResult] = useState<{ sent: number; failed: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   // Load issues on mount
@@ -103,9 +99,6 @@ export default function NewsletterAnalyticsModal({ docId, title, onClose }: News
     if (!selectedIssueId) return;
     let cancelled = false;
     setLoadingAnalytics(true);
-    setResendOpen(false);
-    setResendResult(null);
-    setResendSubject('');
     (async () => {
       try {
         const result = await mcpCall('get_newsletter_analytics', { issue_id: selectedIssueId });
@@ -158,40 +151,12 @@ export default function NewsletterAnalyticsModal({ docId, title, onClose }: News
     ? analytics.subscriber_events.filter(e => e.event_type === 'dropped').length
     : 0;
 
-  const nonOpenerCount = analytics ? Math.max(0, sent - analytics.stats.unique_opens) : 0;
-  const elapsedMs = analytics?.issue.sent_at ? Date.now() - new Date(analytics.issue.sent_at).getTime() : 0;
-  const elapsedHours = Math.floor(elapsedMs / 3600000);
-  const alreadyResent = !!(analytics?.issue.resent_at || resendResult);
-
   const elapsedDisplay = (ms: number) => {
     const h = Math.floor(ms / 3600000);
     if (h < 1) return 'just now';
     if (h < 24) return `${h}h ago`;
     const d = Math.floor(h / 24);
     return `${d}d ${h % 24}h ago`;
-  };
-
-  const handleResend = async () => {
-    if (!resendSubject.trim() || resendSending) return;
-    setResendSending(true);
-    try {
-      const result = await mcpCall('resend_to_unopened', {
-        issue_id: selectedIssueId,
-        subject: resendSubject,
-      });
-      if (result.error) {
-        setError(result.error);
-        setStage('error');
-      } else {
-        setResendResult({ sent: result.sent, failed: result.failed });
-        setResendOpen(false);
-      }
-    } catch (err: any) {
-      setError(err.message);
-      setStage('error');
-    } finally {
-      setResendSending(false);
-    }
   };
 
   const isUnsubEvent = (e: AnalyticsData['subscriber_events'][0]) =>
@@ -308,50 +273,9 @@ export default function NewsletterAnalyticsModal({ docId, title, onClose }: News
                   )}
                 </div>
 
-                {/* Resend to non-openers */}
-                {nonOpenerCount > 0 && !alreadyResent && (
-                  <div className="na-resend">
-                    {!resendOpen ? (
-                      <button
-                        className="na-resend-toggle"
-                        onClick={() => {
-                          setResendOpen(true);
-                          setResendSubject(analytics.issue.subject);
-                        }}
-                      >
-                        Resend to {nonOpenerCount.toLocaleString()} non-openers <span style={{ float: 'right' }}>›</span>
-                      </button>
-                    ) : (
-                      <div className="na-resend-panel">
-                        <div className="na-resend-label-row">
-                          <span className="na-resend-label">New subject line</span>
-                          <span className="na-resend-meta">sent {elapsedDisplay(elapsedMs)}{elapsedHours < 48 ? ' · consider waiting 48h' : ''}</span>
-                        </div>
-                        <input
-                          className="na-resend-input"
-                          type="text"
-                          value={resendSubject}
-                          onChange={(e) => setResendSubject(e.target.value)}
-                          placeholder="Try a different angle"
-                        />
-                        <div className="na-resend-actions">
-                          <button className="na-resend-cancel" onClick={() => setResendOpen(false)}>Cancel</button>
-                          <button
-                            className="na-resend-send"
-                            onClick={handleResend}
-                            disabled={resendSending || !resendSubject.trim()}
-                          >
-                            {resendSending ? 'Sending...' : `Send to ${nonOpenerCount.toLocaleString()}`}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {alreadyResent && (
+                {analytics.issue.resent_at && (
                   <div className="na-resend-done">
-                    Resent {analytics.issue.resent_at ? elapsedDisplay(Date.now() - new Date(analytics.issue.resent_at).getTime()) : 'just now'}
-                    {resendResult ? ` — ${resendResult.sent} sent` : ''}
+                    Resent {elapsedDisplay(Date.now() - new Date(analytics.issue.resent_at).getTime())}
                     {analytics.issue.resend_subject ? ` — "${analytics.issue.resend_subject}"` : ''}
                   </div>
                 )}

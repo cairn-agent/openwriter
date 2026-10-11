@@ -772,25 +772,6 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
     }
   });
 
-  // Sync browser editor content to server state — guarantees server has latest before MCP calls.
-  // Used by compose modals that need to read server state via MCP tools.
-  app.post('/api/documents/sync-content', (req, res) => {
-    try {
-      const { document: doc, filename } = req.body;
-      if (!doc || !filename) {
-        res.status(400).json({ error: 'document and filename required' });
-        return;
-      }
-      if (filename === getActiveFilename()) {
-        updateDocument(doc);
-        save();
-      }
-      res.json({ ok: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
   app.post('/api/documents/switch', (req, res) => {
     try {
       const alreadyActive = req.body.filename === getActiveFilename();

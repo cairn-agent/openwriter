@@ -682,18 +682,6 @@ export default function App() {
     }
   }, [sendMessage, docVersionRef]);
 
-  // Sync editor content to server via HTTP — guarantees server state is current before MCP calls.
-  // Unlike flushCurrentDoc (WebSocket, fire-and-forget), this awaits confirmation.
-  const syncContentToServer = useCallback(async () => {
-    const doc = lastDocJson.current || editorRef.current?.getJSON();
-    if (!doc) return;
-    await fetch('/api/documents/sync-content', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ document: doc, filename: currentFilename.current }),
-    });
-  }, []);
-
   // Flush on browser close / tab switch to prevent data loss
   useEffect(() => {
     const flush = () => {
@@ -1289,7 +1277,6 @@ export default function App() {
               filename={activeFilename}
               title={title}
               onTitleChange={handleTitleChange}
-              onBeforeSend={syncContentToServer}
             >
               <PadEditor
                 documentId={(metadata?.docId as string) || activeFilename}
