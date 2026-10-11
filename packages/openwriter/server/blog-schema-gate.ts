@@ -108,20 +108,33 @@ function article(word: string): string {
  * browser toast ever shows raw Zod text — this is the only place that touches
  * the issue shape. Covers the codes a content schema actually produces; the
  * default keeps everything else human ("<field> is invalid").
+ *
+ * Reads both issue shapes: zod 3 (`invalid_enum_value`, `received`, `type`,
+ * `invalid_string`) and zod 4 (`invalid_value`, `input`, `origin`,
+ * `invalid_format`). The shim binds the schema to OpenWriter's own zod.
  */
 export function friendlyZodIssue(issue: any): FrontmatterIssue {
   const field = Array.isArray(issue?.path) && issue.path.length ? issue.path.join('.') : 'frontmatter';
   const code = String(issue?.code || 'invalid');
   let message: string;
   switch (code) {
-    case 'invalid_enum_value': {
-      const opts = Array.isArray(issue.options) ? issue.options.join(', ') : '';
-      message = `${field} "${issue.received}" isn't allowed — pick one of: ${opts}`;
+    case 'invalid_enum_value':
+    case 'invalid_value': {
+      const options = issue.options ?? issue.values;
+      const opts = Array.isArray(options) ? options.join(', ') : '';
+      const received = issue.received ?? issue.input;
+      message = received === undefined
+        ? `${field} isn't allowed — pick one of: ${opts}`
+        : `${field} "${received}" isn't allowed — pick one of: ${opts}`;
       break;
     }
     case 'invalid_type': {
-      // Zod reports a missing required field as invalid_type with received "undefined".
-      if (issue.received === 'undefined' || issue.received === 'null') {
+      // Zod reports a missing required field as invalid_type: zod 3 with received
+      // "undefined", zod 4 with no input (reportInput) or a message naming it.
+      const missing = issue.received === 'undefined' || issue.received === 'null'
+        || ('input' in issue && (issue.input === undefined || issue.input === null))
+        || /received (undefined|null)$/.test(String(issue.message ?? ''));
+      if (missing) {
         message = `${field} is missing`;
       } else if (issue.expected === 'date') {
         message = `${field} must be a date`;
@@ -130,11 +143,13 @@ export function friendlyZodIssue(issue: any): FrontmatterIssue {
       }
       break;
     }
-    case 'invalid_string': {
-      if (issue.validation === 'url') message = `${field} must be a valid URL`;
-      else if (issue.validation === 'email') message = `${field} must be a valid email`;
-      else if (issue.validation === 'datetime') message = `${field} must be a valid date-time`;
-      else if (issue.validation === 'uuid') message = `${field} must be a valid UUID`;
+    case 'invalid_string':
+    case 'invalid_format': {
+      const format = issue.validation ?? issue.format;
+      if (format === 'url') message = `${field} must be a valid URL`;
+      else if (format === 'email') message = `${field} must be a valid email`;
+      else if (format === 'datetime') message = `${field} must be a valid date-time`;
+      else if (format === 'uuid') message = `${field} must be a valid UUID`;
       else message = `${field} has an invalid format`;
       break;
     }
@@ -142,7 +157,7 @@ export function friendlyZodIssue(issue: any): FrontmatterIssue {
       message = `${field} must be a valid date`;
       break;
     case 'too_small': {
-      const t = issue.type;
+      const t = issue.type ?? issue.origin;
       const n = issue.minimum;
       if (t === 'string') message = `${field} is too short (minimum ${n} characters)`;
       else if (t === 'array') message = `${field} needs at least ${n} item${n === 1 ? '' : 's'}`;
@@ -151,7 +166,7 @@ export function friendlyZodIssue(issue: any): FrontmatterIssue {
       break;
     }
     case 'too_big': {
-      const t = issue.type;
+      const t = issue.type ?? issue.origin;
       const n = issue.maximum;
       if (t === 'string') message = `${field} is too long (maximum ${n} characters)`;
       else if (t === 'array') message = `${field} allows at most ${n} item${n === 1 ? '' : 's'}`;
@@ -328,7 +343,9 @@ export async function validateBlogFrontmatter(opts: {
     };
   }
 
-  const result = loaded.schema.safeParse(data);
+  // reportInput: zod 4 leaves the offending value off each issue unless asked
+  // (zod 3 always carried it as `received`). zod 3 ignores the option.
+  const result = loaded.schema.safeParse(data, { reportInput: true });
   if (result.success) {
     return { ok: true, configPath: configRel, collection: loaded.collection || undefined };
   }

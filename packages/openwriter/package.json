@@ -38,6 +38,8 @@
     "lint": "eslint src server bin --ext .ts,.tsx"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.296",
+    "@anthropic-ai/sdk": "^0.133.0",
     "@fontsource-variable/crimson-pro": "^5.2.8",
     "@fontsource-variable/dm-sans": "^5.2.8",
     "@fontsource-variable/inter": "^5.2.8",
@@ -52,7 +54,7 @@
     "@fontsource/libre-baskerville": "^5.2.10",
     "@fontsource/space-mono": "^5.2.9",
     "@google/genai": "^1.42.0",
-    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@tiptap/core": "^3.0.0",
     "@tiptap/extension-code-block-lowlight": "^3.19.0",
     "@tiptap/extension-highlight": "^3.19.0",
@@ -91,7 +93,7 @@
     "trash": "^10.1.0",
     "twitter-text": "^3.1.0",
     "ws": "^8.18.0",
-    "zod": "^3.25.76"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

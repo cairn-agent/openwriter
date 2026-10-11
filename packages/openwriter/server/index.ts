@@ -12,7 +12,6 @@ import { existsSync, readFileSync } from 'fs';
 import { setupWebSocket, broadcastAgentStatus, broadcastDocumentSwitched, broadcastDocumentsChanged, broadcastWorkspacesChanged, broadcastMetadataChanged, broadcastPendingDocsChanged, broadcastSyncStatus, broadcastWritingStarted, broadcastWritingFinished, broadcastCommentsChanged, broadcastActivityLogSeed, refreshLiveDocViewers } from './ws.js';
 import { TOOL_REGISTRY } from './mcp.js';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import { save, cancelDebouncedSave, load, getDocument, getTitle, getFilePath, getDocId, getMetadata, getStatus, updateDocument, setMetadata, applyTextEdits, isAgentLocked, getPendingDocInfo, getDocTagsByFilename, addDocTag, removeDocTag, markAllNodesAsPending, updatePendingCacheForActiveDoc, removePendingCacheEntry, clearAllCaches, stripPendingAttrs, stripPendingAttrsFromFile, setAutoAcceptOnFile, setSortRequestOnFile, clearSortRequestOnFile, bumpDocVersion, markAsAgentStub, extractText } from './state.js';
 import { syncPostHistory } from './post-sync.js';
 import { enrollManualPostForAutoplug } from './autoplug-enroll.js';
@@ -198,7 +197,7 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
     const tools = TOOL_REGISTRY.map((t) => ({
       name: t.name,
       description: t.description,
-      inputSchema: zodToJsonSchema(z.object(t.schema)),
+      inputSchema: z.toJSONSchema(z.object(t.schema), { unrepresentable: 'any' }),
     }));
     res.json({ tools });
   });

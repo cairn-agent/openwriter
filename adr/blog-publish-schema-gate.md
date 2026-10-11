@@ -94,3 +94,9 @@ class this gate exists to close. Single source of truth = the repo's `config.ts`
   between write-file and commit. Motivated by the live `category: "Updates"` →
   red build → silent 404 incident the same day. Single-source-of-truth decision
   (live `config.ts`, never a mirror) recorded here per the chip brief.
+- **2026-10-10** — OpenWriter moved to zod 4 (the Claude Agent SDK requires it),
+  and the shim binds a site's schema to OpenWriter's own zod, so the issues the
+  gate reads changed shape. `friendlyZodIssue` now reads both zod 3 and zod 4
+  issues (`invalid_value`/`values`/`input`, `invalid_format`/`format`,
+  `origin` on size issues), and `safeParse` passes `reportInput: true` so the
+  rejected value still appears in the message. Same messages as before.

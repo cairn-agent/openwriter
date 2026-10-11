@@ -1009,7 +1009,7 @@ export const TOOL_REGISTRY: ToolDef[] = [
     description: 'Update frontmatter metadata on a document. Merges with existing metadata — only provided keys are changed. Use for summaries, character lists, tags, arc notes, or any organizational data. Saves to disk immediately. Lifecycle convention (v0.19.0): use `set_metadata({ status: "canonical" })` when a doc commits to the workspace spine (Beats locks, Research Note becomes load-bearing); use `set_metadata({ status: "draft" })` when a doc is superseded or demoted. Status is the agent\'s field — the enrichment minion never writes it.',
     schema: {
       docId: z.string().describe('Target document by docId (8-char hex from list_documents).'),
-      metadata: z.record(z.any()).describe('Key-value pairs to merge into frontmatter. Set a key to null to remove it.'),
+      metadata: z.record(z.string(), z.any()).describe('Key-value pairs to merge into frontmatter. Set a key to null to remove it.'),
     },
     handler: async ({ docId, metadata: rawUpdates }: { docId: string; metadata: Record<string, any> }) => {
       const target = resolveDocTarget(docId);
@@ -1334,8 +1334,8 @@ export const TOOL_REGISTRY: ToolDef[] = [
     schema: {
       workspaceFile: z.string().describe('Workspace manifest filename'),
       context: z.object({
-        characters: z.record(z.string()).optional().describe('Character name → description (merged)'),
-        settings: z.record(z.string()).optional().describe('Setting name → description (merged)'),
+        characters: z.record(z.string(), z.string()).optional().describe('Character name → description (merged)'),
+        settings: z.record(z.string(), z.string()).optional().describe('Setting name → description (merged)'),
         rules: z.array(z.string()).optional().describe('Writing rules for this workspace (replaces)'),
         logline: z.string().nullable().optional().describe('One-sentence "what this workspace is for". Set null to clear.'),
         domain: z.string().nullable().optional().describe('Subject area (e.g. "Marine biology"). Set null to clear.'),
@@ -1511,7 +1511,7 @@ export const TOOL_REGISTRY: ToolDef[] = [
         replace: z.string().optional().describe('Replacement text (omit to keep text, just change marks)'),
         addMark: z.object({
           type: z.string(),
-          attrs: z.record(z.any()).optional(),
+          attrs: z.record(z.string(), z.any()).optional(),
         }).optional().describe('Mark to add to the matched text (e.g. link, bold)'),
         removeMark: z.string().optional().describe('Mark type to remove from matched text'),
       })).describe('Array of text edits to apply'),
@@ -2165,7 +2165,7 @@ let mcpServerInstance: McpServer | null = null;
  * preprocess step that opportunistically parses string input as JSON
  * before validation.
  */
-function jsonCoerce<T extends z.ZodTypeAny>(inner: T): z.ZodEffects<z.ZodTypeAny, z.input<T>, unknown> {
+function jsonCoerce<T extends z.ZodTypeAny>(inner: T): z.ZodType<z.output<T>, unknown> {
   return z.preprocess((val) => {
     if (typeof val !== 'string') return val;
     const trimmed = val.trim();
