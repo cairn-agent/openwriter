@@ -29,6 +29,7 @@ import { removeDocFromAllWorkspaces } from './workspaces.js';
 import { publicUrl, HOSTED_ENABLED_PLUGINS } from './hosted.js';
 import { securityGate } from './security-gate.js';
 import { createDocumentFromRequest } from './document-create.js';
+import { createAiRouter } from './ai/ai-routes.js';
 import { HOSTED, resolveDocPath, getDataDir, getActiveProfile, setActiveProfile, isProfilePinned, listProfiles, createProfile, deleteProfile, listTrashedProfiles, restoreProfile, saveConfig, readConfig } from './helpers.js';
 import { claimDataLock, releaseDataLock } from './server-lock.js';
 import { createImageRouter } from './image-upload.js';
@@ -177,6 +178,9 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
 
   // Mount task CRUD routes
   app.use(createTaskRouter());
+
+  // The writer's Anthropic key, inline edits and the chat. adr: adr/writer-key-ai.md
+  app.use(createAiRouter());
 
   // Newsletter analytics proxy routes
   app.get('/api/publications', async (req, res) => {
