@@ -19,6 +19,9 @@ export interface ServerModules {
   getDocId: () => string;
   setMetadata: (updates: Record<string, any>) => void;
   bumpDocVersion: () => number;
+  // After a GitHub pull: reload the changed files into the running server.
+  // adr: adr/two-way-sync.md
+  reloadChangedFiles: (changedPaths: string[]) => { restoredActive: string | null };
   // ws.js
   broadcastSyncStatus: (status: any) => void;
   // After any tool mutates + persists doc metadata it must broadcast so every
@@ -28,6 +31,8 @@ export interface ServerModules {
   // these. adr: adr/plugin-metadata-broadcast.md
   broadcastMetadataChanged: (metadata: Record<string, any>) => void;
   broadcastDocumentsChanged: () => void;
+  broadcastWorkspacesChanged: () => void;
+  broadcastPendingDocsChanged: () => void;
   // Fire a transient toast in every connected browser. Used by post_to_blog to
   // surface a schema-gate rejection to whoever clicked Publish.
   broadcastToast: (message: string, kind?: 'info' | 'error', durationMs?: number) => void;
@@ -88,9 +93,12 @@ export async function getServerModules(): Promise<ServerModules> {
     getDocId: state.getDocId,
     setMetadata: state.setMetadata,
     bumpDocVersion: state.bumpDocVersion,
+    reloadChangedFiles: state.reloadChangedFiles,
     broadcastSyncStatus: ws.broadcastSyncStatus,
     broadcastMetadataChanged: ws.broadcastMetadataChanged,
     broadcastDocumentsChanged: ws.broadcastDocumentsChanged,
+    broadcastWorkspacesChanged: ws.broadcastWorkspacesChanged,
+    broadcastPendingDocsChanged: ws.broadcastPendingDocsChanged,
     broadcastToast: ws.broadcastToast,
     tiptapToMarkdown: markdown.tiptapToMarkdown,
     validateBlogFrontmatter: schemaGate.validateBlogFrontmatter,

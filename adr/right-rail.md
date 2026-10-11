@@ -259,3 +259,7 @@ every file (about 0.4 ms each on Windows), while the tab waited for its doc.
 Headlines are display-only, so it now uses `cachedDocIndex()`, the listing
 cache without re-checking the disk. The Backlinks tab's outbound list comes from
 this tab's metadata (see adr/per-tab-view.md, same date).
+
+### 2026-10-10 — Sync button reads as two-way
+
+The right-rail Sync button now says it syncs with GitHub both ways, and its details dropdown also lists conflict copies from the last sync (files changed in both places). No rail structure changed. adr: adr/two-way-sync.md

@@ -53,24 +53,31 @@ export default function SyncButton({ syncStatus, onSync }: SyncButtonProps) {
   const [loadingPending, setLoadingPending] = useState(false);
   const pendingRef = useRef<HTMLDivElement>(null);
 
+  // Files that changed on both sides: the last sync kept ours and saved
+  // GitHub's version next to it. adr: adr/two-way-sync.md
+  const conflicts = syncStatus.conflicts ?? [];
+  const hasPending = syncStatus.state === 'pending' && !!syncStatus.pendingFiles;
+  const hasDetails = hasPending || conflicts.length > 0;
+
   const togglePendingDetails = useCallback(() => {
     if (showPending) {
       setShowPending(false);
       return;
     }
     setShowPending(true);
+    if (!hasPending) { setPendingFiles([]); return; }
     setLoadingPending(true);
     fetch('/api/sync/pending')
       .then(r => r.json())
       .then((files: PendingFile[]) => setPendingFiles(files))
       .catch(() => setPendingFiles([]))
       .finally(() => setLoadingPending(false));
-  }, [showPending]);
+  }, [showPending, hasPending]);
 
-  // Close dropdown when leaving pending state (e.g. sync starts or completes)
+  // Close dropdown when there is nothing left to show (e.g. sync starts)
   useEffect(() => {
-    if (syncStatus.state !== 'pending') setShowPending(false);
-  }, [syncStatus.state]);
+    if (!hasDetails || syncStatus.state === 'syncing') setShowPending(false);
+  }, [hasDetails, syncStatus.state]);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -90,7 +97,7 @@ export default function SyncButton({ syncStatus, onSync }: SyncButtonProps) {
         className={`titlebar-btn sync-btn-state sync-${syncStatus.state}`}
         onClick={onSync}
         disabled={syncStatus.state === 'syncing'}
-        title={syncStatus.lastSyncTime ? `Last synced: ${new Date(syncStatus.lastSyncTime).toLocaleString()}` : 'Sync to GitHub'}
+        title={`Sync with GitHub: get changes from GitHub and send yours${syncStatus.lastSyncTime ? `\nLast synced: ${new Date(syncStatus.lastSyncTime).toLocaleString()}` : ''}`}
       >
         {syncStatus.state === 'unconfigured' && <><CloudIcon /> Sync</>}
         {syncStatus.state === 'synced' && <><CloudCheckIcon /> Synced</>}
@@ -98,11 +105,11 @@ export default function SyncButton({ syncStatus, onSync }: SyncButtonProps) {
         {syncStatus.state === 'syncing' && <><div className="sync-btn-spinner" /> Syncing...</>}
         {syncStatus.state === 'error' && <><CloudErrorIcon /> Retry</>}
       </button>
-      {syncStatus.state === 'pending' && syncStatus.pendingFiles && syncStatus.pendingFiles > 0 && (
+      {hasDetails && (
         <button
           className="sync-details-btn"
           onClick={togglePendingDetails}
-          title="View pending changes"
+          title={conflicts.length ? 'Some files changed in both places' : 'View changes not yet synced'}
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <path d={showPending ? 'M3 7.5L6 4.5L9 7.5' : 'M3 4.5L6 7.5L9 4.5'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -111,8 +118,24 @@ export default function SyncButton({ syncStatus, onSync }: SyncButtonProps) {
       )}
       {showPending && (
         <div className="sync-pending-dropdown">
-          <div className="sync-pending-header">Changes to push</div>
-          {loadingPending ? (
+          {conflicts.length > 0 && (
+            <>
+              <div className="sync-pending-header">Changed in both places</div>
+              <div className="sync-pending-loading">
+                Your version was kept. GitHub's version was saved next to it:
+              </div>
+              <div className="sync-pending-list">
+                {conflicts.map((f) => (
+                  <div key={f} className="sync-pending-item sync-file-added">
+                    <span className="sync-file-badge">!</span>
+                    <span className="sync-file-name">{f}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          {hasPending && <div className="sync-pending-header">Changes not yet synced</div>}
+          {!hasPending ? null : loadingPending ? (
             <div className="sync-pending-loading">Loading...</div>
           ) : pendingFiles.length === 0 ? (
             <div className="sync-pending-loading">No changes</div>

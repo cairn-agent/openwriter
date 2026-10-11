@@ -21,7 +21,7 @@ process.env.OW_PUBLIC_URL = 'https://app.openwriter.io';
 process.on('exit', () => { try { rmSync(dataDir, { recursive: true, force: true }); } catch { /* best-effort */ } });
 
 const { ROOT_DIR } = await import('../dist/server/helpers.js');
-const { verifyGatewaySignature, authorizeGatewayRequest, hostedConfigProblems } = await import('../dist/server/hosted.js');
+const { verifyGatewaySignature, authorizeGatewayRequest, hostedConfigProblems, HOSTED_ENABLED_PLUGINS } = await import('../dist/server/hosted.js');
 const { TOOL_REGISTRY } = await import('../dist/server/mcp.js');
 const { discoverPlugins } = await import('../dist/server/plugin-discovery.js');
 
@@ -69,9 +69,22 @@ const names = new Set(TOOL_REGISTRY.map((t) => t.name));
 for (const t of ['open_file', 'reload_from_disk', 'export_manuscript']) assert(!names.has(t), `${t} is absent`);
 for (const t of ['read_pad', 'write_to_pad', 'create_document', 'compile_manuscript']) assert(names.has(t), `${t} is present`);
 const plugins = new Set(discoverPlugins().map((p) => p.name));
-assert(!plugins.has('@openwriter/plugin-github'), 'github plugin (blog + git sync) is not discovered');
+assert(plugins.has('@openwriter/plugin-github'), 'github plugin is discovered (docs sync)');
+assert(HOSTED_ENABLED_PLUGINS.includes('@openwriter/plugin-github'), 'github plugin is enabled at boot');
 assert(!plugins.has('@openwriter/plugin-x-api'), 'x-api plugin is not discovered');
 assert(plugins.has('@openwriter/plugin-publish'), 'publish plugin is still discovered');
+
+// adr: adr/two-way-sync.md
+console.log('\nGitHub plugin in hosted mode (docs sync only):');
+const { default: github } = await import('../../../plugins/github/dist/index.js');
+assert(github.mcpTools({}).length === 0, 'no blog tools');
+const routes = [];
+const recorder = { get: (p) => routes.push(p), post: (p) => routes.push(p), put: (p) => routes.push(p), delete: (p) => routes.push(p), use: (p) => routes.push(String(p)) };
+await github.registerRoutes({ app: recorder, config: {}, dataDir });
+assert(routes.length > 0 && routes.every((p) => p.startsWith('/api/sync/')), `only /api/sync/* routes (${routes.length})`);
+for (const p of ['/api/sync/status', '/api/sync/setup', '/api/sync/push', '/api/sync/device/start', '/api/sync/device/poll']) {
+  assert(routes.includes(p), `${p} is registered`);
+}
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

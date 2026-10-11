@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Added
+- Sync with GitHub works both ways. Sync sends your changes and brings back the changes made in your other OpenWriter, and open documents update in place. When a file changed in both places, your version stays and GitHub's is saved next to it as a "(from GitHub …)" copy, so no writing is lost.
+- Connect Existing brings down every document already in the repository.
+- Sign in with GitHub using a short code, no token to paste, where the server has a GitHub client id set (`OW_GITHUB_CLIENT_ID`).
+
 ## [0.46.1] - 2026-10-07
 
 This release includes everything in 0.46.0, which was tagged but never published to npm.

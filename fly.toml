@@ -15,6 +15,9 @@ primary_region = "iad"
   OW_DATA_DIR = "/data"
   OW_PUBLIC_URL = "https://app.openwriter.io"
   PORT = "8080"
+  # Public client id of the GitHub OAuth App (device flow enabled) behind
+  # "Sign in with GitHub" for docs sync. Not a secret. adr: adr/two-way-sync.md
+  # OW_GITHUB_CLIENT_ID = "<client id>"
 
 [mounts]
   source = "writer_data"

@@ -80,3 +80,7 @@ guarantee belongs.
 ### 2026-10-10 — bridge gains rootDir (no change to this invariant)
 
 - The github `ServerModules` bridge now also exposes `rootDir` (the server's `ROOT_DIR`), so the blog clone and inspect caches follow the configured data root instead of a hard-coded `~/.openwriter`. Broadcast rules are untouched.
+
+### 2026-10-10 — bridge gains the pull refresh (no change to this invariant)
+
+- The github `ServerModules` bridge now also exposes `reloadChangedFiles`, `broadcastWorkspacesChanged` and `broadcastPendingDocsChanged`. After a two-way sync merges GitHub's changes, the plugin reloads the changed files and broadcasts the document list, workspaces and pending docs, so every client converges without a reload, the same producer-side rule as metadata writebacks. adr: adr/two-way-sync.md

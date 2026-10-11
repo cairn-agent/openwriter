@@ -27,7 +27,7 @@ import { importGoogleDoc } from './gdoc-import.js';
 import { createVersionRouter } from './version-routes.js';
 import { clearVersionsCache } from './versions.js';
 import { removeDocFromAllWorkspaces } from './workspaces.js';
-import { authorizeGatewayRequest, isPublicOrigin, publicUrl } from './hosted.js';
+import { authorizeGatewayRequest, isPublicOrigin, publicUrl, HOSTED_ENABLED_PLUGINS } from './hosted.js';
 import { HOSTED, resolveDocPath, getDataDir, getActiveProfile, setActiveProfile, isProfilePinned, listProfiles, createProfile, deleteProfile, listTrashedProfiles, restoreProfile, saveConfig, readConfig } from './helpers.js';
 import { claimDataLock, releaseDataLock } from './server-lock.js';
 import { createImageRouter } from './image-upload.js';
@@ -1327,6 +1327,16 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
     const result = await pluginManager.enable(ghName);
     if (!result.success) console.error(`[Plugin migration] ${result.error}`);
     else console.log('[Plugin migration] auto-enabled @openwriter/plugin-github for existing sync user');
+  }
+
+  // The online copy runs a fixed plugin set, enabled at boot whatever config
+  // says. adr: adr/two-way-sync.md
+  if (HOSTED) {
+    for (const name of HOSTED_ENABLED_PLUGINS) {
+      if (readConfig().plugins?.[name]?.enabled) continue;
+      const result = await pluginManager.enable(name);
+      if (!result.success) console.error(`[Plugin] ${result.error}`);
+    }
   }
 
   // Enabled plugins' context menu items (backward-compatible)

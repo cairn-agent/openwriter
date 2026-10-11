@@ -80,6 +80,8 @@ export interface SyncStatus {
   lastSyncTime?: string;
   pendingFiles?: number;
   error?: string;
+  /** Conflict copies the last sync saved (files changed on both sides). adr: adr/two-way-sync.md */
+  conflicts?: string[];
 }
 
 export interface IdRewrite { oldId: string; newId: string }

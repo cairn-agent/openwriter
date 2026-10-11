@@ -571,6 +571,11 @@ function handleWatcherEvent(): void {
   // skip. Only genuine external writes have diskMtime > loadedMtime.
   if (diskMtime === state.loadedMtime) return;
 
+  reloadActiveAndNotify('external write');
+}
+
+/** Reload the active doc from disk and tell the tabs showing it. */
+function reloadActiveAndNotify(reason: string): void {
   const reloaded = reloadActiveDocFromDisk();
   if (!reloaded) return;
 
@@ -593,7 +598,37 @@ function handleWatcherEvent(): void {
   const suffix = orphanCount || staleCount
     ? ` (${orphanCount} orphan, ${staleCount} stale-baseline pending entries)`
     : '';
-  console.log(`[State] reload active doc from external write: ${reloaded.filename}${suffix}`);
+  console.log(`[State] reload active doc from ${reason}: ${reloaded.filename}${suffix}`);
+}
+
+/**
+ * Pick up files a GitHub pull changed in the data folder, without a restart.
+ * The active doc reloads like an external write; any other doc drops its cache
+ * entry and its viewers get the new copy. If the pull deleted the active doc,
+ * it is written back from memory (the writer has it open) and its path is
+ * returned so the sync can commit it again. adr: adr/two-way-sync.md
+ */
+export function reloadChangedFiles(changedPaths: string[]): { restoredActive: string | null } {
+  const changed = new Set(changedPaths.map((p) => canonicalizePath(p)));
+  if (changed.size === 0) return { restoredActive: null };
+  invalidateBacklinksCache();
+  let restoredActive: string | null = null;
+  for (const path of changed) {
+    invalidateDocCache(path);
+    if (path === state.filePath) continue;
+    if (path.endsWith('.md') && existsSync(path)) notifyDocFileWritten(path.split(/[/\\]/).pop() || '');
+  }
+  if (state.filePath && changed.has(state.filePath)) {
+    if (existsSync(state.filePath)) {
+      reloadActiveAndNotify('GitHub pull');
+    } else {
+      bumpDocVersion();
+      writeToDisk();
+      startActiveDocWatcher();
+      restoredActive = state.filePath;
+    }
+  }
+  return { restoredActive };
 }
 
 /** Start (or restart) the watcher on the active doc's filePath. Called

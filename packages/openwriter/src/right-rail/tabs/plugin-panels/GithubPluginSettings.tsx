@@ -64,6 +64,7 @@ async function mcpCall<T = any>(tool: string, args: Record<string, unknown> = {}
 export default function GithubPluginSettings() {
   const [sites, setSites] = useState<BlogSite[]>([]);
   const [loading, setLoading] = useState(true);
+  const [blogOff, setBlogOff] = useState(false);
 
   const [addStage, setAddStage] = useState<AddStage>('closed');
   const [repoUrl, setRepoUrl] = useState('');
@@ -76,6 +77,9 @@ export default function GithubPluginSettings() {
     setLoading(true);
     try {
       const result = await mcpCall<{ sites?: BlogSite[]; error?: string }>('list_blog_sites');
+      // The web app runs this plugin for document sync only, without the blog
+      // tools. adr: adr/two-way-sync.md
+      setBlogOff(!!result?.error?.startsWith('Unknown tool'));
       setSites(result?.sites || []);
     } finally {
       setLoading(false);
@@ -163,6 +167,16 @@ export default function GithubPluginSettings() {
     }
     await refetch();
   };
+
+  if (blogOff) {
+    return (
+      <div className="github-plugin-settings">
+        <div className="github-plugin-settings__empty">
+          Document sync with GitHub runs from the Sync button. Publishing to a blog repo runs in the desktop app.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="github-plugin-settings">

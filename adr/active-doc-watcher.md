@@ -120,3 +120,7 @@ Reload notices clear when document identity changes; same-document external relo
 ### 2026-09-28 — reload reaches attached tabs only
 
 `document-reloaded` and external-write conflicts now go only to the tabs attached to the live doc. A detached tab shows another doc, or a frozen copy of this one, and must not adopt the reload. adr: adr/per-tab-view.md
+
+### 2026-10-10 — a GitHub pull reloads through the same pathway
+
+`handleWatcherEvent`'s reload-and-notify step is now `reloadActiveAndNotify(reason)`, shared with `reloadChangedFiles` (`server/state.ts`). After a two-way sync merges GitHub's changes, the active doc reloads through the same single pathway as any external write, without waiting for fs.watch. If the merge deleted the active doc, it is written back from memory instead and the watcher restarted. adr: adr/two-way-sync.md

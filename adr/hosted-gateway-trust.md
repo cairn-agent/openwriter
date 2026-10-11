@@ -37,8 +37,10 @@ could otherwise drive every route, including `/api/mcp-call`, which runs any too
   Fly's checks need no secret.
 - **Hosted tools are a fixed set.** Tools that reach the local machine (`open_file`,
   `reload_from_disk`, `export_manuscript` to a file path) are removed from `TOOL_REGISTRY`, so
-  they are absent from every tool list. The github plugin (blog and git sync) and the x-api
-  plugin are never discovered, and user-installed plugins are not scanned. Profile create,
+  they are absent from every tool list. The x-api plugin is never discovered, and
+  user-installed plugins are not scanned. The github plugin runs for docs sync only
+  (`HOSTED_ENABLED_PLUGINS`, enabled at boot): its blog tools are absent and it registers
+  only `/api/sync/*` routes (`adr/two-way-sync.md`). Profile create,
   switch, delete and restore routes answer 404; the profile is always `Default`.
 - **No single-owner lock in hosted mode.** The machine runs one process. A failed port bind
   exits instead of falling back to client mode, `server.lock` is not taken (after a restart
@@ -46,7 +48,8 @@ could otherwise drive every route, including `/api/mcp-call`, which runs any too
   MCP server is not started.
 
 - **Packaging.** `Dockerfile` builds the monorepo and runs `dist/bin/pad.js` with `OW_HOSTED=1`,
-  `OW_DATA_DIR=/data`, `PORT=8080`. `fly.toml` is a template for the `openwriter-writers` app:
+  `OW_DATA_DIR=/data`, `PORT=8080`; the runtime image includes `git` and `ca-certificates`
+  for GitHub sync. `fly.toml` is a template for the `openwriter-writers` app:
   volume at `/data`, internal port 8080, machines stop when idle and start on request, `/healthz`
   check. `OW_GATEWAY_SECRET` is a Fly secret, never in the file.
 
@@ -61,3 +64,11 @@ client certificates to an arbitrary origin without extra setup). The first-seen 
 stops a gateway routing bug from opening one writer's machine to another; it is a second lock,
 not the primary one. Replay inside the 60 s window is accepted: the headers only travel over the
 gateway's TLS connection to Fly.
+
+### 2026-10-10 — the github plugin returns for docs sync only
+The online copy now syncs the writer's documents with GitHub, two ways (`adr/two-way-sync.md`).
+`HOSTED_EXCLUDED_PLUGINS` drops `@openwriter/plugin-github`; the new `HOSTED_ENABLED_PLUGINS`
+enables it at boot (`server/index.ts`). In hosted mode the plugin returns no MCP tools, so
+`post_to_blog` and the other blog tools stay off, and its routes are the `/api/sync/*` set
+(asserted in `scripts/test-hosted-mode.mjs`). They sit behind the same gateway check as every
+other route. The Docker runtime stage installs `git` and `ca-certificates`.

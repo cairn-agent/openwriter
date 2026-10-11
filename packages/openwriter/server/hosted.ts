@@ -17,8 +17,14 @@ export const GATEWAY_MAX_SKEW_SECONDS = 60;
 /** Tools that reach the local machine: absent from the tool list in hosted mode. */
 export const HOSTED_EXCLUDED_TOOLS = new Set(['open_file', 'reload_from_disk', 'export_manuscript']);
 
-/** Plugins that only make sense on the writer's own computer (git, gh, local X keys). */
-export const HOSTED_EXCLUDED_PLUGINS = new Set(['@openwriter/plugin-github', '@openwriter/plugin-x-api']);
+/** Plugins that only make sense on the writer's own computer (local X keys). */
+export const HOSTED_EXCLUDED_PLUGINS = new Set(['@openwriter/plugin-x-api']);
+
+/**
+ * Plugins every online copy runs. The github plugin is here for docs sync only: in hosted
+ * mode it registers no blog tools. adr: adr/two-way-sync.md
+ */
+export const HOSTED_ENABLED_PLUGINS = ['@openwriter/plugin-github'];
 
 /** Settings hosted mode needs; it refuses to start without them. */
 export function hostedConfigProblems(env: NodeJS.ProcessEnv = process.env): string[] {

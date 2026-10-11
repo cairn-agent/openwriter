@@ -1,11 +1,13 @@
 /**
  * GitHub Plugin for OpenWriter.
  * Provides two capabilities:
- *   1. Docs backup sync — lifted from core. Auth: existing `gh auth`.
- *   2. Blog sites (Phase 3+) — list of blog repos, post via local git ops.
+ *   1. Docs sync — two-way: commit, fetch, merge GitHub in, push.
+ *      Auth: `gh auth`, a PAT, or "Sign in with GitHub" (device flow).
+ *   2. Blog sites — list of blog repos, post via local git ops.
  *
- * This phase ships capability 1 only. Routes match the previous core mount
- * points exactly so SyncButton + SyncSetupModal continue to work unchanged.
+ * Routes match the previous core mount points so SyncButton + SyncSetupModal
+ * keep working. In hosted mode (the online copy) only docs sync runs: the
+ * blog tools need the writer's own computer. adr: adr/two-way-sync.md
  */
 
 import type { Request, Response } from 'express';
@@ -16,12 +18,17 @@ import {
   getCapabilities,
   getPendingFiles,
   setupWithGh,
-  setupWithPat,
+  setupWithToken,
   connectExisting,
-  pushSync,
+  syncNow,
   type SyncStatus,
 } from './git-sync.js';
+import { startDeviceFlow, pollDeviceFlow } from './device-flow.js';
 import { blogTools } from './blog-tools.js';
+
+// The same switch as the server's HOSTED (server/helpers.ts). mcpTools() is
+// synchronous, so it cannot wait on the server-module bridge.
+const HOSTED = process.env.OW_HOSTED === '1';
 
 const plugin: OpenWriterPlugin = {
   name: '@openwriter/plugin-github',
@@ -30,12 +37,12 @@ const plugin: OpenWriterPlugin = {
   category: 'productivity',
 
   // No user-input credentials — auth piggybacks on the user's existing
-  // `gh auth` (verified in getCapabilities). Blog-site list is stored
-  // outside the configSchema as structured data (Phase 3+).
+  // `gh auth`, a PAT, or device flow (verified in getCapabilities). Blog-site
+  // list is stored outside the configSchema as structured data.
   configSchema: {},
 
   mcpTools() {
-    return blogTools();
+    return HOSTED ? [] : blogTools();
   },
 
   registerRoutes(ctx: PluginRouteContext) {
@@ -74,14 +81,15 @@ const plugin: OpenWriterPlugin = {
       try {
         const { method, repoName, remoteUrl, pat, isPrivate } = req.body;
 
+        let conflicts: string[];
         if (method === 'gh') {
-          await setupWithGh(repoName || 'openwriter-docs', isPrivate !== false);
+          conflicts = await setupWithGh(repoName || 'openwriter-docs', isPrivate !== false);
         } else if (method === 'pat') {
-          if (!pat) { res.status(400).json({ error: 'PAT is required' }); return; }
-          await setupWithPat(pat, repoName || 'openwriter-docs', isPrivate !== false);
+          // No PAT in the body: use the stored token (device-flow sign-in).
+          conflicts = await setupWithToken(pat || undefined, repoName || 'openwriter-docs', isPrivate !== false);
         } else if (method === 'connect') {
           if (!remoteUrl) { res.status(400).json({ error: 'Remote URL is required' }); return; }
-          await connectExisting(remoteUrl, pat);
+          conflicts = await connectExisting(remoteUrl, pat);
         } else {
           res.status(400).json({ error: 'Invalid method. Use: gh, pat, or connect' });
           return;
@@ -89,7 +97,7 @@ const plugin: OpenWriterPlugin = {
 
         const status = await getSyncStatus();
         await broadcast(status);
-        res.json({ success: true, status });
+        res.json({ success: true, status, conflicts });
       } catch (err: any) {
         // Setup surfaces GitHub's own API feedback (e.g. "name already exists",
         // "bad credentials") which is user-actionable; the remote is now
@@ -99,14 +107,43 @@ const plugin: OpenWriterPlugin = {
       }
     });
 
+    // "Sign in with GitHub": start gives the writer a code; the browser then
+    // polls until GitHub hands over the token. adr: adr/two-way-sync.md
+    ctx.app.post('/api/sync/device/start', async (_req: Request, res: Response) => {
+      try { res.json(await startDeviceFlow()); }
+      catch (err: any) {
+        console.error('[GitHub Plugin] sync/device/start failed:', err?.message || err);
+        res.status(500).json({ error: err?.message || 'Sign-in failed' });
+      }
+    });
+
+    ctx.app.post('/api/sync/device/poll', async (_req: Request, res: Response) => {
+      try { res.json(await pollDeviceFlow()); }
+      catch (err: any) { fail(res, 'sync/device/poll', err, { status: 'error' }); }
+    });
+
+    // Two-way sync (the route keeps its old name for existing clients).
     ctx.app.post('/api/sync/push', async (_req: Request, res: Response) => {
       try {
-        const result = await pushSync((s) => { void broadcast(s); });
+        const result = await syncNow((s) => { void broadcast(s); });
         res.json(result);
       } catch (err: any) {
         fail(res, 'sync/push', err, { state: 'error' });
       }
     });
+
+    // The online copy wakes from sleep often: catch up with GitHub once at
+    // start-up. Pull only; the writer's next Sync pushes.
+    if (HOSTED) {
+      void (async () => {
+        try {
+          if ((await getSyncStatus()).state === 'unconfigured') return;
+          await syncNow((s) => { void broadcast(s); }, { push: false });
+        } catch (err: any) {
+          console.error('[GitHub Plugin] start-up pull failed:', err?.message || err);
+        }
+      })();
+    }
   },
 };
 

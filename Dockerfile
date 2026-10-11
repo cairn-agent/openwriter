@@ -23,6 +23,10 @@ ENV NODE_ENV=production \
     OW_HOSTED=1 \
     OW_DATA_DIR=/data \
     PORT=8080
+# git for GitHub sync (adr/two-way-sync.md); ca-certificates for its HTTPS.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build --chown=node:node /app /app
 RUN mkdir -p /data && chown node:node /data
