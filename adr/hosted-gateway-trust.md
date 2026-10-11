@@ -72,3 +72,6 @@ enables it at boot (`server/index.ts`). In hosted mode the plugin returns no MCP
 `post_to_blog` and the other blog tools stay off, and its routes are the `/api/sync/*` set
 (asserted in `scripts/test-hosted-mode.mjs`). They sit behind the same gateway check as every
 other route. The Docker runtime stage installs `git` and `ca-certificates`.
+
+### 2026-10-10 — securityGate moved to server/security-gate.ts
+Pure move out of `server/index.ts` (over 1,500 lines) before changing it. No behaviour change.
