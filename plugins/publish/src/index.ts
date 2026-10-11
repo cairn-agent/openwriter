@@ -2,6 +2,7 @@ import type { OpenWriterPlugin, PluginMcpTool, PluginRouteContext } from './help
 import { getServerModules, publishFetch } from './helpers.js';
 import { newsletterTools } from './newsletter-tools.js';
 import { siteGrowthTools } from './site-growth-tools.js';
+import { siteMemberTools } from './site-member-tools.js';
 import { siteMoneyTools } from './site-money-tools.js';
 import { siteStructureTools } from './site-structure-tools.js';
 import { siteTeamTools } from './site-team-tools.js';
@@ -176,8 +177,11 @@ const plugin: OpenWriterPlugin = {
         },
       },
 
-      // Newsletter tools (send, subscribers, issues, analytics)
+      // Newsletter tools (send, issues, analytics)
       ...newsletterTools(config),
+
+      // Subscriber tools (the site's member list: list, counts, add, remove, import, export, embed)
+      ...siteMemberTools(config),
 
       // Site tools (<name>.openwriter.io: claim, settings, publish posts, stats)
       ...siteTools(config),

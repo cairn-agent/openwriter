@@ -1,4 +1,3 @@
-import { readFileSync } from 'fs';
 import type { PluginMcpTool } from './helpers.js';
 import {
   getServerModules,
@@ -12,7 +11,7 @@ export function newsletterTools(config: Record<string, string>): PluginMcpTool[]
     {
       name: 'send_newsletter',
       description:
-        'Send the current document as a newsletter. Sends to all subscribers, or to a single test address if test_email is provided. Supports subscriber selection via subscriber_ids or exclude_issue_id.',
+        'Send the current document as an old-style newsletter, to the old newsletter list only, or to a single test address if test_email is provided. Supports subscriber selection via subscriber_ids or exclude_issue_id. Subscribers added, imported or signed up since the list moved to the site are not on that list: to reach the site\'s subscribers, publish the document as a site post with publish_to_site.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -32,7 +31,7 @@ export function newsletterTools(config: Record<string, string>): PluginMcpTool[]
           subscriber_ids: {
             type: 'array',
             items: { type: 'string' },
-            description: 'Send only to these subscriber IDs (use list_subscribers to find IDs).',
+            description: 'Send only to these subscriber IDs on the old newsletter list (from get_newsletter_analytics recipients).',
           },
           exclude_issue_id: {
             type: 'string',
@@ -101,212 +100,6 @@ export function newsletterTools(config: Record<string, string>): PluginMcpTool[]
           failed: data.failed,
           issueId: data.issueId,
           message: `Newsletter sent to ${data.sent} subscribers.${data.failed && data.failed > 0 ? ` ${data.failed} failed.` : ''}`,
-        };
-      },
-    },
-
-    {
-      name: 'list_subscribers',
-      description: 'List newsletter subscribers for the active profile.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          limit: { type: 'number', description: 'Max subscribers to return (default 100)' },
-          offset: { type: 'number', description: 'Pagination offset (default 0)' },
-        },
-      },
-      handler: async (params) => {
-        const limit = (params.limit as number) || 100;
-        const offset = (params.offset as number) || 0;
-        const res = await publishFetch(config, `/newsletter/subscribers?limit=${limit}&offset=${offset}`, {});
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          return { error: `Failed to list subscribers: ${(err as any).error || res.statusText}` };
-        }
-
-        const data = await res.json() as { subscribers: any[] };
-
-        const countRes = await publishFetch(config, '/newsletter/subscribers/count', {});
-        const countData = countRes.ok
-          ? (await countRes.json() as { count: number })
-          : { count: data.subscribers.length };
-
-        return {
-          count: countData.count,
-          subscribers: data.subscribers.map((s: any) => ({
-            id: s.id,
-            email: s.email,
-            name: s.name,
-            subscribedAt: s.subscribed_at,
-          })),
-        };
-      },
-    },
-
-    {
-      name: 'add_subscriber',
-      description: 'Add a subscriber to the newsletter for the active profile.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          email: { type: 'string', description: 'Subscriber email address' },
-          name: { type: 'string', description: 'Subscriber name (optional)' },
-        },
-        required: ['email'],
-      },
-      handler: async (params) => {
-        const res = await publishFetch(config, '/newsletter/subscribers', {
-          method: 'POST',
-          body: JSON.stringify({
-            email: params.email,
-            name: params.name || undefined,
-          }),
-        });
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          return { error: `Failed to add subscriber: ${(err as any).error || res.statusText}` };
-        }
-
-        const data = await res.json() as { subscriber: any };
-        return {
-          success: true,
-          subscriber: data.subscriber,
-          message: `Added ${data.subscriber.email} to newsletter.`,
-        };
-      },
-    },
-
-    {
-      name: 'import_subscribers',
-      description:
-        'Bulk import subscribers from a CSV file or pasted CSV text. Supports common export formats from ConvertKit, Mailchimp, Substack, Beehiiv, etc. Auto-detects column names (email/Email Address/email_address, name/first_name+last_name). Skips invalid emails and unsubscribed rows.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          file: {
-            type: 'string',
-            description: 'Absolute path to a CSV file (e.g. "C:/Users/me/Downloads/subscribers.csv")',
-          },
-          csv_text: {
-            type: 'string',
-            description: 'Raw CSV text pasted directly (header row + data rows)',
-          },
-        },
-      },
-      handler: async (params) => {
-        const filePath = params.file as string | undefined;
-        const csvText = params.csv_text as string | undefined;
-
-        if (!filePath && !csvText) {
-          return { error: 'Provide either file (path to CSV) or csv_text (raw CSV content)' };
-        }
-
-        let raw: string;
-        if (filePath) {
-          try {
-            raw = readFileSync(filePath, 'utf-8');
-          } catch (e: any) {
-            return { error: `Failed to read file: ${e.message}` };
-          }
-        } else {
-          raw = csvText!;
-        }
-
-        // Parse CSV
-        const lines = raw.split(/\r?\n/).filter((l) => l.trim());
-        if (lines.length < 2) {
-          return { error: 'CSV must have a header row and at least one data row' };
-        }
-
-        const parseCsvLine = (line: string): string[] => {
-          const fields: string[] = [];
-          let current = '';
-          let inQuotes = false;
-          for (let i = 0; i < line.length; i++) {
-            const ch = line[i];
-            if (ch === '"') {
-              if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
-              else { inQuotes = !inQuotes; }
-            } else if (ch === ',' && !inQuotes) {
-              fields.push(current.trim());
-              current = '';
-            } else {
-              current += ch;
-            }
-          }
-          fields.push(current.trim());
-          return fields;
-        };
-
-        const headers = parseCsvLine(lines[0]).map((h) => h.toLowerCase().replace(/['"]/g, '').trim());
-
-        const emailAliases = ['email', 'email_address', 'email address', 'subscriber_email', 'e-mail', 'contact email'];
-        const nameAliases = ['name', 'full_name', 'full name', 'subscriber_name'];
-        const firstNameAliases = ['first_name', 'first name', 'firstname', 'first'];
-        const lastNameAliases = ['last_name', 'last name', 'lastname', 'last'];
-        const statusAliases = ['status', 'state', 'subscription_status'];
-
-        const findCol = (aliases: string[]) => headers.findIndex((h) => aliases.includes(h));
-        const emailIdx = findCol(emailAliases);
-        const nameIdx = findCol(nameAliases);
-        const firstIdx = findCol(firstNameAliases);
-        const lastIdx = findCol(lastNameAliases);
-        const statusIdx = findCol(statusAliases);
-
-        if (emailIdx === -1) {
-          return { error: `Could not find email column. Found headers: ${headers.join(', ')}` };
-        }
-
-        const skipStatuses = new Set(['unsubscribed', 'cancelled', 'canceled', 'inactive', 'bounced', 'complained']);
-        const subscribers: { email: string; name?: string }[] = [];
-        let skippedStatus = 0;
-
-        for (let i = 1; i < lines.length; i++) {
-          const fields = parseCsvLine(lines[i]);
-          const email = (fields[emailIdx] || '').replace(/['"]/g, '').trim();
-          if (!email) continue;
-
-          if (statusIdx !== -1) {
-            const status = (fields[statusIdx] || '').replace(/['"]/g, '').trim().toLowerCase();
-            if (skipStatuses.has(status)) { skippedStatus++; continue; }
-          }
-
-          let name: string | undefined;
-          if (nameIdx !== -1) {
-            name = (fields[nameIdx] || '').replace(/['"]/g, '').trim() || undefined;
-          } else if (firstIdx !== -1) {
-            const first = (fields[firstIdx] || '').replace(/['"]/g, '').trim();
-            const last = lastIdx !== -1 ? (fields[lastIdx] || '').replace(/['"]/g, '').trim() : '';
-            name = [first, last].filter(Boolean).join(' ') || undefined;
-          }
-
-          subscribers.push({ email, ...(name ? { name } : {}) });
-        }
-
-        if (subscribers.length === 0) {
-          return { error: `No valid subscribers found. ${skippedStatus} skipped (unsubscribed/inactive).` };
-        }
-
-        const res = await publishFetch(config, '/newsletter/subscribers/import', {
-          method: 'POST',
-          body: JSON.stringify({ subscribers }),
-        });
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          return { error: `Import failed: ${(err as any).error || res.statusText}` };
-        }
-
-        const data = (await res.json()) as { imported: number; skipped: number; total: number };
-        return {
-          success: true,
-          imported: data.imported,
-          skippedInvalid: data.skipped,
-          skippedStatus,
-          total: subscribers.length + skippedStatus,
-          message: `Imported ${data.imported} subscribers.${skippedStatus ? ` ${skippedStatus} skipped (unsubscribed/inactive).` : ''}${data.skipped ? ` ${data.skipped} skipped (invalid email).` : ''}`,
         };
       },
     },
@@ -401,31 +194,6 @@ export function newsletterTools(config: Record<string, string>): PluginMcpTool[]
         }
 
         return await res.json();
-      },
-    },
-    {
-      name: 'get_subscribe_embed',
-      description:
-        'Get the public subscribe URL and embed code for the active profile. Returns an HTML form snippet (works without JS) and a JS fetch snippet. Use this to help users set up newsletter signup forms on their websites.',
-      inputSchema: { type: 'object', properties: {} },
-      handler: async () => {
-        const res = await publishFetch(config, '/newsletter/subscribers/embed-info');
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          return { error: `Failed: ${(err as any).error || res.statusText}` };
-        }
-
-        const data = await res.json();
-        return {
-          ...(data as object),
-          instructions: [
-            'HTML Form: Paste embed_html into any page. Replace YOUR_THANK_YOU_PAGE_URL. Works without JavaScript.',
-            'JS Fetch: Use embed_js for AJAX submissions (no page reload). Returns { success: true } on success.',
-            'hp_field is a honeypot — keep it hidden and empty.',
-            'Set source to identify each form placement (e.g. "homepage", "footer", "blog-sidebar").',
-          ].join('\n'),
-        };
       },
     },
   ];
