@@ -10,9 +10,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Sync with GitHub works both ways. Sync sends your changes and brings back the changes made in your other OpenWriter, and open documents update in place. When a file changed in both places, your version stays and GitHub's is saved next to it as a "(from GitHub …)" copy, so no writing is lost.
 - Connect Existing brings down every document already in the repository.
 - Sign in with GitHub using a short code, no token to paste, where the server has a GitHub client id set (`OW_GITHUB_CLIENT_ID`).
-- Chat with an agent that reads and edits your documents, from the chat button in the title bar. Its edits arrive as pending changes for you to review, and it asks before it publishes, sends email, deletes or restores anything. Each document keeps its own conversation.
-- Rewrite selected text from the right-click menu, with an optional instruction and a choice of Opus, Sonnet or Haiku. The result arrives as a pending change.
-- Both run on your own Anthropic API key, saved in Connections or the chat panel. The key stays on the server and is shown only by its last four characters. Without a key everything else works as before.
 
 ### Fixed
 - In hosted mode, a signed-out browser goes to the sign-in page instead of showing failed requests.

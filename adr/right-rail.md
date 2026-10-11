@@ -273,3 +273,10 @@ not auto-switch the rail to Review while Chat is the open tab (the chat shows "N
 proposed" with a link into Review instead), and the "add your key" event opens Chat. The
 chat's state lives in a module store outside the tab, because the body unmounts on tab switch.
 Connections now starts with the Anthropic key form. adr: adr/writer-key-ai.md
+
+### 2026-10-11 — Chat tab and titlebar chat toggle removed from the local app
+
+The chat box belongs to OpenWriter's web version, not the open-source app
+(adr/open-source-boundary.md). The Chat tab, its titlebar toggle, the Anthropic key form in
+Connections and the review auto-switch exception for Chat are gone; the strip is back to
+Review → Activity → Backlinks → Exports, then the settings tabs.

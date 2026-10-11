@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
 import { useRightRail } from '../right-rail/RightRailContext';
-import { OpenRailIcon, FocusModeIcon, ChatIcon } from '../right-rail/icons';
+import { OpenRailIcon, FocusModeIcon } from '../right-rail/icons';
 
 interface TitlebarProps {
   title: string;
@@ -49,8 +49,7 @@ interface UpdateInfo {
  * adr: adr/right-rail.md
  */
 export default function Titlebar({ title, onTitleChange, onToggleSidebar, canGoBack, canGoForward, onGoBack, onGoForward, editor, onToggleToolbar, toolbarOpen, focusMode, onToggleFocusMode }: TitlebarProps) {
-  const { visible: railVisible, openTab, activeTab, closeRail } = useRightRail();
-  const chatOpen = railVisible && activeTab === 'chat';
+  const { visible: railVisible, openTab, activeTab } = useRightRail();
   const [editing, setEditing] = useState(false);
   const [, setTick] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -179,16 +178,6 @@ export default function Titlebar({ title, onTitleChange, onToggleSidebar, canGoB
       </div>
       <div className="titlebar-right">
         {focusMode && <div id="focus-review-controls" />}
-        {/* The chat toggle: always here, open or closed rail. adr: adr/writer-key-ai.md */}
-        <button
-          className={`titlebar-nav-btn${chatOpen ? ' titlebar-nav-btn--active' : ''}`}
-          onClick={() => (chatOpen ? closeRail() : openTab('chat'))}
-          title={chatOpen ? 'Close chat' : 'Chat'}
-          aria-label={chatOpen ? 'Close chat' : 'Open chat'}
-          aria-pressed={chatOpen}
-        >
-          <ChatIcon />
-        </button>
         {!railVisible && onToggleFocusMode && (
           <button
             className={`titlebar-nav-btn${focusMode ? ' titlebar-nav-btn--active' : ''}`}

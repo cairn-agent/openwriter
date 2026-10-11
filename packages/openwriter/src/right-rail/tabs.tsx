@@ -1,16 +1,15 @@
 /**
  * Right-rail tab registry. Order here is the order tabs render in the strip.
  *
- * Order is user-priority, not scope: Chat → Review → Activity → Backlinks → Exports
+ * Order is user-priority, not scope: Review → Activity → Backlinks → Exports
  * are the day-to-day primary actions; Versions → Plugins → Connections →
  * Appearance are settings / history. A single visual divider sits between
  * Exports and Versions to mark that transition.
  *
- * Chat sits first: it is how the writer talks to the agent, and the titlebar
- * chat toggle opens straight to it. Review follows because pending agent
- * writes are the most time-sensitive surface. Activity follows as the
- * workspace-wide log; it remains the first-run default tab (rail opens to
- * Activity) — strip order and default tab are independent decisions.
+ * Review leads the strip because pending agent writes are the most time-
+ * sensitive surface. Activity sits second as the workspace-wide log; it
+ * remains the first-run default tab (rail opens to Activity) — strip order
+ * and default tab are independent decisions.
  *
  * Adding a tab: add an entry here, that's it. The container reads this
  * registry — no wiring elsewhere.
@@ -19,7 +18,6 @@
  */
 import type { TabDefinition, TabId } from './types';
 import {
-  ChatIcon,
   ReviewIcon,
   VersionsIcon,
   BacklinksIcon,
@@ -29,7 +27,6 @@ import {
   ConnectionsIcon,
   AppearanceIcon,
 } from './icons';
-import ChatTab from './tabs/ChatTab';
 import ReviewTab from './tabs/ReviewTab';
 import VersionsTab from './tabs/VersionsTab';
 import BacklinksTab from './tabs/BacklinksTab';
@@ -40,7 +37,6 @@ import ConnectionsTab from './tabs/ConnectionsTab';
 import AppearanceTab from './tabs/AppearanceTab';
 
 export const TAB_REGISTRY: TabDefinition[] = [
-  { id: 'chat',        label: 'Chat',        scope: 'doc',       icon: <ChatIcon />,        Component: ChatTab },
   { id: 'review',      label: 'Review',      scope: 'doc',       icon: <ReviewIcon />,      Component: ReviewTab },
   { id: 'activity',    label: 'Activity',    scope: 'workspace', icon: <ActivityIcon />,    Component: ActivityTab },
   { id: 'backlinks',   label: 'Backlinks',   scope: 'doc',       icon: <BacklinksIcon />,   Component: BacklinksTab },

@@ -1423,3 +1423,9 @@ The in-app chat agent and the right-click Rewrite both write through the `write_
 handler on the server, so their edits enter this overlay exactly like an external agent's:
 nothing is applied without Review. The editor's context menu now receives the open doc's
 docId for this. adr: adr/writer-key-ai.md
+
+### 2026-10-11 — Rewrite removed from the local context menu
+
+The right-click Rewrite on the writer's own key moved to OpenWriter's web version
+(adr/open-source-boundary.md). The context menu no longer takes a docId prop; nothing about
+the overlay changed.
