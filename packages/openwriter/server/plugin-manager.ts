@@ -50,6 +50,8 @@ interface ManagedPlugin {
   router?: Router;
   /** Names of MCP tools registered by this plugin */
   toolNames: string[];
+  /** Handed over in-process by the program running OpenWriter: part of it, so it cannot be disabled. */
+  required?: boolean;
 }
 
 export class PluginManager {
@@ -87,18 +89,20 @@ export class PluginManager {
 
   /**
    * Add a plugin object handed over in-process (an embedder's own plugin), beside the
-   * discovered ones. Enable it like any other. adr: adr/open-source-boundary.md
+   * discovered ones. It is part of the embedding program, so once enabled it stays on:
+   * the plugin list shows no switch and disable() refuses it. adr: adr/open-source-boundary.md
    */
   addInProcess(plugin: OpenWriterPlugin): void {
     if (this.plugins.has(plugin.name)) return;
     const saved = readConfig().plugins?.[plugin.name];
     this.plugins.set(plugin.name, {
-      discovered: { name: plugin.name, dirName: plugin.name, version: plugin.version, description: plugin.description || '', source: 'bundled', category: plugin.category, pluginDir: '' },
+      discovered: { name: plugin.name, dirName: plugin.name, version: plugin.version, description: plugin.description || '', source: 'bundled', displayName: plugin.displayName, category: plugin.category, pluginDir: '' },
       plugin,
       configSchema: plugin.configSchema || {},
       enabled: false,
       config: saved?.config || {},
       toolNames: [],
+      required: true,
     });
   }
 
@@ -175,6 +179,7 @@ export class PluginManager {
     const managed = this.plugins.get(name);
     if (!managed) return { success: false, error: `Plugin "${name}" not found` };
     if (!managed.enabled) return { success: true };
+    if (managed.required) return { success: false, error: `Plugin "${name}" is part of this app and cannot be turned off` };
 
     // Remove MCP tools
     if (managed.toolNames.length > 0) {
@@ -227,6 +232,7 @@ export class PluginManager {
     source: 'bundled' | 'user';
     displayName?: string;
     category?: string;
+    required: boolean;
   }> {
     return Array.from(this.plugins.values()).map((m) => ({
       name: m.discovered.name,
@@ -238,6 +244,7 @@ export class PluginManager {
       source: m.discovered.source,
       displayName: m.discovered.displayName,
       category: m.discovered.category,
+      required: !!m.required,
     }));
   }
 

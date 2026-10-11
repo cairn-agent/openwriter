@@ -35,7 +35,9 @@ them stay in the public history; that cannot be undone and they hold no secrets.
     registry at start, and each plugin's tools when it is enabled.
   - **Plugin filter**: `pluginFilter({ name, source })` decides which discovered plugins exist.
   - **In-process plugins**: `plugins` passes plugin objects directly; they load beside the
-    discovered ones and are enabled at start, as are the discovered names in `enable`.
+    discovered ones and are enabled at start, as are the discovered names in `enable`. They are
+    part of the embedding program: the plugin list shows their `displayName` and no switch, and
+    `disable()` refuses them.
   - **Plugin host**: `PluginHost` (`server/plugin-types.ts`) gives a plugin `saveConfig`,
     `createDocument`, `tools()` (the live tool list, to run OpenWriter's own tools in-process),
     `pendingDocs()` and `rootDir`. A plugin never calls its own server over HTTP.
@@ -45,6 +47,11 @@ them stay in the public history; that cannot be undone and they hold no secrets.
     (optionally with a titlebar toggle, optionally holding the rail open while pending changes
     arrive), context-menu panels over a text selection, `openRailTab`, `showToast` and
     `onConnectionLost`. A client module mounts its own UI into the element it is given.
+    A module presenting the app its own way also gets what the app shows (`getApp`,
+    `onAppChange`: the editor, the open document, the connection, unsent edits, pending
+    documents), the app's own actions (`app`: switch, create, flush, rename, and review's
+    accept/reject, focus and original preview, through the same code the Review tab uses),
+    the app's ProseMirror classes (`pm`) for its editor plugins and decorations, and `tabId`.
 
 ## Decision log
 
@@ -58,3 +65,13 @@ pull became an opt-in setting (`pullOnStart`, env `OW_GITHUB_PULL_ON_START`). Cl
 mount into a plain element rather than sharing the app's React, so a module can use any UI
 library and cannot break the app's own tree. Discovered plugins load client modules only at page
 load: enabling one later shows its interface after a reload.
+
+### 2026-10-11 — the app bridge for client modules; in-process plugins are required
+A client module could add a tab or a menu panel but could not see the open document or drive
+navigation and review, so a different presentation of the app (a phone layout, a reader view)
+had to fork the app. The client plugin API now carries a snapshot of what the app shows, its
+actions, and its own ProseMirror classes: decorations built from a second copy of ProseMirror are
+not recognised by the editor. Review actions run through `decorations/review-actions.ts`, shared
+with the Review tab, so there is one way to settle a document's review. An in-process plugin is
+the embedder's own code: switching it off from the plugin list took down the embedder's routes,
+so the list shows its own name and no switch, and the server refuses to disable it.

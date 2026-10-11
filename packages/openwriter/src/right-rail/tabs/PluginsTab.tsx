@@ -31,6 +31,9 @@ interface AvailablePlugin {
   enabled: boolean;
   configSchema: Record<string, ConfigField>;
   config: Record<string, string>;
+  displayName?: string;
+  /** Part of the program running OpenWriter: always on, no switch. */
+  required?: boolean;
 }
 
 interface BillingInfo {
@@ -224,7 +227,8 @@ function CreditsSection() {
   );
 }
 
-function displayName(name: string): string {
+function displayName(name: string, given?: string): string {
+  if (given) return given;
   return name
     .replace(/^@openwriter\/plugin-/, '')
     .replace(/-/g, ' ')
@@ -332,14 +336,14 @@ export default function PluginsTab(_props: RightRailTabProps) {
             <div className="plugin-item-header">
               <div className="plugin-item-info">
                 <div className="plugin-item-name">
-                  {displayName(p.name)}
+                  {displayName(p.name, p.displayName)}
                   <span className="plugin-item-version">v{p.version}</span>
                 </div>
                 {p.description && (
                   <div className="plugin-item-desc">{p.description}</div>
                 )}
               </div>
-              <label className={`plugin-toggle${loadingPlugin === p.name ? ' loading' : ''}`}>
+              {!p.required && <label className={`plugin-toggle${loadingPlugin === p.name ? ' loading' : ''}`}>
                 <input
                   type="checkbox"
                   checked={p.enabled}
@@ -348,7 +352,7 @@ export default function PluginsTab(_props: RightRailTabProps) {
                 />
                 <span className="plugin-toggle-track" />
                 <span className="plugin-toggle-thumb" />
-              </label>
+              </label>}
             </div>
             {p.enabled && (() => {
               const entries = Object.entries(p.configSchema || {});
@@ -408,7 +412,7 @@ export default function PluginsTab(_props: RightRailTabProps) {
                 <div className="plugin-config-section">
                   {needsSetup && (
                     <div className="plugin-setup-hint">
-                      Ask your agent: &ldquo;set up {displayName(p.name)}&rdquo;
+                      Ask your agent: &ldquo;set up {displayName(p.name, p.displayName)}&rdquo;
                     </div>
                   )}
                   {topLevel.length > 0 && (

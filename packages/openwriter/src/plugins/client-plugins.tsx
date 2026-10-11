@@ -8,11 +8,17 @@
  *
  * A plugin mounts its own UI into the element it is given (any library, its own React root), and
  * returns `{ update?(ctx), unmount() }`. It never renders inside the app's React tree, so it
- * cannot break it. adr: adr/open-source-boundary.md
+ * cannot break it. A plugin that presents the app its own way reads what the app shows
+ * (`getApp`, `onAppChange`), drives it through `app`, and decorates the editor with the app's
+ * own ProseMirror classes (`pm`). adr: adr/open-source-boundary.md
  */
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import type { Editor } from '@tiptap/react';
+import { Plugin, PluginKey, TextSelection, NodeSelection } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import { DOMSerializer } from '@tiptap/pm/model';
 import { showToast } from '../utils/toast';
+import { TAB_ID } from '../ws/client';
 
 /** A plugin's mounted view. `update` receives fresh context; `unmount` tears it down. */
 export interface MountedView<C> {
@@ -63,6 +69,55 @@ export interface PluginMenuPanel {
   mount(el: HTMLElement, ctx: MenuPanelContext): MountedView<MenuPanelContext>;
 }
 
+/**
+ * The app's own ProseMirror classes. A plugin builds its editor plugins and decorations from
+ * these, never from its own copy of ProseMirror: the editor only recognises its own classes.
+ */
+export interface EditorKit {
+  Plugin: typeof Plugin;
+  PluginKey: typeof PluginKey;
+  Decoration: typeof Decoration;
+  DecorationSet: typeof DecorationSet;
+  TextSelection: typeof TextSelection;
+  NodeSelection: typeof NodeSelection;
+  DOMSerializer: typeof DOMSerializer;
+}
+
+/** What the app is showing, as a plugin sees it. */
+export interface AppSnapshot {
+  /** The open document's editor (the first one, for a thread of several). */
+  editor: Editor | null;
+  docId: string | null;
+  /** Empty until the server's first document arrives. */
+  filename: string;
+  title: string;
+  metadata: Record<string, any>;
+  /** The live connection to the server is open. */
+  connected: boolean;
+  /** This tab holds edits to the open document it has not handed to the server yet. */
+  unsent: boolean;
+  /** Documents with changes waiting for review, and how many each. */
+  pendingDocs: { filenames: string[]; counts: Record<string, number> };
+}
+
+/** The app's own navigation and review actions, for a plugin presenting them its own way. */
+export interface AppActions {
+  switchDocument(filename: string): void;
+  createDocument(): void;
+  /** Hand the open document's unsent edits to the server now. */
+  flush(): void;
+  setTitle(title: string): void;
+  /**
+   * Accept or reject one pending change (by its node id) or, without one, every change in
+   * the open document; then tell the server when none is left, as the Review tab does.
+   */
+  resolvePending(action: 'accept' | 'reject', nodeId?: string): void;
+  /** Mark one pending change as the one in focus (the line beside it), or none. */
+  focusPending(nodeId: string | null): void;
+  /** Show a pending rewrite's original text in its place, or (null) its proposed text again. */
+  previewOriginal(nodeId: string | null): void;
+}
+
 export interface ClientPluginApi {
   registerRailTab(tab: PluginRailTab): void;
   registerMenuPanel(panel: PluginMenuPanel): void;
@@ -71,6 +126,13 @@ export interface ClientPluginApi {
   showToast: typeof showToast;
   /** Called each time the live connection to the server drops. Returns an unsubscribe. */
   onConnectionLost(fn: () => void): () => void;
+  pm: EditorKit;
+  getApp(): AppSnapshot;
+  /** Called after each change to the snapshot. Returns an unsubscribe. */
+  onAppChange(fn: (app: AppSnapshot) => void): () => void;
+  app: AppActions;
+  /** This tab's id. Routes that act on the document a tab shows read it from the X-OW-Tab header. */
+  tabId: string;
 }
 
 /** Fired on window by the WebSocket client when its socket closes (src/ws/client.ts). */
@@ -116,6 +178,31 @@ export function setRailOpener(fn: ((id: string) => void) | null): void {
   railOpener = fn;
 }
 
+// ---- The app, as plugins see it ----
+
+let appSnapshot: AppSnapshot = {
+  editor: null, docId: null, filename: '', title: '', metadata: {},
+  connected: false, unsent: false, pendingDocs: { filenames: [], counts: {} },
+};
+const appListeners = new Set<(app: AppSnapshot) => void>();
+
+/** Set by App as its state changes. */
+export function publishApp(patch: Partial<AppSnapshot>): void {
+  const keys = Object.keys(patch) as Array<keyof AppSnapshot>;
+  if (keys.every((k) => appSnapshot[k] === patch[k])) return;
+  appSnapshot = { ...appSnapshot, ...patch };
+  for (const l of appListeners) {
+    try { l(appSnapshot); } catch (err) { console.error('[plugins] app listener failed', err); }
+  }
+}
+
+let appActions: AppActions | null = null;
+
+/** Set by App once mounted; plugin calls before that do nothing. */
+export function setAppActions(actions: AppActions | null): void {
+  appActions = actions;
+}
+
 const api: ClientPluginApi = {
   registerRailTab(tab) {
     update({ railTabs: [...registry.railTabs.filter((t) => t.id !== tab.id), tab] });
@@ -131,6 +218,23 @@ const api: ClientPluginApi = {
     window.addEventListener(CONNECTION_LOST_EVENT, fn);
     return () => window.removeEventListener(CONNECTION_LOST_EVENT, fn);
   },
+  pm: { Plugin, PluginKey, Decoration, DecorationSet, TextSelection, NodeSelection, DOMSerializer },
+  getApp: () => appSnapshot,
+  onAppChange(fn) {
+    appListeners.add(fn);
+    return () => { appListeners.delete(fn); };
+  },
+  app: {
+    switchDocument: (filename) => appActions?.switchDocument(filename),
+    createDocument: () => appActions?.createDocument(),
+    flush: () => appActions?.flush(),
+    setTitle: (title) => appActions?.setTitle(title),
+    resolvePending: (action, nodeId) => appActions?.resolvePending(action, nodeId),
+    focusPending: (nodeId) => appActions?.focusPending(nodeId),
+    previewOriginal: (nodeId) => appActions?.previewOriginal(nodeId),
+  },
+  // A getter: ws/client imports this module, so TAB_ID may not exist yet when it loads.
+  get tabId() { return TAB_ID; },
 };
 
 /** Import every enabled plugin's client module. A module that fails is logged and skipped. */

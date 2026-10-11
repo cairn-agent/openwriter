@@ -23,6 +23,8 @@ export interface OpenWriterManifest {
 export interface OpenWriterPlugin {
   name: string;
   version: string;
+  /** The name the plugin list shows. Without it the list derives one from `name`. */
+  displayName?: string;
   description?: string;
   category?: PluginCategory;
   configSchema?: Record<string, PluginConfigField>;

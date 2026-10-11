@@ -22,6 +22,11 @@ import { setCommentsData, forceCommentRefresh } from './decorations/comments-plu
 import { setBacklinksData, forceBacklinkRefresh } from './decorations/backlinks-plugin';
 import { setAttributionData, setAttributionEnabled, forceAttributionRefresh, type Origin } from './decorations/attribution-plugin';
 import { getSidebarMode } from './themes/appearance-store';
+import { publishApp, setAppActions } from './plugins/client-plugins';
+import { acceptChange, rejectChange, acceptAllChanges, rejectAllChanges } from './decorations/resolve';
+import { setFocusedPendingNode, forceDecorationRefresh, isPreviewActive, getPreviewNodeId } from './decorations/plugin';
+import { findNodeById } from './decorations/apply';
+import { showOriginal, showModified, settleIfResolved } from './decorations/review-actions';
 
 import ArticleComposeView from './article-compose/ArticleComposeView';
 import BlogComposeView from './blog-compose/BlogComposeView';
@@ -257,6 +262,14 @@ export default function App() {
   // every metadata change.
   // adr: adr/pending-overlay-model.md
   const lastSentDocJson = useRef<string | null>(null);
+  // Client plugins see whether this tab holds edits it has not handed to the server
+  // (src/plugins/client-plugins.tsx). Published only when it flips, never per keystroke.
+  const unsentRef = useRef(false);
+  const setUnsent = useCallback((unsent: boolean) => {
+    if (unsentRef.current === unsent) return;
+    unsentRef.current = unsent;
+    publishApp({ unsent });
+  }, []);
 
   // Navigation history (browser-like: stack includes current; index points at current).
   // navIntent records why the next document-switched message is arriving so we can
@@ -414,6 +427,7 @@ export default function App() {
       lastDocJson.current = payload.document;
       // Authoritative state from the server — diff-gate baseline resets to this.
       lastSentDocJson.current = docKey(payload.document);
+      setUnsent(false);
     }
     currentFilename.current = payload.filename;
     currentDocId.current = payload.docId ?? '';
@@ -423,6 +437,7 @@ export default function App() {
       const docStr = docKey(lastDocJson.current);
       if (sendMessage({ type: 'doc-update', document: lastDocJson.current, filename: payload.filename, version: docVersionRef.current })) {
         lastSentDocJson.current = docStr;
+        setUnsent(false);
       }
     }
     setTitle(payload.title);
@@ -538,6 +553,7 @@ export default function App() {
     lastDocJson.current = payload.document;
     // Authoritative state from disk — diff-gate baseline resets to this.
     lastSentDocJson.current = docKey(payload.document);
+    setUnsent(false);
     setInitialContent(payload.document);
     setTitle(payload.title);
     setMetadata(payload.metadata || {});
@@ -676,11 +692,12 @@ export default function App() {
     // Diff-gate applies to flush too — no point shipping a duplicate state right
     // before switch_document does its own save.
     const docStr = docKey(doc);
-    if (docStr === lastSentDocJson.current) return;
+    if (docStr === lastSentDocJson.current) { setUnsent(false); return; }
     if (sendMessage({ type: 'doc-update', document: doc, filename: currentFilename.current, version: docVersionRef.current })) {
       lastSentDocJson.current = docStr;
+      setUnsent(false);
     }
-  }, [sendMessage, docVersionRef]);
+  }, [sendMessage, docVersionRef, setUnsent]);
 
   // Flush on browser close / tab switch to prevent data loss
   useEffect(() => {
@@ -1085,6 +1102,7 @@ export default function App() {
     // placeholder, not this tab's doc: there is nothing to save. adr: adr/per-tab-view.md
     if (currentFilename.current === '') return;
     lastDocJson.current = json;
+    setUnsent(true);
     if (docUpdateTimer.current) clearTimeout(docUpdateTimer.current);
     docUpdateTimer.current = setTimeout(() => {
       const fresh = lastDocJson.current || json;
@@ -1095,12 +1113,13 @@ export default function App() {
       // back to the server and can resurrect overlay entries the server
       // already resolved, or burn save cycles on docs that haven't changed.
       const freshStr = docKey(fresh);
-      if (freshStr === lastSentDocJson.current) return;
+      if (freshStr === lastSentDocJson.current) { setUnsent(false); return; }
       if (sendMessage({ type: 'doc-update', document: fresh, filename: currentFilename.current, version: docVersionRef.current })) {
         lastSentDocJson.current = freshStr;
+        setUnsent(false);
       }
     }, 1000);
-  }, [sendMessage, docVersionRef]);
+  }, [sendMessage, docVersionRef, setUnsent]);
 
   // Send title changes to server explicitly (not bundled with doc-update)
   const handleTitleChange = useCallback((newTitle: string) => {
@@ -1114,6 +1133,69 @@ export default function App() {
       return !v;
     });
   }, []);
+
+  // ─── Client plugins: what the app shows, and its actions ─────────────────
+  // Effects run after the editor (a child) has taken the new document's content,
+  // so a plugin told about a document finds it already in the editor.
+  // adr: adr/open-source-boundary.md
+  useEffect(() => { publishApp({ editor: editorInstance }); }, [editorInstance]);
+  useEffect(() => {
+    publishApp({ docId: (metadata?.docId as string) || null, filename: activeFilename, title, metadata });
+  }, [activeFilename, title, metadata]);
+  useEffect(() => { publishApp({ connected }); }, [connected]);
+  useEffect(() => { publishApp({ pendingDocs }); }, [pendingDocs]);
+
+  const pendingTitleRef = useRef(pendingTitle);
+  pendingTitleRef.current = pendingTitle;
+  const appActionsRef = useRef({ handleSwitchDocument, handleCreateDocument, flushCurrentDoc, handleTitleChange, sendMessage });
+  appActionsRef.current = { handleSwitchDocument, handleCreateDocument, flushCurrentDoc, handleTitleChange, sendMessage };
+  useEffect(() => {
+    const liveEditors = () => (allEditorsRef.current.length ? allEditorsRef.current : editorRef.current ? [editorRef.current] : [])
+      .filter((e) => e && !e.isDestroyed);
+    const editorHolding = (nodeId: string) => liveEditors().find((e) => findNodeById(e, nodeId));
+    const endPreview = () => {
+      const id = getPreviewNodeId();
+      const editor = id ? editorHolding(id) : undefined;
+      if (isPreviewActive() && editor) showModified(editor, id);
+    };
+    setAppActions({
+      switchDocument: (filename) => appActionsRef.current.handleSwitchDocument(filename),
+      createDocument: () => appActionsRef.current.handleCreateDocument(),
+      flush: () => appActionsRef.current.flushCurrentDoc(),
+      setTitle: (t) => appActionsRef.current.handleTitleChange(t),
+      resolvePending: (action, nodeId) => {
+        const editors = liveEditors();
+        if (editors.length === 0) return;
+        endPreview();
+        const send = appActionsRef.current.sendMessage;
+        if (nodeId) {
+          const editor = editorHolding(nodeId);
+          if (!editor) return;
+          if (action === 'accept') acceptChange(editor, nodeId); else rejectChange(editor, nodeId);
+        } else {
+          for (const editor of editors) { if (action === 'accept') acceptAllChanges(editor); else rejectAllChanges(editor); }
+          const docId = metadata?.docId as string | undefined;
+          if (pendingTitleRef.current && docId) send({ type: action === 'accept' ? 'accept-pending-title' : 'reject-pending-title', docId });
+        }
+        settleIfResolved({ editors, filename: currentFilename.current, action, getDocument: () => lastDocJson.current, sendMessage: send, version: docVersionRef.current });
+      },
+      focusPending: (nodeId) => {
+        const editor = nodeId ? editorHolding(nodeId) : liveEditors()[0];
+        const groupId = nodeId && editor ? findNodeById(editor, nodeId)?.node.attrs?.pendingGroupId ?? null : null;
+        setFocusedPendingNode(nodeId, groupId);
+        if (editor?.view) forceDecorationRefresh(editor.view);
+      },
+      previewOriginal: (nodeId) => {
+        if (!nodeId) { endPreview(); return; }
+        const editor = editorHolding(nodeId);
+        const node = editor ? findNodeById(editor, nodeId)?.node : null;
+        if (!editor || node?.attrs?.pendingStatus !== 'rewrite') return;
+        endPreview();
+        showOriginal(editor, { nodeId, groupId: node.attrs.pendingGroupId || undefined });
+      },
+    });
+    return () => setAppActions(null);
+  }, [metadata?.docId, docVersionRef]);
 
   const handleSync = useCallback(() => {
     if (syncStatus.state === 'unconfigured') {

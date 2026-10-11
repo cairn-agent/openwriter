@@ -1416,3 +1416,10 @@ a rewrite stuck in canonical uses the same comparison.
 attributes with null and the server omits them, so the gate never matched and
 every editor update was sent as a save. The baseline is now `docKey()` (nulls
 dropped, keys sorted) everywhere it is set or compared.
+
+### 2026-10-11 — review actions shared by every presentation
+The original-text preview (swap in place, out of history and autosave) and the end-of-review
+settle (`doc-update`, then `pending-resolved` once no change is left) moved from ReviewTab into
+`src/decorations/review-actions.ts`. The Review tab, Focus mode and a client plugin's review UI
+(`app.resolvePending`, `app.previewOriginal`) all call them, so a document's review ends the
+same way whichever presentation settled the last change.

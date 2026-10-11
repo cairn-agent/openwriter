@@ -36,6 +36,7 @@ let host = null;
 const plugin = {
   name: 'demo-plugin',
   version: '1.0.0',
+  displayName: 'Demo',
   clientModule: { dir: clientDir, entry: 'main.js' },
   registerRoutes(ctx) {
     host = ctx.host;
@@ -81,6 +82,12 @@ assert(host && host.rootDir === dataDir && host.tools().some((t) => t.name === '
 const descriptor = (await (await get('/api/plugins')).json()).plugins.find((p) => p.name === 'demo-plugin');
 assert(descriptor?.clientModule === '/plugin-client/demo-plugin/main.js', 'its client module is listed for the browser');
 assert((await get(descriptor.clientModule)).status === 200, 'its client module is served');
+const listed = (await (await get('/api/available-plugins')).json()).plugins.find((p) => p.name === 'demo-plugin');
+assert(listed?.required === true && listed.displayName === 'Demo', 'the plugin list shows its own name and marks it required');
+const disable = await fetch(`${base}/api/plugins/disable`, {
+  method: 'POST', headers: { 'x-demo': 'yes', 'Content-Type': 'application/json', Origin: 'https://writer.example' }, body: JSON.stringify({ name: 'demo-plugin' }),
+});
+assert((await disable.json()).success === false && (await get('/api/demo')).status === 200, 'it cannot be disabled');
 
 await ow.close();
 console.log(`\n${passed} passed, ${failed} failed`);

@@ -13,9 +13,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './FocusReview.css';
 import type { Editor } from '@tiptap/react';
-import { usePendingState, derivePendingState } from '../../hooks/usePendingState';
-import { setPreviewState, isPreviewActive, getSavedModifiedContent, getPreviewGroupId } from '../../decorations/plugin';
-import { findNodeById, findGroupMembers } from '../../decorations/apply';
+import { usePendingState } from '../../hooks/usePendingState';
+import { isPreviewActive } from '../../decorations/plugin';
+import { showOriginal as showOriginalInPlace, showModified, settleIfResolved } from '../../decorations/review-actions';
 import type { RightRailTabProps } from '../types';
 import type { WorkspaceNode, WorkspaceWithData } from '../../sidebar/sidebar-types';
 import { loadWorkspaces } from '../../sidebar/sidebar-data';
@@ -71,62 +71,6 @@ const ChevronDown = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="
 const Check = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.5 3.5L13 5" stroke="currentColor" {...s} /></svg>;
 const DoubleCheck = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8.5l3.5 3.5L11 5" stroke="currentColor" {...s} /><path d="M8 12l.5.5L15 6" stroke="currentColor" {...s} /></svg>;
 const XIcon = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" {...s} /></svg>;
-
-function replaceNodeContent(editor: Editor, nodeId: string, newContent: any): boolean {
-  const result = findNodeById(editor, nodeId);
-  if (!result) return false;
-  const { pos, node } = result;
-  const replacement = {
-    type: newContent.type || node.type.name,
-    attrs: {
-      ...(newContent.attrs || {}),
-      id: node.attrs.id,
-      pendingStatus: node.attrs.pendingStatus,
-      pendingOriginalContent: node.attrs.pendingOriginalContent,
-      pendingSelectionFrom: node.attrs.pendingSelectionFrom,
-      pendingSelectionTo: node.attrs.pendingSelectionTo,
-      pendingOriginalFrom: node.attrs.pendingOriginalFrom,
-      pendingOriginalTo: node.attrs.pendingOriginalTo,
-    },
-    content: newContent.content,
-  };
-  try {
-    editor.chain()
-      .command(({ tr }) => { tr.setMeta('addToHistory', false); return true; })
-      .deleteRange({ from: pos, to: pos + node.nodeSize })
-      .insertContentAt(pos, replacement)
-      .run();
-    return true;
-  } catch { return false; }
-}
-
-function replaceGroupRange(editor: Editor, groupId: string, newContent: any[]): boolean {
-  const members = findGroupMembers(editor, groupId);
-  if (members.length === 0) return false;
-  const rangeFrom = members[0].pos;
-  const rangeTo = members[members.length - 1].pos + members[members.length - 1].node.nodeSize;
-  try {
-    editor.chain()
-      .command(({ tr }) => { tr.setMeta('addToHistory', false); return true; })
-      .deleteRange({ from: rangeFrom, to: rangeTo })
-      .insertContentAt(rangeFrom, newContent)
-      .run();
-    return true;
-  } catch { return false; }
-}
-
-function restoreIfPreviewing(editor: Editor, previewingNodeId: string | null): boolean {
-  if (!isPreviewActive() || !previewingNodeId) return false;
-  const modified = getSavedModifiedContent();
-  const groupId = getPreviewGroupId();
-  if (groupId && modified && Array.isArray(modified)) {
-    replaceGroupRange(editor, previewingNodeId, modified);
-  } else if (modified) {
-    replaceNodeContent(editor, previewingNodeId, modified);
-  }
-  setPreviewState(false);
-  return true;
-}
 
 function currentDocIndexOf(filenames: string[], current: string): number {
   return filenames.indexOf(current);
@@ -279,50 +223,13 @@ export default function ReviewTab({
     if (!editor || !currentNode || currentNode.pendingStatus !== 'rewrite') return;
 
     if (!showOriginal) {
-      if (isGroup && currentNode.groupId) {
-        const members = findGroupMembers(editor, currentNode.groupId);
-        if (members.length === 0) return;
-        const originalContent = members[0].node.attrs?.pendingOriginalContent;
-        if (!originalContent || !Array.isArray(originalContent)) return;
-        const modifiedJsons = members.map((m) => m.node.toJSON());
-        const previewNodes = originalContent.map((orig: any, i: number) => ({
-          ...orig,
-          attrs: {
-            ...(orig.attrs || {}),
-            pendingStatus: 'rewrite',
-            pendingGroupId: currentNode.groupId,
-            ...(i === 0 ? { pendingOriginalContent: originalContent } : {}),
-          },
-        }));
-        setPreviewState(true, currentNode.nodeId, modifiedJsons, currentNode.groupId);
-        const swapped = replaceGroupRange(editor, currentNode.groupId, previewNodes);
-        if (!swapped) {
-          setPreviewState(false);
-          return;
-        }
-        previewNodeIdRef.current = currentNode.nodeId;
-        previewEditorRef.current = editor;
-        setShowOriginal(true);
-      } else {
-        const result = findNodeById(editor, currentNode.nodeId);
-        if (!result) return;
-        const { node } = result;
-        const originalContent = node.attrs?.pendingOriginalContent;
-        if (!originalContent) return;
-        const modifiedJson = node.toJSON();
-        setPreviewState(true, currentNode.nodeId, modifiedJson);
-        const swapped = replaceNodeContent(editor, currentNode.nodeId, originalContent);
-        if (!swapped) {
-          setPreviewState(false);
-          return;
-        }
-        previewNodeIdRef.current = currentNode.nodeId;
-        previewEditorRef.current = editor;
-        setShowOriginal(true);
-      }
+      if (!showOriginalInPlace(editor, { nodeId: currentNode.nodeId, groupId: isGroup ? currentNode.groupId : undefined })) return;
+      previewNodeIdRef.current = currentNode.nodeId;
+      previewEditorRef.current = editor;
+      setShowOriginal(true);
     } else {
       if (previewEditorRef.current) {
-        restoreIfPreviewing(previewEditorRef.current, previewNodeIdRef.current);
+        showModified(previewEditorRef.current, previewNodeIdRef.current);
       }
       previewNodeIdRef.current = null;
       previewEditorRef.current = null;
@@ -335,7 +242,7 @@ export default function ReviewTab({
     const prevNodeId = previewNodeIdRef.current;
     const prevEditor = previewEditorRef.current;
     if (prevNodeId && prevEditor && currentNode?.nodeId !== prevNodeId) {
-      restoreIfPreviewing(prevEditor, prevNodeId);
+      showModified(prevEditor, prevNodeId);
       previewNodeIdRef.current = null;
       previewEditorRef.current = null;
       setShowOriginal(false);
@@ -346,7 +253,7 @@ export default function ReviewTab({
     if (editors.length === 0) return;
     return () => {
       if (isPreviewActive() && previewNodeIdRef.current && previewEditorRef.current) {
-        restoreIfPreviewing(previewEditorRef.current, previewNodeIdRef.current);
+        showModified(previewEditorRef.current, previewNodeIdRef.current);
         previewNodeIdRef.current = null;
         previewEditorRef.current = null;
       }
@@ -354,23 +261,12 @@ export default function ReviewTab({
   }, [editors]);
 
   const checkResolution = useCallback((action: 'accept' | 'reject') => {
-    if (!currentFilename) return;
-    const hasRemaining = editors.some((e) => {
-      if (!e || e.isDestroyed) return false;
-      return derivePendingState(e).length > 0;
-    });
-    if (!hasRemaining) {
-      const doc = getDocument?.();
-      if (doc) {
-        sendMessage({ type: 'doc-update', document: doc, filename: currentFilename, version: docVersionRef?.current ?? 0 });
-      }
-      sendMessage({ type: 'pending-resolved', filename: currentFilename, action });
-    }
+    settleIfResolved({ editors, filename: currentFilename, action, getDocument, sendMessage, version: docVersionRef?.current ?? 0 });
   }, [editors, currentFilename, sendMessage, getDocument, docVersionRef]);
 
   const restorePreviewIfActive = useCallback(() => {
     if (previewEditorRef.current && showOriginal && previewNodeIdRef.current) {
-      restoreIfPreviewing(previewEditorRef.current, previewNodeIdRef.current);
+      showModified(previewEditorRef.current, previewNodeIdRef.current);
       previewNodeIdRef.current = null;
       previewEditorRef.current = null;
       setShowOriginal(false);
