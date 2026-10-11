@@ -75,3 +75,17 @@ other route. The Docker runtime stage installs `git` and `ca-certificates`.
 
 ### 2026-10-10 — securityGate moved to server/security-gate.ts
 Pure move out of `server/index.ts` (over 1,500 lines) before changing it. No behaviour change.
+
+### 2026-10-10 — signed-out redirect; plugins call the host in-process
+A refused signature now answers 401 `{"error":"signed_out"}`, the gateway's own body for an
+expired session, so the browser treats both the same: `src/utils/signed-out.ts` wraps
+`window.fetch` and sends a same-origin 401 `signed_out` to `/_auth/signin`. Only that body
+redirects; other 401s (publish account not connected, a plugin's upstream) stay ordinary errors,
+and the local app never sends it. The WebSocket client probes `/api/status` when its socket
+closes, because a refused upgrade carries no status the page can read.
+The publish plugin used to call the server back over HTTP (`verify_login` posted to
+`127.0.0.1:5050/api/plugins/config`; the sidebar transform posted to `req.host/api/documents`).
+A hosted server has no loopback port and every route needs the gateway signature, so both now go
+through a `PluginHost` the plugin manager hands to `registerRoutes` and `mcpTools`
+(`saveConfig`, `createDocument`). Rule: a plugin never calls its own server over HTTP.
+Test: `scripts/test-hosted-signin-and-plugin-host.mjs`.

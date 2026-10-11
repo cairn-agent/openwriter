@@ -1,4 +1,4 @@
-import type { OpenWriterPlugin, PluginMcpTool, PluginRouteContext } from './helpers.js';
+import type { OpenWriterPlugin, PluginHost, PluginMcpTool, PluginRouteContext } from './helpers.js';
 import { getServerModules, publishFetch } from './helpers.js';
 import { newsletterTools } from './newsletter-tools.js';
 import { siteGrowthTools } from './site-growth-tools.js';
@@ -80,7 +80,7 @@ const plugin: OpenWriterPlugin = {
     },
   },
 
-  mcpTools(config: Record<string, string>): PluginMcpTool[] {
+  mcpTools(config: Record<string, string>, host: PluginHost): PluginMcpTool[] {
     const baseUrl = config['api-url'] || 'https://publish.openwriter.io';
 
     return [
@@ -147,25 +147,13 @@ const plugin: OpenWriterPlugin = {
 
           const data = await res.json() as { apiKey: string; userId: string };
 
-          try {
-            const configRes = await fetch('http://127.0.0.1:5050/api/plugins/config', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                name: '@openwriter/plugin-publish',
-                config: { 'api-key': data.apiKey },
-              }),
-            });
-
-            if (configRes.ok) {
-              return {
-                success: true,
-                userId: data.userId,
-                message: 'Authenticated and API key saved to plugin config. You can now use all Publish tools.',
-              };
-            }
-          } catch {
-            // Config save failed — fall back to returning key
+          // In-process: a hosted server has no loopback port to post back to.
+          if (host.saveConfig({ 'api-key': data.apiKey }).success) {
+            return {
+              success: true,
+              userId: data.userId,
+              message: 'Authenticated and API key saved to plugin config. You can now use all Publish tools.',
+            };
           }
 
           return {
@@ -1188,24 +1176,16 @@ const plugin: OpenWriterPlugin = {
           createBody.metadata = { tweetContext: { mode: 'tweet' } };
         }
 
-        // Create new document via internal HTTP call
-        const host = req.get('host') || 'localhost:5050';
-        const protocol = req.protocol || 'http';
-        const createUrl = `${protocol}://${host}/api/documents`;
-        const createRes = await fetch(createUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(createBody),
-        });
-
-        if (!createRes.ok) {
-          const errData = await createRes.json().catch(() => ({}));
-          console.error('[Publish Plugin] Document creation failed:', errData);
+        // Create the result document in-process (a hosted server has no
+        // loopback port, and its routes sit behind the gateway signature).
+        let docResult: { filename: string };
+        try {
+          docResult = ctx.host.createDocument(createBody);
+        } catch (err: any) {
+          console.error('[Publish Plugin] Document creation failed:', err?.message || err);
           res.status(500).json({ error: 'Failed to create result document' });
           return;
         }
-
-        const docResult = await createRes.json() as { filename: string };
 
         res.json({
           success: true,

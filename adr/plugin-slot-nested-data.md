@@ -41,3 +41,7 @@ Without an invariant on the writer side, every plugin enable/disable, config edi
 ### 2026-10-10 — plugin route context reads the data folder live
 
 - `PluginManager.enable` used to pass `dataDir: getDataDir()` once, as a string, so after a profile switch the image-gen and x-api routes kept writing `_images` into the old profile. The context now carries `dataDir` as a getter and a `configFile` path (OpenWriter's config.json, which follows the hosted data volume), and image-gen and authors-voice read config through it instead of `~/.openwriter`. Slot persistence is unchanged.
+
+### 2026-10-10 — plugins get an in-process host
+
+- `PluginManager.enable` hands each plugin a `PluginHost` (in the route context and as the second argument to `mcpTools`): `saveConfig` goes through `updateConfig`, so it keeps the redaction-sentinel and api-url rules and the slot read-before-write; `createDocument` is the same function as POST /api/documents. The publish plugin used it to replace its two HTTP calls back into the server. Slot persistence is unchanged.

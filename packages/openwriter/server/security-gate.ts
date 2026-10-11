@@ -90,7 +90,9 @@ export function securityGate(port: number) {
     // identity — one or the other, never neither. adr: adr/hosted-gateway-trust.md
     if (HOSTED) {
       const refusal = authorizeGatewayRequest(req.headers);
-      if (refusal) { res.status(refusal).json({ error: refusal === 401 ? 'Unauthorized' : 'Forbidden' }); return; }
+      // 401 says `signed_out`, the gateway's own word for an expired session, so
+      // the browser sends the writer to sign in whichever side refused (src/utils/signed-out.ts).
+      if (refusal) { res.status(refusal).json({ error: refusal === 401 ? 'signed_out' : 'Forbidden' }); return; }
     } else if (!isAllowedHost(req.headers.host, port)) {
       res.status(403).json({ error: 'Forbidden' });
       return;

@@ -13,7 +13,9 @@ import './tweet-compose/tweet-compose.css';
 import './article-compose/ArticleComposeView.css';
 import App from './App';
 import './App.css';
+import { installSignedOutRedirect } from './utils/signed-out';
 
+installSignedOutRedirect();
 initAppearance();
 
 // RightRailProvider is hoisted above <App> (not nested inside App's return) so

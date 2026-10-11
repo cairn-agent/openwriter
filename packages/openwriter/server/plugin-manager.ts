@@ -8,7 +8,8 @@ import { Router as createRouter } from 'express';
 import { discoverPlugins, loadPluginModule, type DiscoveredPlugin } from './plugin-discovery.js';
 import { registerPluginTools, removePluginTools } from './mcp.js';
 import { readConfig, saveConfig, getDataDir, getConfigFile } from './helpers.js';
-import type { OpenWriterPlugin, PluginConfigField, PluginContextMenuItem, PluginSidebarMenuItem } from './plugin-types.js';
+import type { OpenWriterPlugin, PluginConfigField, PluginContextMenuItem, PluginHost, PluginSidebarMenuItem } from './plugin-types.js';
+import { createDocumentFromRequest } from './document-create.js';
 import { broadcastPluginsChanged } from './ws.js';
 import { isAllowedPublishApiUrl } from './connections.js';
 
@@ -94,6 +95,10 @@ export class PluginManager {
 
     // Resolve config: saved config → env vars → empty
     const resolvedConfig = this.resolveConfig(managed);
+    const host: PluginHost = {
+      saveConfig: (values) => this.updateConfig(name, values),
+      createDocument: (body, tab) => createDocumentFromRequest(body, tab),
+    };
 
     // Register routes via togglable middleware
     if (plugin.registerRoutes) {
@@ -105,6 +110,7 @@ export class PluginManager {
         config: resolvedConfig,
         get dataDir() { return getDataDir(); },
         configFile: getConfigFile(),
+        host,
       });
       managed.router = router;
 
@@ -119,7 +125,7 @@ export class PluginManager {
 
     // Register MCP tools
     if (plugin.mcpTools) {
-      const tools = plugin.mcpTools(resolvedConfig);
+      const tools = plugin.mcpTools(resolvedConfig, host);
       managed.toolNames = tools.map((t) => t.name);
       registerPluginTools(tools);
     }

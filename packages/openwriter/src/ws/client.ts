@@ -404,6 +404,10 @@ export function useWebSocket({ onNodeChanges, onAgentStatus, onDocumentSwitched,
 
       ws.onclose = () => {
         setConnected(false);
+        // A refused upgrade has no readable status. In hosted mode an expired
+        // session refuses it, so ask over HTTP: a 401 `signed_out` there sends
+        // the writer to sign in (utils/signed-out.ts). adr: adr/hosted-gateway-trust.md
+        fetch('/api/status').catch(() => {});
         reconnectTimer = setTimeout(connect, backoff);
         backoff = Math.min(backoff * 1.5, 8000); // Exponential backoff, cap at 8s
       };

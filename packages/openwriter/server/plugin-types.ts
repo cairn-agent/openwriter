@@ -27,7 +27,7 @@ export interface OpenWriterPlugin {
   category?: PluginCategory;
   configSchema?: Record<string, PluginConfigField>;
   registerRoutes?(ctx: PluginRouteContext): void | Promise<void>;
-  mcpTools?(config: Record<string, string>): PluginMcpTool[];
+  mcpTools?(config: Record<string, string>, host: PluginHost): PluginMcpTool[];
   contextMenuItems?(): PluginContextMenuItem[];
   sidebarMenuItems?(): PluginSidebarMenuItem[];
 }
@@ -47,6 +47,19 @@ export interface PluginRouteContext {
   readonly dataDir: string;
   /** OpenWriter's config.json (under ~/.openwriter locally, the data volume when hosted). */
   configFile: string;
+  host: PluginHost;
+}
+
+/**
+ * What a plugin asks OpenWriter to do, called in-process. A plugin never calls
+ * the server back over HTTP: a hosted server has no loopback port a plugin
+ * could reach, and every route sits behind the gateway signature.
+ */
+export interface PluginHost {
+  /** Merge values into this plugin's saved config (same rules as the settings UI). */
+  saveConfig(values: Record<string, string>): { success: boolean; error?: string };
+  /** Create a document the way POST /api/documents does; `tab` is the browser tab that asked. */
+  createDocument(body: import('./document-create.js').CreateDocumentRequest, tab?: string): { filename: string; title: string };
 }
 
 export interface PluginMcpTool {

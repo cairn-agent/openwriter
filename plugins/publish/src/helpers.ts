@@ -84,6 +84,13 @@ export interface PluginRouteContext {
   app: import('express').Router;
   config: Record<string, string>;
   dataDir: string;
+  host: PluginHost;
+}
+
+/** OpenWriter's in-process host calls (server/plugin-types.ts). Never call the server back over HTTP. */
+export interface PluginHost {
+  saveConfig(values: Record<string, string>): { success: boolean; error?: string };
+  createDocument(body: Record<string, unknown>, tab?: string): { filename: string; title: string };
 }
 
 export interface PluginSidebarMenuItem {
@@ -99,7 +106,7 @@ export interface OpenWriterPlugin {
   category?: 'writing' | 'social-media' | 'image-generation' | 'publishing' | 'productivity' | 'analytics';
   configSchema?: Record<string, PluginConfigField>;
   registerRoutes?(ctx: PluginRouteContext): void | Promise<void>;
-  mcpTools?(config: Record<string, string>): PluginMcpTool[];
+  mcpTools?(config: Record<string, string>, host: PluginHost): PluginMcpTool[];
   sidebarMenuItems?(): PluginSidebarMenuItem[];
 }
 
