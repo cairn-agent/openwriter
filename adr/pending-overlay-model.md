@@ -1416,3 +1416,10 @@ a rewrite stuck in canonical uses the same comparison.
 attributes with null and the server omits them, so the gate never matched and
 every editor update was sent as a save. The baseline is now `docKey()` (nulls
 dropped, keys sorted) everywhere it is set or compared.
+
+### 2026-10-10 — Chat and inline rewrites land as pending changes
+
+The in-app chat agent and the right-click Rewrite both write through the `write_to_pad`
+handler on the server, so their edits enter this overlay exactly like an external agent's:
+nothing is applied without Review. The editor's context menu now receives the open doc's
+docId for this. adr: adr/writer-key-ai.md

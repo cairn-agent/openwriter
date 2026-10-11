@@ -8,6 +8,7 @@ import type { PendingDocsPayload } from '../ws/client';
 
 /** Tab id — narrow string union so the registry can be exhaustively typed. */
 export type TabId =
+  | 'chat'
   | 'review'
   | 'versions'
   | 'backlinks'

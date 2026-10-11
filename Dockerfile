@@ -17,6 +17,10 @@ RUN npm ci
 
 COPY . .
 RUN npm run build --workspace openwriter && npm prune --omit=dev
+# The chat's Claude Agent SDK runs a bundled Claude Code binary that npm installs as an
+# optional dependency for this platform. Never install with --omit=optional; fail the
+# build here rather than at the writer's first chat. adr: adr/writer-key-ai.md
+RUN node -e "const n=require('fs').readdirSync('node_modules/@anthropic-ai');if(!n.some(x=>x.startsWith('claude-agent-sdk-linux')))throw new Error('Agent SDK binary missing: '+n)"
 
 FROM node:22-bookworm-slim
 ENV NODE_ENV=production \
@@ -33,5 +37,6 @@ RUN mkdir -p /data && chown node:node /data
 USER node
 EXPOSE 8080
 # OW_GATEWAY_SECRET and OW_PUBLIC_URL come from Fly secrets/env; the server
-# refuses to start without them.
+# refuses to start without them. OW_KEY_SECRET (a Fly secret) encrypts the
+# writer's Anthropic key on the volume.
 CMD ["node", "packages/openwriter/dist/bin/pad.js"]

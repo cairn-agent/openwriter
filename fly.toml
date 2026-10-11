@@ -1,7 +1,8 @@
 # Template for the per-writer OpenWriter machines (hosted mode).
 # Each writer gets one Machine and one volume in this app; the gateway at
 # app.openwriter.io routes their traffic to it. Not deployed from here.
-# Secrets (set with `fly secrets set`, never in this file): OW_GATEWAY_SECRET.
+# Secrets (set with `fly secrets set`, never in this file): OW_GATEWAY_SECRET,
+# OW_KEY_SECRET (encrypts each writer's Anthropic key on the volume; adr/writer-key-ai.md).
 # adr: adr/hosted-gateway-trust.md
 
 app = "openwriter-writers"
@@ -41,4 +42,5 @@ primary_region = "iad"
 
 [[vm]]
   size = "shared-cpu-1x"
-  memory = "512mb"
+  # The chat's agent runs as a second process (~190 MB) beside the server (~140 MB).
+  memory = "1024mb"

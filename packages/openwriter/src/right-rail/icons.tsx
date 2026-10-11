@@ -78,6 +78,13 @@ export const AppearanceIcon = () => (
   </svg>
 );
 
+/** Chat — a speech bubble. Rail tab and the titlebar chat toggle. */
+export const ChatIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+    <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12z" stroke="currentColor" {...s} />
+  </svg>
+);
+
 /** Titlebar bell — opens the rail to Activity. Pulses on live arrivals. */
 export const BellIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">

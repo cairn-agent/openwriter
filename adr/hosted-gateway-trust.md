@@ -89,3 +89,10 @@ A hosted server has no loopback port and every route needs the gateway signature
 through a `PluginHost` the plugin manager hands to `registerRoutes` and `mcpTools`
 (`saveConfig`, `createDocument`). Rule: a plugin never calls its own server over HTTP.
 Test: `scripts/test-hosted-signin-and-plugin-host.mjs`.
+
+### 2026-10-10 — Writer Machines carry the chat agent
+
+The Docker build now fails unless the Agent SDK's Linux binary is installed, and writer
+Machines go from 512 MB to 1024 MB (the agent process is about 190 MB beside the server).
+A new Fly secret, `OW_KEY_SECRET`, encrypts each writer's Anthropic key on their volume.
+Nothing about the gateway trust model changed. adr: adr/writer-key-ai.md

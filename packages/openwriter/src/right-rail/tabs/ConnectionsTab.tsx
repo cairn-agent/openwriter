@@ -12,6 +12,7 @@ import type { JSX } from 'react';
 import NewsletterSetupModal from '../../connections/NewsletterSetupModal';
 import ConnectionConfigModal from '../../connections/ConnectionConfigModal';
 import type { RightRailTabProps } from '../types';
+import AnthropicKeyForm from '../../ai/AnthropicKeyForm';
 
 interface Connection {
   id: string;
@@ -161,6 +162,7 @@ export default function ConnectionsTab(_props: RightRailTabProps) {
 
   return (
     <div className="connections-tab">
+      <AnthropicKeyForm />
       {configConnection && (
         <ConnectionConfigModal
           connectionId={configConnection.id}

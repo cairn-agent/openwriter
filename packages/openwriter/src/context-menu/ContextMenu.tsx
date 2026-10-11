@@ -6,7 +6,10 @@ import { applyRewrite } from '../decorations/apply';
 import type { SelectionRange } from '../decorations/apply';
 import { getCommentsData } from '../decorations/comments-plugin';
 import { getBacklinksForNode, type BacklinkEntry } from '../decorations/backlinks-plugin';
-import { injectSelectionMarkers, stripSelectionMarkers } from './selection-markers';
+import { stripSelectionMarkers } from './selection-markers';
+import { buildSelectionPayload } from '../ai/selection-payload';
+import { requestInlineRewrite } from '../ai/inline-rewrite';
+import RewriteForm from '../ai/RewriteForm';
 import { formatLinkHref, linkHrefIdentifier } from '../editor/link-href';
 import { showToast } from '../utils/toast';
 import { openTopupCheckout } from '../utils/av-billing';
@@ -45,7 +48,10 @@ interface MenuItem {
 interface ContextMenuProps {
   editorRef: React.MutableRefObject<Editor | null>;
   allEditors?: Editor[];
+  /** The active document's filename (bookmarks, plugin actions). */
   documentId?: string;
+  /** The active document's docId (8-hex), which the server's write path targets. */
+  docId?: string;
 }
 
 interface MenuPosition {
@@ -68,12 +74,15 @@ interface CapturedSelection {
   text: string;
 }
 
-export default function ContextMenu({ editorRef, allEditors, documentId }: ContextMenuProps) {
+export default function ContextMenu({ editorRef, allEditors, documentId, docId }: ContextMenuProps) {
   const [visible, setVisible] = useState(false);
   const [position, setPosition] = useState<MenuPosition>({ x: 0, y: 0 });
   const [loading, setLoading] = useState(false);
   const [customInput, setCustomInput] = useState('');
   const [showCustom, setShowCustom] = useState(false);
+  // Built-in Rewrite on the writer's own Anthropic key (instruction + model step).
+  const [showRewrite, setShowRewrite] = useState(false);
+  useEffect(() => { if (!visible) setShowRewrite(false); }, [visible]);
   const [customAction, setCustomAction] = useState('');
   const [showLinkPicker, setShowLinkPicker] = useState(false);
   const [docList, setDocList] = useState<Array<{ filename: string; title: string; docId?: string }>>([]);
@@ -239,6 +248,11 @@ export default function ContextMenu({ editorRef, allEditors, documentId }: Conte
         promptForInput: pi.promptForInput,
         pluginDisplayName: pi.pluginDisplayName,
       });
+    }
+
+    // Rewrite the selection with Claude (lands as a pending change)
+    if (hasSelection && !hasPending) {
+      items.push({ action: 'ai-rewrite', label: 'Rewrite…' });
     }
 
     // Core actions
@@ -464,59 +478,16 @@ export default function ContextMenu({ editorRef, allEditors, documentId }: Conte
     }
 
     try {
-      const nodesBefore: string[] = [];
-      const nodesAfter: string[] = [];
-      const targetIdSet = new Set(nodeIds);
-      let pastTarget = false;
-
-      // Iterate top-level doc children only — collect plain text
-      const doc = editor.state.doc;
-      for (let i = 0; i < doc.childCount; i++) {
-        const child = doc.child(i);
-        const childId = child.attrs?.id;
-        if (childId && targetIdSet.has(childId)) {
-          pastTarget = true;
-        } else if (!pastTarget) {
-          const text = child.textContent.trim();
-          if (text) nodesBefore.push(text);
-        } else {
-          const text = child.textContent.trim();
-          if (text) nodesAfter.push(text);
-        }
-      }
-
-      // Sub-paragraph selection: inject [[START_SELECTION]]/[[END_SELECTION]] markers
-      // so the backend AI only modifies the selected text
-      let markedNodes = nodes;
-      let isSubParagraph = false;
-      let subParaStartOffset = 0;
-      let subParaEndOffset = 0;
-      const $from = from !== to ? editor.state.doc.resolve(from) : null;
-      const $to = from !== to ? editor.state.doc.resolve(to) : null;
-      const sameBlock = $from && $to ? $from.sameParent($to) : false;
-      if (sameBlock && $from && nodes.length === 1) {
-        const contentStart = $from.start($from.depth);
-        subParaStartOffset = from - contentStart;
-        subParaEndOffset = to - contentStart;
-        const nodeTextLength = nodes[0]?.content
-          ?.reduce((len: number, c: any) => len + (c.text?.length || (c.type === 'hardBreak' ? 1 : 0)), 0) ?? 0;
-        // Only inject markers for partial selections (not full paragraph)
-        if (subParaStartOffset > 0 || subParaEndOffset < nodeTextLength) {
-          markedNodes = injectSelectionMarkers(nodes, subParaStartOffset, subParaEndOffset);
-          isSubParagraph = true;
-        }
-      }
-
-      // Full document text for broad context awareness
-      const fullDocText = editor.state.doc.textContent;
+      const payload = buildSelectionPayload(editor, { from, to, nodes, nodeIds });
+      const isSubParagraph = payload.isSubParagraph;
 
       const body: any = {
-        nodes: markedNodes,
+        nodes: payload.markedNodes,
         action: backendAction,
         nodeIds,
-        contextBefore: nodesBefore.slice(-3),
-        contextAfter: nodesAfter.slice(0, 3),
-        fullDocument: fullDocText,
+        contextBefore: payload.contextBefore,
+        contextAfter: payload.contextAfter,
+        fullDocument: payload.fullDocument,
         documentId,
         debug: true,
       };
@@ -524,10 +495,7 @@ export default function ContextMenu({ editorRef, allEditors, documentId }: Conte
       if (instruction) body.instruction = instruction;
 
       // ── Selection-size guard (toast + cancel before the request) ──
-      const selectionText = (nodes || [])
-        .map((n: any) => (Array.isArray(n?.content) ? n.content.map((p: any) => p?.text || '').join(' ') : ''))
-        .join(' ');
-      const selectionWords = (selectionText.match(/\S+/g) || []).length;
+      const selectionWords = payload.words;
       if (selectionWords > MAX_SELECTION_WORDS) {
         showToast(`Selection too large: ${selectionWords.toLocaleString()} words (max ${MAX_SELECTION_WORDS.toLocaleString()}). Select a smaller section.`, 'error');
         if (isInsertAction) editor.commands.removeInsertionLoading(loadingId);
@@ -763,6 +731,10 @@ export default function ContextMenu({ editorRef, allEditors, documentId }: Conte
         return;
       }
       callPluginAction(action);
+      return;
+    }
+    if (action === 'ai-rewrite') {
+      setShowRewrite(true);
       return;
     }
     if (action === 'comment') {
@@ -1174,6 +1146,18 @@ export default function ContextMenu({ editorRef, allEditors, documentId }: Conte
             </span>
           ))}
         </>
+      ) : showRewrite ? (
+        <RewriteForm
+          onCancel={() => setVisible(false)}
+          onSubmit={(instruction, model) => {
+            const editor = activeEditorRef.current || editorRef.current;
+            const captured = capturedSelection.current;
+            setVisible(false);
+            if (editor && captured) {
+              void requestInlineRewrite({ editor, docId, selection: captured, instruction, model });
+            }
+          }}
+        />
       ) : showCustom ? (
         <div className="context-menu-custom">
           <input

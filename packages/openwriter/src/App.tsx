@@ -1357,7 +1357,7 @@ export default function App() {
           ? `Voice heatmap — ${attribution.percent.human}% human · ${attribution.percent.agent}% agent${attribution.percent.unknown ? ` · ${attribution.percent.unknown}% unknown` : ''}`
           : 'Voice heatmap — attribution starts on the next edit'}
       />
-      <ContextMenu editorRef={editorRef} allEditors={allEditors} documentId={activeFilename} />
+      <ContextMenu editorRef={editorRef} allEditors={allEditors} documentId={activeFilename} docId={(metadata?.docId as string) || undefined} />
       <CommentPopover documentId={activeFilename} />
       {showSyncSetup && (
         <SyncSetupModal

@@ -263,3 +263,13 @@ this tab's metadata (see adr/per-tab-view.md, same date).
 ### 2026-10-10 — Sync button reads as two-way
 
 The right-rail Sync button now says it syncs with GitHub both ways, and its details dropdown also lists conflict copies from the last sync (files changed in both places). No rail structure changed. adr: adr/two-way-sync.md
+
+### 2026-10-10 — Chat tab and the titlebar chat toggle
+
+A Chat tab leads the strip (registry entry, as the invariant says). Its toggle lives in the
+titlebar and stays there whether the rail is open or closed: it opens the rail on Chat, or
+closes the rail when Chat is showing. Two exceptions to existing behavior: pending writes do
+not auto-switch the rail to Review while Chat is the open tab (the chat shows "N changes
+proposed" with a link into Review instead), and the "add your key" event opens Chat. The
+chat's state lives in a module store outside the tab, because the body unmounts on tab switch.
+Connections now starts with the Anthropic key form. adr: adr/writer-key-ai.md

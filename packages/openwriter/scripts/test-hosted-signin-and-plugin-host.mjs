@@ -103,10 +103,11 @@ const json = (status, body) => new Response(JSON.stringify(body), { status, head
 // ---- Publish plugin: in-process host calls ----
 console.log('\nPublish plugin calls the host in-process:');
 const fetched = [];
+const NEW_KEY = 'ow_live_new'; // fictional
 globalThis.fetch = async (url, init) => {
   const u = String(url);
   fetched.push(u);
-  if (u.endsWith('/auth/verify-code')) return json(200, { apiKey: 'ow_live_new', userId: 'user-1' });
+  if (u.endsWith('/auth/verify-code')) return json(200, { apiKey: NEW_KEY, userId: 'user-1' });
   if (u.endsWith('/transforms')) return json(200, { success: true, html: '<p>Shorter text.</p>', newTitle: 'Short', metadata: {} });
   return json(404, { error: 'unexpected' });
 };
@@ -122,7 +123,7 @@ const host = {
 const tools = publish.mcpTools({}, host);
 const verify = tools.find((t) => t.name === 'verify_login');
 const result = await verify.handler({ email: 'w@example.com', code: '123456' });
-assert(saved.length === 1 && saved[0]['api-key'] === 'ow_live_new', 'verify_login saves the key through host.saveConfig');
+assert(saved.length === 1 && saved[0]['api-key'] === NEW_KEY, 'verify_login saves the key through host.saveConfig');
 assert(result.success === true && !('apiKey' in result), 'verify_login reports success without echoing the key');
 
 const routes = {};

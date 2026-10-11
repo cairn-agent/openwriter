@@ -20,6 +20,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRightRail } from './RightRailContext';
 import { TAB_REGISTRY } from './tabs';
 import type { PendingDocsPayload } from '../ws/client';
+import { OPEN_KEY_SETTINGS_EVENT } from '../ai/ai-api';
 
 interface RailIconStripProps {
   pendingDocs: PendingDocsPayload;
@@ -41,9 +42,21 @@ export default function RailIconStrip({ pendingDocs, autoReveal }: RailIconStrip
   const [pulsingActivity, setPulsingActivity] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   // Focus has its own visible review controls; arrivals must not open a panel.
+  // Nor while the writer is in the chat: its own edits land there as a
+  // "N changes proposed" link into Review, and switching away mid-answer
+  // would hide the conversation.
+  const inChat = visible && activeTab === 'chat';
   const revealReview = useCallback(() => {
-    if (autoReveal) openTab('review');
-  }, [autoReveal, openTab]);
+    if (autoReveal && !inChat) openTab('review');
+  }, [autoReveal, inChat, openTab]);
+
+  // "Add your key" prompts (e.g. a Rewrite without a key) open the chat, which
+  // shows the key form.
+  useEffect(() => {
+    const handler = () => openTab('chat');
+    window.addEventListener(OPEN_KEY_SETTINGS_EVENT, handler);
+    return () => window.removeEventListener(OPEN_KEY_SETTINGS_EVENT, handler);
+  }, [openTab]);
 
   useEffect(() => {
     const cur = pendingDocs.filenames.length;
