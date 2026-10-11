@@ -18,7 +18,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useRightRail } from './RightRailContext';
-import { TAB_REGISTRY } from './tabs';
+import { useRailTabs } from './tabs';
 import type { PendingDocsPayload } from '../ws/client';
 
 interface RailIconStripProps {
@@ -40,10 +40,13 @@ export default function RailIconStrip({ pendingDocs, autoReveal }: RailIconStrip
   const { visible, activeTab, openTab } = useRightRail();
   const [pulsingActivity, setPulsingActivity] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const tabs = useRailTabs();
   // Focus has its own visible review controls; arrivals must not open a panel.
+  // Nor while a plugin tab that asks to hold the rail is showing.
+  const held = visible && !!tabs.find((t) => t.id === activeTab)?.holdOpenOnPending;
   const revealReview = useCallback(() => {
-    if (autoReveal) openTab('review');
-  }, [autoReveal, openTab]);
+    if (autoReveal && !held) openTab('review');
+  }, [autoReveal, held, openTab]);
 
   useEffect(() => {
     const cur = pendingDocs.filenames.length;
@@ -87,7 +90,7 @@ export default function RailIconStrip({ pendingDocs, autoReveal }: RailIconStrip
       role="tablist"
       aria-label="Right rail tabs"
     >
-      {TAB_REGISTRY.map((tab) => {
+      {tabs.map((tab) => {
         const selected = visible && activeTab === tab.id;
         const isActivity = tab.id === 'activity';
         return (

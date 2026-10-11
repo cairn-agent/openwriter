@@ -264,19 +264,13 @@ this tab's metadata (see adr/per-tab-view.md, same date).
 
 The right-rail Sync button now says it syncs with GitHub both ways, and its details dropdown also lists conflict copies from the last sync (files changed in both places). No rail structure changed. adr: adr/two-way-sync.md
 
-### 2026-10-10 — Chat tab and the titlebar chat toggle
+### 2026-10-11 — Plugin tabs
 
-A Chat tab leads the strip (registry entry, as the invariant says). Its toggle lives in the
-titlebar and stays there whether the rail is open or closed: it opens the rail on Chat, or
-closes the rail when Chat is showing. Two exceptions to existing behavior: pending writes do
-not auto-switch the rail to Review while Chat is the open tab (the chat shows "N changes
-proposed" with a link into Review instead), and the "add your key" event opens Chat. The
-chat's state lives in a module store outside the tab, because the body unmounts on tab switch.
-Connections now starts with the Anthropic key form. adr: adr/writer-key-ai.md
-
-### 2026-10-11 — Chat tab and titlebar chat toggle removed from the local app
-
-The chat box belongs to OpenWriter's web version, not the open-source app
-(adr/open-source-boundary.md). The Chat tab, its titlebar toggle, the Anthropic key form in
-Connections and the review auto-switch exception for Chat are gone; the strip is back to
-Review → Activity → Backlinks → Exports, then the settings tabs.
+Plugins add tabs through the client plugin API (`src/plugins/client-plugins.tsx`,
+adr/open-source-boundary.md). `TAB_REGISTRY` stays the built-in list; `useRailTabs()` merges
+plugin tabs in (`first` ones lead the strip, the rest follow Appearance), with ids
+`plugin:<id>` so they never collide with built-in ones. The strip, the body and the titlebar
+all read `useRailTabs()`. A plugin tab may ask for a titlebar toggle (opens the rail on it, or
+closes the rail while it shows, rail open or closed) and may hold the rail: while it is the
+open tab, new pending changes do not switch the rail to Review. A plugin tab's body is the
+plugin's own view mounted into a plain element, never part of the app's React tree.

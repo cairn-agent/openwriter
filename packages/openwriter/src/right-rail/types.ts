@@ -6,8 +6,9 @@ import type { ReactNode } from 'react';
 import type { Editor } from '@tiptap/react';
 import type { PendingDocsPayload } from '../ws/client';
 
-/** Tab id — narrow string union so the registry can be exhaustively typed. */
+/** Tab id — the built-in tabs, plus plugin tabs as `plugin:<id>` (src/plugins/client-plugins.tsx). */
 export type TabId =
+  | `plugin:${string}`
   | 'review'
   | 'versions'
   | 'backlinks'
@@ -52,4 +53,8 @@ export interface TabDefinition {
   icon: ReactNode;
   /** The tab body. Receives the full prop bag; uses what it needs. */
   Component: (props: RightRailTabProps) => JSX.Element | null;
+  /** Plugin tabs: a titlebar button opens this tab, or closes the rail while it shows. */
+  titlebarToggle?: boolean;
+  /** Plugin tabs: while this tab shows, new pending changes do not switch to Review. */
+  holdOpenOnPending?: boolean;
 }

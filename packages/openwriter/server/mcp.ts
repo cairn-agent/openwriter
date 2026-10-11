@@ -10,8 +10,7 @@ import { randomUUID } from 'crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { getDataDir, ensureDataDir, resolveDocPath, generateNodeId, atomicWriteFileSync, readConfig, HOSTED } from './helpers.js';
-import { HOSTED_EXCLUDED_TOOLS } from './hosted.js';
+import { getDataDir, ensureDataDir, resolveDocPath, generateNodeId, atomicWriteFileSync, readConfig } from './helpers.js';
 import { manuscriptTools } from './manuscript/tools.js';
 
 import {
@@ -2144,15 +2143,6 @@ export const TOOL_REGISTRY: ToolDef[] = [
     },
   },
 ];
-
-// Hosted mode: tools that reach the local machine are not in the list at all,
-// so neither the HTTP tool list nor any in-process agent can see them.
-// adr: adr/hosted-gateway-trust.md
-if (HOSTED) {
-  for (let i = TOOL_REGISTRY.length - 1; i >= 0; i--) {
-    if (HOSTED_EXCLUDED_TOOLS.has(TOOL_REGISTRY[i].name)) TOOL_REGISTRY.splice(i, 1);
-  }
-}
 
 /** Live MCP server instance — used to register plugin tools dynamically. */
 let mcpServerInstance: McpServer | null = null;

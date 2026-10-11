@@ -6,8 +6,7 @@
  *   2. Blog sites — list of blog repos, post via local git ops.
  *
  * Routes match the previous core mount points so SyncButton + SyncSetupModal
- * keep working. In hosted mode (the online copy) only docs sync runs: the
- * blog tools need the writer's own computer. adr: adr/two-way-sync.md
+ * keep working. adr: adr/two-way-sync.md
  */
 
 import type { Request, Response } from 'express';
@@ -26,10 +25,6 @@ import {
 import { startDeviceFlow, pollDeviceFlow } from './device-flow.js';
 import { blogTools } from './blog-tools.js';
 
-// The same switch as the server's HOSTED (server/helpers.ts). mcpTools() is
-// synchronous, so it cannot wait on the server-module bridge.
-const HOSTED = process.env.OW_HOSTED === '1';
-
 const plugin: OpenWriterPlugin = {
   name: '@openwriter/plugin-github',
   version: '0.1.0',
@@ -39,10 +34,16 @@ const plugin: OpenWriterPlugin = {
   // No user-input credentials — auth piggybacks on the user's existing
   // `gh auth`, a PAT, or device flow (verified in getCapabilities). Blog-site
   // list is stored outside the configSchema as structured data.
-  configSchema: {},
+  configSchema: {
+    pullOnStart: {
+      type: 'boolean',
+      env: 'OW_GITHUB_PULL_ON_START',
+      description: 'Bring in changes from GitHub when OpenWriter starts',
+    },
+  },
 
   mcpTools() {
-    return HOSTED ? [] : blogTools();
+    return blogTools();
   },
 
   registerRoutes(ctx: PluginRouteContext) {
@@ -132,9 +133,9 @@ const plugin: OpenWriterPlugin = {
       }
     });
 
-    // The online copy wakes from sleep often: catch up with GitHub once at
-    // start-up. Pull only; the writer's next Sync pushes.
-    if (HOSTED) {
+    // Opt-in: catch up with GitHub once at start-up, for an OpenWriter that is
+    // often started after edits elsewhere. Pull only; the writer's next Sync pushes.
+    if (ctx.config.pullOnStart === 'true' || ctx.config.pullOnStart === '1') {
       void (async () => {
         try {
           if ((await getSyncStatus()).state === 'unconfigured') return;

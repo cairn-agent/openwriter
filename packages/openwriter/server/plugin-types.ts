@@ -30,6 +30,12 @@ export interface OpenWriterPlugin {
   mcpTools?(config: Record<string, string>, host: PluginHost): PluginMcpTool[];
   contextMenuItems?(): PluginContextMenuItem[];
   sidebarMenuItems?(): PluginSidebarMenuItem[];
+  /**
+   * A browser module the app imports at page load: `dir` is served under
+   * /plugin-client/<plugin>/ and `entry` (a path inside it) is imported. Its default export
+   * receives the client plugin API (src/plugins/client-plugins.ts). adr: adr/open-source-boundary.md
+   */
+  clientModule?: { dir: string; entry: string };
 }
 
 export interface PluginConfigField {
@@ -45,21 +51,27 @@ export interface PluginRouteContext {
   config: Record<string, string>;
   /** The active profile's folder. Read it when a request needs it, never keep a copy: it follows a profile switch. */
   readonly dataDir: string;
-  /** OpenWriter's config.json (under ~/.openwriter locally, the data volume when hosted). */
+  /** OpenWriter's config.json, in its data folder. */
   configFile: string;
   host: PluginHost;
 }
 
 /**
  * What a plugin asks OpenWriter to do, called in-process. A plugin never calls
- * the server back over HTTP: a hosted server has no loopback port a plugin
- * could reach, and every route sits behind the gateway signature.
+ * the server back over HTTP: the server may not listen on loopback, and its
+ * routes may sit behind an embedder's request gate. adr: adr/open-source-boundary.md
  */
 export interface PluginHost {
   /** Merge values into this plugin's saved config (same rules as the settings UI). */
   saveConfig(values: Record<string, string>): { success: boolean; error?: string };
   /** Create a document the way POST /api/documents does; `tab` is the browser tab that asked. */
   createDocument(body: import('./document-create.js').CreateDocumentRequest, tab?: string): { filename: string; title: string };
+  /** The tools OpenWriter's agents see, live: run one in-process by calling its handler. */
+  tools(): ReadonlyArray<import('./mcp.js').ToolDef>;
+  /** The documents with changes waiting for review. */
+  pendingDocs(): ReturnType<typeof import('./state.js').getPendingDocInfo>;
+  /** OpenWriter's data folder (~/.openwriter, or OW_DATA_DIR). */
+  rootDir: string;
 }
 
 export interface PluginMcpTool {

@@ -1602,3 +1602,17 @@
 }
 .commit-row__restore:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--accent); }
 .commit-row__restore:disabled { opacity: 0.4; cursor: default; }
+
+/* ─── Plugin tabs (client plugin API) ──────────────────────────────── */
+/* A plugin mounts its own view into this box; it fills the rail body. */
+.plugin-rail-tab {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.plugin-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

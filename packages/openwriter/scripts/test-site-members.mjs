@@ -4,7 +4,7 @@
  * Each tool must call the /sites/members endpoint, never the old /newsletter/subscribers list.
  *
  * The API is mocked: fetch is replaced, and the publish config lives in a throwaway data folder
- * (OW_HOSTED + OW_DATA_DIR in the temp dir), never ~/.openwriter. Nothing reaches the network.
+ * (OW_DATA_DIR in the temp dir), never ~/.openwriter. Nothing reaches the network.
  *
  * Run from packages/openwriter after building the server and the publish plugin:
  *   `node scripts/test-site-members.mjs`
@@ -15,7 +15,6 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 
 const dataDir = mkdtempSync(join(tmpdir(), 'ow-site-members-'));
-process.env.OW_HOSTED = '1';
 process.env.OW_DATA_DIR = dataDir;
 writeFileSync(join(dataDir, 'config.json'), JSON.stringify({
   plugins: { '@openwriter/plugin-publish': { config: { 'api-key': 'ow_live_test', 'api-url': 'http://localhost:9' } } },

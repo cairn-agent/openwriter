@@ -4,12 +4,14 @@
  */
 
 import type { Express, Router, Request, Response, NextFunction } from 'express';
-import { Router as createRouter } from 'express';
+import express, { Router as createRouter } from 'express';
 import { discoverPlugins, loadPluginModule, type DiscoveredPlugin } from './plugin-discovery.js';
-import { registerPluginTools, removePluginTools } from './mcp.js';
-import { readConfig, saveConfig, getDataDir, getConfigFile } from './helpers.js';
+import { registerPluginTools, removePluginTools, TOOL_REGISTRY } from './mcp.js';
+import { readConfig, saveConfig, getDataDir, getConfigFile, ROOT_DIR } from './helpers.js';
 import type { OpenWriterPlugin, PluginConfigField, PluginContextMenuItem, PluginHost, PluginSidebarMenuItem } from './plugin-types.js';
 import { createDocumentFromRequest } from './document-create.js';
+import { getPendingDocInfo } from './state.js';
+import { embedOptions } from './embed-options.js';
 import { broadcastPluginsChanged } from './ws.js';
 import { isAllowedPublishApiUrl } from './connections.js';
 
@@ -29,6 +31,11 @@ function redactConfig(config: Record<string, string>): Record<string, string> {
     out[k] = SECRET_KEY_RE.test(k) && v ? REDACTED_SECRET : v;
   }
   return out;
+}
+
+/** Where a plugin's browser module is served: /plugin-client/<plugin name, URL-safe>. */
+function clientModuleBase(pluginName: string): string {
+  return `/plugin-client/${pluginName.replace(/[^a-zA-Z0-9-]+/g, '-').replace(/^-+/, '')}`;
 }
 
 interface ManagedPlugin {
@@ -55,7 +62,9 @@ export class PluginManager {
 
   /** Scan plugins/ directory and build the available plugins map. */
   async discover(): Promise<void> {
-    const discovered = discoverPlugins();
+    // An embedder may hide discovered plugins. adr: adr/open-source-boundary.md
+    const { pluginFilter } = embedOptions();
+    const discovered = discoverPlugins().filter((d) => !pluginFilter || pluginFilter({ name: d.name, source: d.source }));
     const savedConfig = readConfig();
     const savedPlugins = savedConfig.plugins || {};
 
@@ -74,6 +83,23 @@ export class PluginManager {
         toolNames: [],
       });
     }
+  }
+
+  /**
+   * Add a plugin object handed over in-process (an embedder's own plugin), beside the
+   * discovered ones. Enable it like any other. adr: adr/open-source-boundary.md
+   */
+  addInProcess(plugin: OpenWriterPlugin): void {
+    if (this.plugins.has(plugin.name)) return;
+    const saved = readConfig().plugins?.[plugin.name];
+    this.plugins.set(plugin.name, {
+      discovered: { name: plugin.name, dirName: plugin.name, version: plugin.version, description: plugin.description || '', source: 'bundled', category: plugin.category, pluginDir: '' },
+      plugin,
+      configSchema: plugin.configSchema || {},
+      enabled: false,
+      config: saved?.config || {},
+      toolNames: [],
+    });
   }
 
   /** Enable a plugin: import, register routes + tools, save state. */
@@ -98,20 +124,24 @@ export class PluginManager {
     const host: PluginHost = {
       saveConfig: (values) => this.updateConfig(name, values),
       createDocument: (body, tab) => createDocumentFromRequest(body, tab),
+      tools: () => TOOL_REGISTRY,
+      pendingDocs: () => getPendingDocInfo(),
+      rootDir: ROOT_DIR,
     };
 
-    // Register routes via togglable middleware
-    if (plugin.registerRoutes) {
+    // Register routes (and the plugin's browser module) via togglable middleware
+    if (plugin.registerRoutes || plugin.clientModule) {
       const router = createRouter();
       // dataDir is a getter, not a copy taken now: a plugin route reading it after
       // a profile switch must write into the new profile, not the one active at enable.
-      await plugin.registerRoutes({
+      await plugin.registerRoutes?.({
         app: router,
         config: resolvedConfig,
         get dataDir() { return getDataDir(); },
         configFile: getConfigFile(),
         host,
       });
+      if (plugin.clientModule) router.use(clientModuleBase(name), express.static(plugin.clientModule.dir));
       managed.router = router;
 
       // Wrap in middleware that skips when disabled
@@ -125,7 +155,8 @@ export class PluginManager {
 
     // Register MCP tools
     if (plugin.mcpTools) {
-      const tools = plugin.mcpTools(resolvedConfig, host);
+      const { toolFilter } = embedOptions();
+      const tools = plugin.mcpTools(resolvedConfig, host).filter((t) => !toolFilter || toolFilter({ name: t.name, plugin: name }));
       managed.toolNames = tools.map((t) => t.name);
       registerPluginTools(tools);
     }
@@ -216,12 +247,14 @@ export class PluginManager {
     displayName?: string;
     contextMenuItems: PluginContextMenuItem[];
     sidebarMenuItems: PluginSidebarMenuItem[];
+    clientModule?: string;
   }> {
     const results: Array<{
       name: string;
       displayName?: string;
       contextMenuItems: PluginContextMenuItem[];
       sidebarMenuItems: PluginSidebarMenuItem[];
+      clientModule?: string;
     }> = [];
     for (const managed of this.plugins.values()) {
       if (!managed.enabled || !managed.plugin) continue;
@@ -230,6 +263,9 @@ export class PluginManager {
         displayName: managed.discovered.displayName,
         contextMenuItems: managed.plugin.contextMenuItems?.() || [],
         sidebarMenuItems: managed.plugin.sidebarMenuItems?.() || [],
+        clientModule: managed.plugin.clientModule
+          ? `${clientModuleBase(managed.plugin.name)}/${managed.plugin.clientModule.entry}`
+          : undefined,
       });
     }
     return results;

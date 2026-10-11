@@ -43,8 +43,9 @@ import {
 import { switchDocument, createDocument, deleteDocument, getActiveFilename, promoteTempFile, cachedDocIndex, acceptPendingTitle, rejectPendingTitle, getPendingTitle, resolveDocId } from './documents.js';
 import { removeDocFromAllWorkspaces } from './workspaces.js';
 import { commitFromFile } from './commits.js';
-import { canonicalizeIdentifier, HOSTED } from './helpers.js';
-import { authorizeGatewayRequest, isPublicOrigin } from './hosted.js';
+import { canonicalizeIdentifier } from './helpers.js';
+import { embedOptions } from './embed-options.js';
+import { isPublicOrigin } from './security-gate.js';
 import { loadDocFromDisk } from './pending-overlay.js';
 import { nodeTextPreview, diagLog } from './pending-overlay.js';
 import { generateRequestId, withRequestId } from './logger.js';
@@ -210,13 +211,14 @@ export function setupWebSocket(server: Server): void {
     server,
     verifyClient: ({ req }: { req: import('http').IncomingMessage }, done: (ok: boolean, code?: number) => void) => {
       const origin = req.headers.origin;
-      // Hosted mode: the upgrade carries the gateway's signature like any request,
-      // and a browser Origin must be the public address. adr: adr/hosted-gateway-trust.md
-      if (HOSTED) {
-        const refusal = authorizeGatewayRequest(req.headers);
-        if (refusal) return done(false, refusal);
-        return done(!origin || isPublicOrigin(origin), 403);
+      // An embedder's request gate and public origin replace the loopback checks
+      // here exactly as in securityGate. adr: adr/open-source-boundary.md
+      const { requestGate, publicOrigin } = embedOptions();
+      if (requestGate) {
+        const refusal = requestGate(req);
+        if (refusal) return done(false, refusal.status);
       }
+      if (publicOrigin) return done(!origin || isPublicOrigin(origin, publicOrigin), 403);
       done(isLocalOrigin(origin));
     },
   });

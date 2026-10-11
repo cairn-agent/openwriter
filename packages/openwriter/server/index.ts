@@ -26,11 +26,10 @@ import { importGoogleDoc } from './gdoc-import.js';
 import { createVersionRouter } from './version-routes.js';
 import { clearVersionsCache } from './versions.js';
 import { removeDocFromAllWorkspaces } from './workspaces.js';
-import { publicUrl, HOSTED_ENABLED_PLUGINS } from './hosted.js';
 import { securityGate } from './security-gate.js';
+import { embedOptions } from './embed-options.js';
 import { createDocumentFromRequest } from './document-create.js';
-import { createAiRouter } from './ai/ai-routes.js';
-import { HOSTED, resolveDocPath, getDataDir, getActiveProfile, setActiveProfile, isProfilePinned, listProfiles, createProfile, deleteProfile, listTrashedProfiles, restoreProfile, saveConfig, readConfig } from './helpers.js';
+import { resolveDocPath, getDataDir, getActiveProfile, setActiveProfile, isProfilePinned, listProfiles, createProfile, deleteProfile, listTrashedProfiles, restoreProfile, saveConfig, readConfig } from './helpers.js';
 import { claimDataLock, releaseDataLock } from './server-lock.js';
 import { createImageRouter } from './image-upload.js';
 import { createExportRouter } from './export-routes.js';
@@ -57,7 +56,11 @@ const __dirname = dirname(__filename);
 // before the server has booted — matches the default option.
 let runtimePort = 5050;
 export function getRuntimePort(): number { return runtimePort; }
-export function getBaseUrl(): string { return HOSTED ? publicUrl() : `http://localhost:${runtimePort}`; }
+export function getBaseUrl(): string {
+  // An embedder's public origin when it has one. adr: adr/open-source-boundary.md
+  const origin = embedOptions().publicOrigin;
+  return origin ? new URL(origin).origin : `http://localhost:${runtimePort}`;
+}
 
 export async function startHttpServer(options: { server: HttpServer; port?: number; noOpen?: boolean; plugins?: string[] }): Promise<void> {
   const port = options.port || 5050;
@@ -71,9 +74,6 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
   logger.info('state', 'server-boot', `OpenWriter starting on port ${port}`, { port });
 
   const app = express();
-  // Fly's health check: the one route open without the gateway signature.
-  // Answers before the gate and says nothing. adr: adr/hosted-gateway-trust.md
-  if (HOSTED) app.get('/healthz', (_req, res) => { res.status(200).type('text/plain').send('ok'); });
   // Trust boundary FIRST — reject cross-host / cross-origin before body
   // parsing or any route handler runs. Covers every route, including the
   // unauth state-changers /api/profiles/switch, /api/plugins/enable,
@@ -178,9 +178,6 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
 
   // Mount task CRUD routes
   app.use(createTaskRouter());
-
-  // The writer's Anthropic key, inline edits and the chat. adr: adr/writer-key-ai.md
-  app.use(createAiRouter());
 
   // Newsletter analytics proxy routes
   app.get('/api/publications', async (req, res) => {
@@ -760,9 +757,6 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
   });
 
   app.post('/api/documents/open', (req, res) => {
-    // Opens any absolute path on the machine: the HTTP twin of open_file,
-    // absent in hosted mode. adr: adr/hosted-gateway-trust.md
-    if (HOSTED) { res.status(404).json({ error: 'Not available in the web app' }); return; }
     try {
       const { path } = req.body;
       if (!path) {
@@ -1058,14 +1052,6 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
 
 
   // ---- Profile management ----
-  // A hosted machine serves one writer's one profile: only the reads exist.
-  // adr: adr/hosted-gateway-trust.md
-  if (HOSTED) {
-    app.use('/api/profiles', (req, res, next) => {
-      if (req.method === 'GET') { next(); return; }
-      res.status(404).json({ error: 'Profiles are fixed in the web app' });
-    });
-  }
 
   app.get('/api/profiles', (_req, res) => {
     res.json({ profiles: listProfiles(), active: getActiveProfile() });
@@ -1168,6 +1154,14 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
   const pluginManager = new PluginManager(app);
   await pluginManager.discover();
 
+  // An embedder's in-process plugins load beside the discovered ones and start
+  // enabled. adr: adr/open-source-boundary.md
+  for (const plugin of embedOptions().plugins || []) {
+    pluginManager.addInProcess(plugin);
+    const result = await pluginManager.enable(plugin.name);
+    if (!result.success) console.error(`[Plugin] ${result.error}`);
+  }
+
   // Auto-enable from --plugins CLI flag
   for (const name of (options.plugins || [])) {
     const result = await pluginManager.enable(name);
@@ -1192,16 +1186,6 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
     const result = await pluginManager.enable(ghName);
     if (!result.success) console.error(`[Plugin migration] ${result.error}`);
     else console.log('[Plugin migration] auto-enabled @openwriter/plugin-github for existing sync user');
-  }
-
-  // The online copy runs a fixed plugin set, enabled at boot whatever config
-  // says. adr: adr/two-way-sync.md
-  if (HOSTED) {
-    for (const name of HOSTED_ENABLED_PLUGINS) {
-      if (readConfig().plugins?.[name]?.enabled) continue;
-      const result = await pluginManager.enable(name);
-      if (!result.success) console.error(`[Plugin] ${result.error}`);
-    }
   }
 
   // Enabled plugins' context menu items (backward-compatible)
@@ -1352,7 +1336,7 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
 
   // Broadcast agent status now that WS is ready
   broadcastAgentStatus(true);
-  console.log(`OpenWriter running at ${HOSTED ? `${getBaseUrl()} (hosted, port ${port})` : `http://localhost:${port}`}`);
+  console.log(`OpenWriter running at ${getBaseUrl()}`);
 
   // Read every document once now, so the first sidebar load is served from cache.
   setImmediate(() => { try { warmListingCache(); } catch { /* first listing reads instead */ } });
@@ -1381,7 +1365,7 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
 
   // Open browser unless --no-open or running as MCP stdio pipe
   const isMcpStdio = !process.stdout.isTTY;
-  if (!options.noOpen && !isMcpStdio && !HOSTED) {
+  if (!options.noOpen && !isMcpStdio) {
     const open = await import('open');
     const url = existsSync(clientDir)
       ? `http://localhost:${port}`

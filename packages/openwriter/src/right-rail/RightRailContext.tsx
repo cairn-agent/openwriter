@@ -8,6 +8,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { TabId } from './types';
+import { setRailOpener } from '../plugins/client-plugins';
 
 const STORAGE_KEY = 'ow-right-rail';
 const DEFAULT_WIDTH = 280;
@@ -92,6 +93,12 @@ export function RightRailProvider({ children }: { children: ReactNode }) {
       setState((s) => ({ ...s, open: true, activeTab: tab }));
     }
   }, []);
+
+  // Plugins open tabs from outside React. adr: adr/open-source-boundary.md
+  useEffect(() => {
+    setRailOpener((id) => openTab(id as TabId));
+    return () => setRailOpener(null);
+  }, [openTab]);
 
   const closeRail = useCallback(() => {
     if (overlayRef.current) setDrawerOpen(false);

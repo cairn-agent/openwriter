@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
 import { useRightRail } from '../right-rail/RightRailContext';
 import { OpenRailIcon, FocusModeIcon } from '../right-rail/icons';
+import { useRailTabs } from '../right-rail/tabs';
 
 interface TitlebarProps {
   title: string;
@@ -49,7 +50,8 @@ interface UpdateInfo {
  * adr: adr/right-rail.md
  */
 export default function Titlebar({ title, onTitleChange, onToggleSidebar, canGoBack, canGoForward, onGoBack, onGoForward, editor, onToggleToolbar, toolbarOpen, focusMode, onToggleFocusMode }: TitlebarProps) {
-  const { visible: railVisible, openTab, activeTab } = useRightRail();
+  const { visible: railVisible, openTab, activeTab, closeRail } = useRightRail();
+  const toggleTabs = useRailTabs().filter((t) => t.titlebarToggle);
   const [editing, setEditing] = useState(false);
   const [, setTick] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -178,6 +180,22 @@ export default function Titlebar({ title, onTitleChange, onToggleSidebar, canGoB
       </div>
       <div className="titlebar-right">
         {focusMode && <div id="focus-review-controls" />}
+        {/* Plugin tabs that asked for a titlebar toggle: always here, rail open or closed. */}
+        {toggleTabs.map((tab) => {
+          const showing = railVisible && activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              className={`titlebar-nav-btn${showing ? ' titlebar-nav-btn--active' : ''}`}
+              onClick={() => (showing ? closeRail() : openTab(tab.id))}
+              title={showing ? `Close ${tab.label}` : tab.label}
+              aria-label={showing ? `Close ${tab.label}` : `Open ${tab.label}`}
+              aria-pressed={showing}
+            >
+              {tab.icon}
+            </button>
+          );
+        })}
         {!railVisible && onToggleFocusMode && (
           <button
             className={`titlebar-nav-btn${focusMode ? ' titlebar-nav-btn--active' : ''}`}

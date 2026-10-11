@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { showToast } from '../utils/toast';
+import { CONNECTION_LOST_EVENT } from '../plugins/client-plugins';
 
 /** Identifies this browser tab to the server so a navigation it asks for moves
  *  only this tab. Sent on the WebSocket URL, and as the X-OW-Tab header on
@@ -404,10 +405,8 @@ export function useWebSocket({ onNodeChanges, onAgentStatus, onDocumentSwitched,
 
       ws.onclose = () => {
         setConnected(false);
-        // A refused upgrade has no readable status. In hosted mode an expired
-        // session refuses it, so ask over HTTP: a 401 `signed_out` there sends
-        // the writer to sign in (utils/signed-out.ts). adr: adr/hosted-gateway-trust.md
-        fetch('/api/status').catch(() => {});
+        // Plugins may react to a lost connection (client plugin API, onConnectionLost).
+        window.dispatchEvent(new Event(CONNECTION_LOST_EVENT));
         reconnectTimer = setTimeout(connect, backoff);
         backoff = Math.min(backoff * 1.5, 8000); // Exponential backoff, cap at 8s
       };

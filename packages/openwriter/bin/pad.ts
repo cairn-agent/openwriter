@@ -51,7 +51,7 @@ process.stdin.on('close', () => {
 
 // Only light imports here — helpers.js uses fs/path/os/crypto (all Node stdlib)
 import { createServer, type Server as HttpServer } from 'http';
-import { readConfig, saveConfig, HOSTED } from '../server/helpers.js';
+import { readConfig, saveConfig } from '../server/helpers.js';
 
 const args = process.argv.slice(2);
 
@@ -62,8 +62,6 @@ const args = process.argv.slice(2);
 if (args[0] === 'setup' || args[0] === 'install-skill') {
   import('../server/install-skill.js').then(m => m.installSkill());
 } else if (args[0] === 'plugin') {
-  // Hosted machines run a fixed bundled plugin set. adr: adr/hosted-gateway-trust.md
-  if (HOSTED) { console.error('Plugin installs are not available in hosted mode.'); process.exit(1); }
   import('../server/plugin-install.js').then(m => m.handlePluginCommand(args.slice(1)));
 } else {
   let port = 5050;
@@ -99,28 +97,13 @@ if (args[0] === 'setup' || args[0] === 'install-skill') {
     }
   }
 
-  // Hosted mode (one writer's machine behind the gateway): settings come from
-  // the environment, it listens on every interface, never opens a browser, and
-  // refuses to start half-configured. adr: adr/hosted-gateway-trust.md
-  if (HOSTED) {
-    const { hostedConfigProblems } = await import('../server/hosted.js');
-    const problems = hostedConfigProblems();
-    if (problems.length > 0) {
-      console.error(`[OpenWriter] Hosted mode cannot start: ${problems.join('; ')}`);
-      process.exit(1);
-    }
-    port = parseInt(process.env.PORT || '8080', 10);
-    noOpen = true;
-    cliProfile = undefined;
-  }
-
   // Resolve API key: CLI flag → env var → saved config
   const config = readConfig();
 
   // --profile pins this process to one profile (never saved); otherwise restore it from config
   const { setActiveProfile, pinProfile, getActiveProfile } = await import('../server/helpers.js');
   if (cliProfile) pinProfile(cliProfile);
-  else setActiveProfile(HOSTED ? 'Default' : (config.activeProfile || 'Default'));
+  else setActiveProfile(config.activeProfile || 'Default');
 
   const avApiKey = cliApiKey || process.env.AV_API_KEY || config.avApiKey || '';
   const avBackendUrl = cliAvUrl || process.env.AV_BACKEND_URL || config.avBackendUrl;
@@ -147,7 +130,7 @@ if (args[0] === 'setup' || args[0] === 'install-skill') {
       // Answers 503 until startHttpServer attaches the real app.
       const srv = createServer((_req, res) => { res.statusCode = 503; res.end('starting'); });
       srv.once('error', (err: NodeJS.ErrnoException) => (err.code === 'EADDRINUSE' ? resolve(null) : reject(err)));
-      srv.listen(port, HOSTED ? '0.0.0.0' : '127.0.0.1', () => resolve(srv));
+      srv.listen(port, '127.0.0.1', () => resolve(srv));
     });
   }
   async function holderIsHealthy(): Promise<boolean> {
@@ -160,13 +143,6 @@ if (args[0] === 'setup' || args[0] === 'install-skill') {
   }
 
   let owned = await claimPort();
-  // A hosted machine runs exactly one OpenWriter: no client mode and no
-  // profile lock (after a restart the old lock could name this very process's
-  // port and turn the server into a client of itself). adr: adr/hosted-gateway-trust.md
-  if (HOSTED && !owned) {
-    console.error(`[OpenWriter] Port ${port} is taken — hosted mode has no client mode. Exiting.`);
-    process.exit(1);
-  }
   // An unresponsive holder is usually a server mid-exit during a restart —
   // give it two chances to release the port before settling as a client.
   for (let attempt = 0; !owned && attempt < 2 && !(await holderIsHealthy()); attempt++) {
@@ -179,7 +155,7 @@ if (args[0] === 'setup' || args[0] === 'install-skill') {
   // this profile, and two servers on one profile overwrite each other's saves.
   // Defer to it as a client. adr: adr/single-server-ownership.md
   let serverPort = port;
-  if (owned && !HOSTED) {
+  if (owned) {
     const { claimDataLock } = await import('../server/server-lock.js');
     const folderOwner = await claimDataLock(port);
     if (folderOwner) {
@@ -202,13 +178,10 @@ if (args[0] === 'setup' || args[0] === 'install-skill') {
     const { load } = await import('../server/state.js');
     load();
 
-    // Hosted mode has no local agent on stdio; tools run behind the gateway.
-    if (!HOSTED) {
-      const { startMcpServer } = await import('../server/mcp.js');
-      startMcpServer().catch((err) => {
-        console.error('[MCP] Failed to start:', err);
-      });
-    }
+    const { startMcpServer } = await import('../server/mcp.js');
+    startMcpServer().catch((err) => {
+      console.error('[MCP] Failed to start:', err);
+    });
 
     // Deferred: load Express + plugins (heavy deps) after MCP is connecting
     const { startHttpServer } = await import('../server/index.js');

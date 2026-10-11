@@ -11,6 +11,7 @@ import { formatLinkHref, linkHrefIdentifier } from '../editor/link-href';
 import { showToast } from '../utils/toast';
 import { openTopupCheckout } from '../utils/av-billing';
 import { useBookmarks, getBookmarks, addBookmark, editBookmark, removeBookmark } from '../bookmarks/bookmarks-store';
+import { PluginMount, useClientPlugins, type MenuPanelContext, type PluginMenuPanel } from '../plugins/client-plugins';
 
 /** Client-side selection cap — mirrors the AV API's apply-editor guard. Toast + cancel
  *  before the request so the user gets instant feedback (not a 413 round-trip). */
@@ -45,7 +46,10 @@ interface MenuItem {
 interface ContextMenuProps {
   editorRef: React.MutableRefObject<Editor | null>;
   allEditors?: Editor[];
+  /** The active document's filename (bookmarks, plugin actions). */
   documentId?: string;
+  /** The active document's docId (8-hex), handed to plugin menu panels. */
+  docId?: string;
 }
 
 interface MenuPosition {
@@ -68,8 +72,12 @@ interface CapturedSelection {
   text: string;
 }
 
-export default function ContextMenu({ editorRef, allEditors, documentId }: ContextMenuProps) {
+export default function ContextMenu({ editorRef, allEditors, documentId, docId }: ContextMenuProps) {
   const [visible, setVisible] = useState(false);
+  // A plugin's menu panel replaces the menu body while chosen. adr: adr/open-source-boundary.md
+  const { menuPanels } = useClientPlugins();
+  const [activePanel, setActivePanel] = useState<{ panel: PluginMenuPanel; ctx: MenuPanelContext } | null>(null);
+  useEffect(() => { if (!visible) setActivePanel(null); }, [visible]);
   const [position, setPosition] = useState<MenuPosition>({ x: 0, y: 0 });
   const [loading, setLoading] = useState(false);
   const [customInput, setCustomInput] = useState('');
@@ -241,6 +249,12 @@ export default function ContextMenu({ editorRef, allEditors, documentId }: Conte
       });
     }
 
+    // Plugin menu panels (client plugin API)
+    for (const panel of menuPanels) {
+      if (panel.needsSelection && (!hasSelection || hasPending)) continue;
+      items.push({ action: `panel:${panel.id}`, label: panel.label });
+    }
+
     // Core actions
     for (const ca of CORE_ACTIONS) {
       // Comment: only show with text selection and no pending overlap
@@ -275,7 +289,7 @@ export default function ContextMenu({ editorRef, allEditors, documentId }: Conte
       items.unshift({ action: 'go-to-target', label });
     }
     return items;
-  }, [editorRef, isOnLink, pluginItems, selectionHasPending, backlinksMenu, docLinkTarget, bookmarkTarget, bookmarks]);
+  }, [editorRef, isOnLink, pluginItems, menuPanels, selectionHasPending, backlinksMenu, docLinkTarget, bookmarkTarget, bookmarks]);
 
   // Open on right-click in editor — capture selection BEFORE the click changes it
   useEffect(() => {
@@ -765,6 +779,15 @@ export default function ContextMenu({ editorRef, allEditors, documentId }: Conte
       callPluginAction(action);
       return;
     }
+    if (action.startsWith('panel:')) {
+      const panel = menuPanels.find((p) => `panel:${p.id}` === action);
+      const editor = activeEditorRef.current || editorRef.current;
+      const captured = capturedSelection.current;
+      if (panel && editor && captured) {
+        setActivePanel({ panel, ctx: { editor, docId, selection: captured, close: () => setVisible(false) } });
+      }
+      return;
+    }
     if (action === 'comment') {
       setShowCommentInput(true);
       return;
@@ -863,7 +886,7 @@ export default function ContextMenu({ editorRef, allEditors, documentId }: Conte
       setDocLinkTarget(null);
       return;
     }
-  }, [callPluginAction, editorRef, docLinkTarget, bookmarkTarget]);
+  }, [callPluginAction, editorRef, docLinkTarget, bookmarkTarget, menuPanels, docId]);
 
   // Clicking a margin bookmark icon opens its note editor at the icon.
   useEffect(() => {
@@ -1099,6 +1122,8 @@ export default function ContextMenu({ editorRef, allEditors, documentId }: Conte
     >
       {loading ? (
         <div className="context-menu-loading">Applying...</div>
+      ) : activePanel ? (
+        <PluginMount mount={activePanel.panel.mount} ctx={activePanel.ctx} className="context-menu-plugin-panel" />
       ) : bookmarkEditor ? (
         <div className="context-menu-comment-editor">
           <textarea

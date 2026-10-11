@@ -1,12 +1,11 @@
 /**
  * The trust boundary every HTTP route sits behind: the loopback Host and Origin
- * check locally, the gateway signature in hosted mode, and the security headers.
- * adr: adr/hosted-gateway-trust.md
+ * check, or an embedder's request gate and public origin, and the security headers.
+ * adr: adr/open-source-boundary.md
  */
 
 import type express from 'express';
-import { authorizeGatewayRequest, isPublicOrigin } from './hosted.js';
-import { HOSTED } from './helpers.js';
+import { embedOptions } from './embed-options.js';
 
 // ---- Trust boundary (anti-DNS-rebinding + CSRF) — MCP-5 ----
 // The HTTP API binds to loopback and historically trusted "localhost = the
@@ -38,6 +37,12 @@ function isAllowedHost(hostHeader: string | undefined, port: number): boolean {
   if (!LOOPBACK_HOSTS.has(host.toLowerCase())) return false;
   if (p !== undefined && p !== String(port)) return false;
   return true;
+}
+
+/** True when an Origin/Referer URL is the embedder's public origin. */
+export function isPublicOrigin(value: string | undefined, publicOrigin: string): boolean {
+  if (!value) return false;
+  try { return new URL(value).origin === new URL(publicOrigin).origin; } catch { return false; }
 }
 
 /** True when an Origin/Referer URL is same-origin (loopback on our port). */
@@ -86,13 +91,12 @@ export function securityGate(port: number) {
       ].join('; '),
     );
 
-    // Hosted mode swaps the loopback Host check for the gateway's signed
-    // identity — one or the other, never neither. adr: adr/hosted-gateway-trust.md
-    if (HOSTED) {
-      const refusal = authorizeGatewayRequest(req.headers);
-      // 401 says `signed_out`, the gateway's own word for an expired session, so
-      // the browser sends the writer to sign in whichever side refused (src/utils/signed-out.ts).
-      if (refusal) { res.status(refusal).json({ error: refusal === 401 ? 'signed_out' : 'Forbidden' }); return; }
+    // An embedder's request gate replaces the loopback Host check — one or the
+    // other, never neither. adr: adr/open-source-boundary.md
+    const { requestGate, publicOrigin } = embedOptions();
+    if (requestGate) {
+      const refusal = requestGate(req);
+      if (refusal) { res.status(refusal.status).json(refusal.body); return; }
     } else if (!isAllowedHost(req.headers.host, port)) {
       res.status(403).json({ error: 'Forbidden' });
       return;
@@ -101,7 +105,7 @@ export function securityGate(port: number) {
     if (STATE_CHANGING.has(req.method)) {
       const origin = req.headers.origin;
       const referer = req.headers.referer;
-      const sameOrigin = (v: string) => (HOSTED ? isPublicOrigin(v) : isAllowedOrigin(v, port));
+      const sameOrigin = (v: string) => (publicOrigin ? isPublicOrigin(v, publicOrigin) : isAllowedOrigin(v, port));
       if (origin) {
         if (!sameOrigin(origin)) { res.status(403).json({ error: 'Forbidden' }); return; }
       } else if (referer) {

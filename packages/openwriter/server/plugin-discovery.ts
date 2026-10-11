@@ -9,8 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import { dirname } from 'path';
 import { createRequire } from 'module';
 import type { PluginCategory, PluginConfigField } from './plugin-types.js';
-import { HOSTED, ROOT_DIR } from './helpers.js';
-import { HOSTED_EXCLUDED_PLUGINS } from './hosted.js';
+import { ROOT_DIR } from './helpers.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -157,10 +156,6 @@ const BUNDLED_ORDER = [
  * Deduplicates by name (bundled takes priority).
  */
 export function discoverPlugins(): DiscoveredPlugin[] {
-  // Hosted mode runs a fixed bundled set: no user installs, and no plugins that
-  // need the writer's own computer. adr: adr/hosted-gateway-trust.md
-  if (HOSTED) return discoverBundledPlugins().filter((p) => !HOSTED_EXCLUDED_PLUGINS.has(p.name));
-
   const bundled = discoverBundledPlugins();
   const user = discoverUserPlugins();
 

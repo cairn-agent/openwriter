@@ -9,17 +9,14 @@ import { homedir } from 'os';
 import { randomUUID } from 'crypto';
 
 /**
- * Hosted mode (`OW_HOSTED=1`): this process is one writer's private copy behind the sign-in
- * gateway, with its data folder on a mounted volume (`OW_DATA_DIR`). Everything that lives under
- * `~/.openwriter` locally lives under that folder instead. adr: adr/hosted-gateway-trust.md
+ * OpenWriter's data folder: `~/.openwriter`, or the folder `OW_DATA_DIR` names (a second
+ * install, a test run, or a program embedding OpenWriter with its data elsewhere). Read once
+ * at load, so set it before importing the server. adr: adr/open-source-boundary.md
  */
-export const HOSTED = process.env.OW_HOSTED === '1';
+const DATA_DIR_OVERRIDE = process.env.OW_DATA_DIR?.trim() || '';
 
 function resolveRootDir(): string {
-  if (!HOSTED) return join(homedir(), '.openwriter');
-  const dir = process.env.OW_DATA_DIR?.trim();
-  if (!dir) throw new Error('OW_HOSTED=1 requires OW_DATA_DIR (the writer\'s data volume)');
-  return resolve(dir);
+  return DATA_DIR_OVERRIDE ? resolve(DATA_DIR_OVERRIDE) : join(homedir(), '.openwriter');
 }
 
 export const ROOT_DIR = resolveRootDir();
@@ -79,7 +76,7 @@ export function ensureDataDir(): void {
   // Ensure ROOT_DIR exists (with legacy migration)
   if (!existsSync(ROOT_DIR)) {
     const legacyDir = join(homedir(), '.superwriter');
-    if (!HOSTED && existsSync(legacyDir)) {
+    if (!DATA_DIR_OVERRIDE && existsSync(legacyDir)) {
       renameSync(legacyDir, ROOT_DIR);
     } else {
       mkdirSync(ROOT_DIR, { recursive: true });

@@ -147,7 +147,7 @@ const plugin: OpenWriterPlugin = {
 
           const data = await res.json() as { apiKey: string; userId: string };
 
-          // In-process: a hosted server has no loopback port to post back to.
+          // In-process: a plugin never calls its own server over HTTP.
           if (host.saveConfig({ 'api-key': data.apiKey }).success) {
             return {
               success: true,
@@ -1176,8 +1176,8 @@ const plugin: OpenWriterPlugin = {
           createBody.metadata = { tweetContext: { mode: 'tweet' } };
         }
 
-        // Create the result document in-process (a hosted server has no
-        // loopback port, and its routes sit behind the gateway signature).
+        // Create the result document in-process: a plugin never calls its own
+        // server over HTTP (it may not listen on loopback).
         let docResult: { filename: string };
         try {
           docResult = ctx.host.createDocument(createBody);

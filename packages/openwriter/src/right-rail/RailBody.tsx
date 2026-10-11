@@ -9,14 +9,14 @@
 import { useRightRail } from './RightRailContext';
 import { useLayoutEffect, useState } from 'react';
 import ReviewTab from './tabs/ReviewTab';
-import { findTab } from './tabs';
+import { findTab, useRailTabs } from './tabs';
 import type { RightRailTabProps } from './types';
 
 interface RailBodyProps extends RightRailTabProps { focusMode?: boolean }
 
 export default function RailBody(props: RailBodyProps) {
   const { activeTab } = useRightRail();
-  const active = findTab(activeTab);
+  const active = findTab(activeTab, useRailTabs());
   const [focusTarget, setFocusTarget] = useState<HTMLElement | null>(null);
   useLayoutEffect(() => {
     setFocusTarget(props.focusMode ? document.getElementById('focus-review-controls') : null);

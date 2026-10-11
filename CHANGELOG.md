@@ -11,9 +11,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Connect Existing brings down every document already in the repository.
 - Sign in with GitHub using a short code, no token to paste, where the server has a GitHub client id set (`OW_GITHUB_CLIENT_ID`).
 
+- Plugins can add to the app's interface: a plugin's browser module can add right-rail tabs (with an optional title bar button) and right-click menu panels.
+- OpenWriter can run inside another Node program (`startOpenWriter` from `openwriter/server`), with its own request check, tool and plugin filters, and plugins passed in directly. `OW_DATA_DIR` moves OpenWriter's data folder.
+- The GitHub plugin can bring in changes from GitHub when OpenWriter starts (`pullOnStart`, off by default).
+
 ### Fixed
-- In hosted mode, a signed-out browser goes to the sign-in page instead of showing failed requests.
-- The Publish plugin no longer calls the server over its own network port, which failed in hosted mode.
+- The Publish plugin no longer calls OpenWriter over its own network port; it asks it in-process.
 
 ## [0.46.1] - 2026-10-07
 

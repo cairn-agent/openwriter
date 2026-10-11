@@ -111,5 +111,5 @@ document content publicly.
 
 ### 2026-10-10 — log-config.json follows the data root
 - `log-config.json` is read from `ROOT_DIR` (`server/helpers.ts`) instead of a hard-coded
-  `~/.openwriter`, so a hosted machine reads it from its data volume. Locally `ROOT_DIR` is
-  still `~/.openwriter`; nothing else changed. See `adr/hosted-gateway-trust.md`.
+  `~/.openwriter`, so a data folder moved with `OW_DATA_DIR` holds it too. By default
+  `ROOT_DIR` is still `~/.openwriter`; nothing else changed. See `adr/open-source-boundary.md`.

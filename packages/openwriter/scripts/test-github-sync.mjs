@@ -17,7 +17,7 @@ import { execFileSync } from 'child_process';
 const home = mkdtempSync(join(tmpdir(), 'ow-sync-test-'));
 process.env.HOME = home;
 process.env.USERPROFILE = home;
-delete process.env.OW_HOSTED;
+delete process.env.OW_DATA_DIR;
 // Keep the machine's own git config (credential managers, identities) out.
 writeFileSync(join(home, 'gitconfig'), '');
 process.env.GIT_CONFIG_GLOBAL = join(home, 'gitconfig');

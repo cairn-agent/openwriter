@@ -6,7 +6,7 @@
 export interface ServerModules {
   // helpers.js
   getDataDir: () => string;
-  /** OpenWriter's root folder (~/.openwriter locally, the data volume when hosted). */
+  /** OpenWriter's data folder (~/.openwriter, or OW_DATA_DIR). */
   rootDir: string;
   readConfig: () => any;
   saveConfig: (patch: Record<string, any>) => void;

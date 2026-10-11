@@ -2,12 +2,11 @@
 
 ## Context
 
-A writer can run OpenWriter in two places: the local app and a private online copy
-(hosted mode, one Fly.io Machine per writer, see `adr/hosted-gateway-trust.md`). One
-GitHub repo holds their documents, and both copies sync with it. The github plugin
-(`plugins/github/src/git-sync.ts`) used to be a one-way backup: commit the data folder
-and push. Two copies pushing to one repo without pulling would reject each other's
-pushes, and an online copy that starts empty would never see the writer's documents.
+A writer can run OpenWriter in more than one place (two computers, or another copy of
+OpenWriter). One GitHub repo holds their documents, and every copy syncs with it. The
+github plugin (`plugins/github/src/git-sync.ts`) used to be a one-way backup: commit the
+data folder and push. Two copies pushing to one repo without pulling would reject each
+other's pushes, and a copy that starts empty would never see the writer's documents.
 
 Git's own merge is the right engine for text, but its failure modes are wrong for a
 writer: a conflict leaves markers in the file or stops the sync, and a merge can
@@ -55,10 +54,9 @@ failure modes with ones that never drop a word.
 - **Device flow** (`device-flow.ts`) needs only the public `OW_GITHUB_CLIENT_ID` of a
   GitHub OAuth App with device flow enabled; there is no client secret. The browser
   polls `/api/sync/device/poll`; the server runs no timer.
-- **Online copy.** Hosted mode loads the github plugin for docs sync only: no blog
-  tools, and the plugin is enabled at boot. It pulls once at start-up (commit and
-  merge, no push; machines wake from sleep often) and on every Sync click. No
-  background timers.
+- **Pull on start is opt-in.** With the plugin setting `pullOnStart` (or env
+  `OW_GITHUB_PULL_ON_START=1`) the plugin pulls once at start-up (commit and merge, no
+  push); otherwise only a Sync click pulls. No background timers.
 
 ## Decision log
 
@@ -71,4 +69,11 @@ writer-triggered (Sync) plus once at start-up, never on a timer: a Machine that 
 when idle would wake for nothing, and a timer merging under an open editor is the
 race this design avoids. The client id comes from `OW_GITHUB_CLIENT_ID` because
 `openwriter-publish` has no code using a GitHub App or OAuth App today; the operator
-creates an OAuth App with device flow enabled and sets the id on the Fly app.
+creates an OAuth App with device flow enabled and sets the id where OpenWriter runs.
+
+### 2026-10-11 — start-up pull is a setting, not a mode
+The start-up pull ran only in a mode for OpenWriter's web version, which has left this
+repository (adr/open-source-boundary.md). It is now the plugin's `pullOnStart` setting
+(env `OW_GITHUB_PULL_ON_START`), off by default, so any copy that is often started after
+edits elsewhere can use it. The blog tools are always offered; a program embedding
+OpenWriter can drop them with its tool filter.
