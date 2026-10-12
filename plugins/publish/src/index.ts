@@ -10,6 +10,7 @@ import { siteStructureTools } from './site-structure-tools.js';
 import { siteTeamTools } from './site-team-tools.js';
 import { siteTools } from './site-tools.js';
 import { sitePostsTools } from './site-posts-tools.js';
+import { siteImportTools } from './site-import-tools.js';
 import { siteModerationTools } from './site-moderation-tools.js';
 import { siteReviewTools } from './site-review-tools.js';
 import { siteInsightsTools } from './site-insights-tools.js';
@@ -194,6 +195,7 @@ const plugin: OpenWriterPlugin = {
 
       // Post tools (the posts list, delete, pin, previews, test emails, secret draft links)
       ...sitePostsTools(config),
+      ...siteImportTools(config),
       ...siteModerationTools(config),
       ...siteReviewTools(config),
       ...siteInsightsTools(config),
