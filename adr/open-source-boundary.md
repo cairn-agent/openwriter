@@ -112,3 +112,8 @@ embedding OpenWriter can hand its user's key over without writing OpenWriter's c
 with words in the title bar, always visible, beside the plugin toggles. A rail tab is the wrong
 shape for a plugin's own full screens (a dashboard, a settings page): it is narrow and hides with
 the rail. Generic: any plugin with its own screens needs a way in that does not depend on the rail.
+
+- **2026-10-12 — A menu panel stays on screen.** The context menu re-fits itself to the window
+  whenever its size changes, not only when it opens: a plugin's menu panel replaces the menu body
+  after the first fit and is usually taller, so one opened low on the page ran off the bottom.
+  When it does not fit below, it now moves up just enough instead of flipping above the click.

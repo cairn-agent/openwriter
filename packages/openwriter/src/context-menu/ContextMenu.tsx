@@ -136,18 +136,25 @@ export default function ContextMenu({ editorRef, allEditors, documentId, docId }
     return null;
   }, [allEditors, editorRef]);
 
-  // Adjust position to keep menu within viewport
+  // Adjust position to keep menu within viewport, again whenever it changes size (a plugin's
+  // menu panel replacing the menu body is usually taller, and renders after this runs).
   useLayoutEffect(() => {
     const menu = menuRef.current;
     if (!menu || !visible) return;
-    const rect = menu.getBoundingClientRect();
-    const pad = 8;
-    let { x, y } = position;
-    if (y + rect.height + pad > window.innerHeight) y = position.y - rect.height;
-    if (x + rect.width + pad > window.innerWidth) x = position.x - rect.width;
-    if (y < pad) y = pad;
-    if (x < pad) x = pad;
-    if (x !== position.x || y !== position.y) setPosition({ x, y });
+    const fit = () => {
+      const rect = menu.getBoundingClientRect();
+      const pad = 8;
+      let { x, y } = position;
+      if (y + rect.height + pad > window.innerHeight) y = window.innerHeight - rect.height - pad;
+      if (x + rect.width + pad > window.innerWidth) x = position.x - rect.width;
+      if (y < pad) y = pad;
+      if (x < pad) x = pad;
+      if (x !== position.x || y !== position.y) setPosition({ x, y });
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(menu);
+    return () => observer.disconnect();
   }, [visible, position]);
 
   // Fetch plugin menu items
