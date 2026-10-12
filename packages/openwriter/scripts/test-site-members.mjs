@@ -23,6 +23,7 @@ process.on('exit', () => { try { rmSync(dataDir, { recursive: true, force: true 
 
 const { siteMemberTools, readSubscriberCsv } = await import('../../../plugins/publish/dist/site-member-tools.js');
 const { newsletterTools } = await import('../../../plugins/publish/dist/newsletter-tools.js');
+const { siteMemberSupportTools } = await import('../../../plugins/publish/dist/site-member-support-tools.js');
 
 let passed = 0;
 let failed = 0;
@@ -45,7 +46,7 @@ globalThis.fetch = async (input, init = {}) => {
   });
 };
 
-const tools = Object.fromEntries(siteMemberTools({}).map((t) => [t.name, t]));
+const tools = Object.fromEntries([...siteMemberTools({}), ...siteMemberSupportTools({})].map((t) => [t.name, t]));
 async function run(name, params, answer) {
   calls = [];
   reply = answer ?? (() => ({ status: 200, body: {} }));
@@ -127,6 +128,42 @@ console.log('\nTest 3: the site parameter and the old list');
   const names = newsletterTools({}).map((t) => t.name);
   assert(!names.some((n) => /subscriber|subscribe_embed/.test(n)), 'newsletter tools no longer carry subscriber tools (no duplicate names)');
   assert(!names.includes('send_newsletter') && !names.includes('resend_to_unopened'), 'the old newsletter send is gone: site posts are the one way to email readers');
+}
+
+console.log('\nTest 4: subscriber support finds the member by email and says what it did');
+{
+  await run('list_subscribers', { search: 'ann@', status: 'all' }, () => ({ status: 200, body: { total: 0, members: [] } }));
+  assert(calls[0].query.get('search') === 'ann@', 'list_subscribers: search passed');
+
+  const byEmail = (call) => call.path === '/sites/members'
+    ? { status: 200, body: { total: 2, members: [{ id: 'm9', email: 'joann@x.com' }, { id: 'm1', email: 'ann@x.com' }] } }
+    : { status: 200, body: { refund: { id: 're_1', amount: 800 }, message: 'Refunded $8.00 to ann@x.com (the $8.00 payment on Oct 6, 2026).' } };
+  const refund = await run('refund_subscriber', { email: 'Ann@X.com', amount_cents: 800, site: 'friend' }, byEmail);
+  assert(calls[0].query.get('search') === 'ann@x.com' && !calls[0].query.has('status'), 'lookup: by email across every status');
+  assert(calls[1].method === 'POST' && calls[1].path === '/sites/members/m1/refund', 'refund_subscriber: the exact email match, not a fragment match');
+  assert(JSON.stringify(JSON.parse(calls[1].body)) === '{"amount":800}' && calls[1].headers['X-Site'] === 'friend', 'refund: amount sent in cents, on the site');
+  assert(refund.success && refund.message.startsWith('Refunded $8.00 to ann@x.com'), 'refund: says exactly what it did');
+
+  const missing = await run('cancel_subscription', { email: 'nobody@x.com', when: 'now' }, () => ({ status: 200, body: { total: 0, members: [] } }));
+  assert(/No subscriber with the email nobody@x.com/.test(missing.error) && calls.length === 1, 'unknown email: refused, nothing cancelled');
+
+  for (const [name, params, path, body] of [
+    ['cancel_subscription', { member_id: 'm1', when: 'period_end' }, 'cancel', { when: 'period_end' }],
+    ['set_auto_renew', { member_id: 'm1', auto_renew: false }, 'renewal', { auto_renew: false }],
+    ['set_founding', { member_id: 'm1', founding: true }, 'founding', { founding: true }],
+  ]) {
+    await run(name, params, () => ({ status: 200, body: { message: 'ok' } }));
+    assert(calls[0].method === 'POST' && calls[0].path === `/sites/members/m1/${path}` && calls[0].body === JSON.stringify(body), `${name}: POST /sites/members/:id/${path}`);
+  }
+
+  const detail = await run('get_subscriber', { member_id: 'm1' }, () => ({ status: 200, body: { member: { id: 'm1', plan: null } } }));
+  assert(calls[0].method === 'GET' && calls[0].path === '/sites/members/m1' && detail.member.id === 'm1', 'get_subscriber: GET /sites/members/:id, JSON returned');
+
+  const refused = await run('refund_subscriber', { member_id: 'm2' }, () => ({
+    status: 409, body: { error: 'not_paid', message: 'cam@x.com has never paid through Stripe here, so there is nothing to refund.' },
+  }));
+  assert(/never paid through Stripe/.test(refused.error), 'refusal: the server message is passed on');
+  assert(['refund_subscriber', 'cancel_subscription'].every((n) => tools[n]), 'money tools keep the refund_/cancel_ prefixes the web chat confirms');
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

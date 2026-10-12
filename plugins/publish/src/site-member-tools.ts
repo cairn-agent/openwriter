@@ -16,6 +16,7 @@ const FILTER_PARAMS = {
   status: { type: 'string', enum: STATUSES, description: 'Only members in this status (default active; "all" for every status).' },
   tier: { type: 'string', enum: TIERS, description: 'Only members on this tier.' },
   source: { type: 'string', description: 'Only members who came from this source (e.g. import, manual, site, embed).' },
+  search: { type: 'string', description: 'Only members whose email or name contains this, any case (e.g. "ann@" or "smith").' },
 };
 
 /** Query string for the member filters; status defaults to active. */
@@ -23,7 +24,7 @@ function filterQuery(params: Record<string, unknown>, extra: Record<string, unkn
   const q = new URLSearchParams();
   const status = typeof params.status === 'string' ? params.status : 'active';
   if (status !== 'all') q.set('status', status);
-  for (const [k, v] of Object.entries({ tier: params.tier, source: params.source, ...extra })) {
+  for (const [k, v] of Object.entries({ tier: params.tier, source: params.source, search: params.search, ...extra })) {
     if (v !== undefined && v !== null && v !== '') q.set(k, String(v));
   }
   const s = q.toString();
