@@ -14,6 +14,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { RightRailTabProps } from '../types';
+import './BacklinksTab.css';
 
 interface DocSummary {
   docId: string;

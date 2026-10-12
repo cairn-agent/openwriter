@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { RightRailTabProps } from '../types';
 import GithubPluginSettings from './plugin-panels/GithubPluginSettings';
+import './PluginsTab.css';
 import {
   fetchWalletBilling,
   fetchTopupOptions,

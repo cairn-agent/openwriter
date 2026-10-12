@@ -10,6 +10,7 @@ import { useEffect, useState, type JSX } from 'react';
 import type { RightRailTabProps } from '../types';
 import { useBookStatus } from '../../hooks/useBookStatus';
 import { showToast } from '../../utils/toast';
+import './ExportsTab.css';
 
 interface ExportFormat {
   key: string;

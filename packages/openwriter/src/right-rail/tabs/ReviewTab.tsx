@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './FocusReview.css';
+import './ReviewTab.css';
 import type { Editor } from '@tiptap/react';
 import { usePendingState } from '../../hooks/usePendingState';
 import { isPreviewActive } from '../../decorations/plugin';

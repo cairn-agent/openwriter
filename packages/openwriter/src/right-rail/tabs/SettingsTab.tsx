@@ -5,6 +5,7 @@
  * adr: adr/right-rail.md
  */
 import type { RightRailTabProps } from '../types';
+import './SettingsTab.css';
 import ConnectionsTab from './ConnectionsTab';
 import PluginsTab from './PluginsTab';
 

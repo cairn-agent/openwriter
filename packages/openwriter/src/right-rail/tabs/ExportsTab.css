@@ -1,0 +1,72 @@
+/* ─── Exports tab ──────────────────────────────────────────────────── */
+
+.exports-tab {
+  padding: 4px 0;
+}
+
+.exports-tab__list {
+  display: flex;
+  flex-direction: column;
+}
+
+.exports-tab__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  text-align: left;
+  font-family: var(--font-body);
+  width: 100%;
+  transition: background 0.12s ease;
+}
+
+.exports-tab__item:hover {
+  background: var(--bg-hover);
+}
+
+.exports-tab__item-icon {
+  flex-shrink: 0;
+  color: var(--ink-light);
+  margin-top: 1px;
+  display: flex;
+  align-items: center;
+}
+
+.exports-tab__item-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.exports-tab__item-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-dark);
+}
+
+.exports-tab__item-desc {
+  font-size: 11px;
+  color: var(--ink-light);
+  margin-top: 1px;
+}
+
+/* A manuscript downloads as the book, with its paragraph style. */
+.exports-tab__book-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-light);
+  margin: 10px 14px 6px;
+}
+.exports-tab > .review-tab__toggle {
+  margin: 0 14px;
+}
+.exports-tab__book-note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-light);
+  margin: 8px 14px;
+}

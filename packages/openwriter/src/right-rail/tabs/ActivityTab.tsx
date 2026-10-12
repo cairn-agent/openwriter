@@ -17,6 +17,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { RightRailTabProps } from '../types';
 import { useActivity, eventKey, type ActivityEvent } from '../activity-store';
+import './ActivityTab.css';
 
 interface DocsIndex {
   byDocId: Map<string, string>;

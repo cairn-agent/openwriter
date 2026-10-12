@@ -12,6 +12,7 @@ import type { JSX } from 'react';
 import NewsletterSetupModal from '../../connections/NewsletterSetupModal';
 import ConnectionConfigModal from '../../connections/ConnectionConfigModal';
 import type { RightRailTabProps } from '../types';
+import './ConnectionsTab.css';
 
 interface Connection {
   id: string;

@@ -1,0 +1,173 @@
+/* ─── Review tab ───────────────────────────────────────────────────── */
+
+.review-tab {
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Small bottom padding: Comments/Bookmarks sections follow directly below. */
+.review-tab__empty {
+  padding: 32px 18px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--ink-light);
+}
+
+/* Inline variant: sits below other sections, so reduced top padding. */
+.review-tab__empty--inline {
+  padding-top: 16px;
+}
+
+.review-tab__empty-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-body);
+}
+
+.review-tab__empty-note {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.review-tab__section {
+  padding: 6px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.review-tab__section--actions {
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+  padding-top: 12px;
+}
+
+.review-tab__section-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--ink-light);
+}
+
+.review-tab__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+
+/* Arrow rows: prev/next sit adjacent, counter trails to their right. */
+.review-tab__row .review-panel__counter {
+  flex: 1;
+  text-align: left;
+  padding-left: 4px;
+}
+
+.review-tab__toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.review-tab__toggle .review-panel__toggle-btn {
+  flex: 1;
+  border-radius: 0;
+}
+
+/* Judge pair — Accept/Reject for the current change. Hollow: colored
+ * border + text, fills on hover. The primary per-change action. */
+.review-tab__judge-btn {
+  flex: 1;
+  height: 32px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font-body);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.review-tab__judge-btn svg { flex-shrink: 0; }
+
+.review-tab__judge-btn--accept {
+  color: var(--color-pending-insert);
+  border-color: var(--color-pending-insert);
+}
+
+.review-tab__judge-btn--accept:hover {
+  background: var(--color-pending-insert);
+  color: #fff;
+}
+
+.review-tab__judge-btn--reject {
+  color: var(--color-pending-delete);
+}
+
+.review-tab__judge-btn--reject:hover {
+  background: var(--color-pending-delete-bg);
+  border-color: var(--color-pending-delete-border);
+}
+
+/* Bulk pair — Accept all / Reject all. Quiet borderless text so the
+ * whole-doc action never reads as loud as the per-change Accept. */
+.review-tab__bulk-btn {
+  flex: 1;
+  height: 32px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font-body);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.review-tab__bulk-btn svg { flex-shrink: 0; }
+
+/* Muted at rest — grey text + border so the whole-doc action sits a tier
+ * below the per-change Accept/Reject. Intent color surfaces only on hover,
+ * the moment before commit. */
+.review-tab__bulk-btn {
+  color: var(--ink-light);
+}
+
+.review-tab__bulk-btn--accept:hover {
+  color: var(--color-pending-insert);
+  border-color: var(--color-pending-insert);
+  background: color-mix(in srgb, var(--color-pending-insert) 10%, transparent);
+}
+
+.review-tab__bulk-btn--reject:hover {
+  color: var(--color-pending-delete);
+  border-color: var(--color-pending-delete-border);
+  background: var(--color-pending-delete-bg);
+}
+
+[data-mode="dark"] .review-tab__judge-btn,
+[data-mode="dark"] .review-tab__bulk-btn {
+  background: transparent;
+}
+
+[data-mode="dark"] .review-tab__judge-btn--reject,
+[data-mode="dark"] .review-tab__bulk-btn {
+  border-color: rgba(255, 255, 255, 0.08);
+}
