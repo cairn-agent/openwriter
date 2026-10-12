@@ -141,12 +141,16 @@ export function siteMemberTools(config: Record<string, string>): PluginMcpTool[]
       name: 'add_subscriber',
       description:
         'Add one person to the site\'s subscriber list as an active free member. Someone who unsubscribed or bounced ' +
-        'is not re-added: only they can subscribe again.',
+        'is not re-added: only they can subscribe again. With send_welcome they get the site\'s welcome email, once.',
       inputSchema: {
         type: 'object',
         properties: {
           email: { type: 'string', description: 'Subscriber email address' },
           name: { type: 'string', description: 'Subscriber name (optional)' },
+          send_welcome: {
+            type: 'boolean',
+            description: 'Also send them the welcome email (default false). Nobody is welcomed twice; while the site is in review it counts toward the daily sending limit.',
+          },
           ...SITE_PARAM,
         },
         required: ['email'],
@@ -154,15 +158,18 @@ export function siteMemberTools(config: Record<string, string>): PluginMcpTool[]
       handler: async (params) => {
         const res = await publishFetch(config, '/sites/members', onSite(params.site, {
           method: 'POST',
-          body: JSON.stringify({ email: params.email, ...(params.name ? { name: params.name } : {}) }),
+          body: JSON.stringify({
+            email: params.email,
+            ...(params.name ? { name: params.name } : {}),
+            ...(params.send_welcome === true ? { send_welcome: true } : {}),
+          }),
         }));
         if (!res.ok) return apiError(res, 'Failed to add subscriber');
-        const data = (await res.json()) as { member: any; created: boolean };
-        return {
-          success: true,
-          subscriber: data.member,
-          message: data.created ? `Added ${data.member.email}.` : `${data.member.email} was already on the list.`,
-        };
+        const data = (await res.json()) as { member: any; created: boolean; welcome_sent?: boolean; welcome_note?: string };
+        const added = data.created ? `Added ${data.member.email}.` : `${data.member.email} was already on the list.`;
+        if (data.welcome_sent === undefined) return { success: true, subscriber: data.member, message: added };
+        const welcome = data.welcome_sent ? 'Sent the welcome email.' : (data.welcome_note ?? 'No welcome email was sent.');
+        return { success: true, subscriber: data.member, welcome_sent: data.welcome_sent, message: `${added} ${welcome}` };
       },
     },
 

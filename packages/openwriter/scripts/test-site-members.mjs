@@ -75,6 +75,13 @@ console.log('\nTest 1: each tool calls the site member endpoint');
   assert(calls[0].method === 'POST' && calls[0].path === '/sites/members', 'add_subscriber: POST /sites/members');
   assert(JSON.parse(calls[0].body).email === 'b@x.com' && JSON.parse(calls[0].body).name === 'Bo', 'add: email and name sent');
   assert(added.success && added.subscriber.id === 'm2', 'add: member returned');
+  assert(!('send_welcome' in JSON.parse(calls[0].body)) && added.welcome_sent === undefined, 'add: no welcome unless asked');
+
+  const welcomed = await run('add_subscriber', { email: 'c@x.com', send_welcome: true }, () => ({
+    status: 200, body: { created: false, member: { id: 'm3', email: 'c@x.com' }, welcome_sent: false, welcome_note: 'c@x.com was welcomed before; the welcome email is sent once.' },
+  }));
+  assert(JSON.parse(calls[0].body).send_welcome === true, 'add: send_welcome sent');
+  assert(welcomed.welcome_sent === false && /welcomed before/.test(welcomed.message), 'add: why no welcome went out is in the message');
 
   const refused = await run('add_subscriber', { email: 'gone@x.com' }, () => ({
     status: 409, body: { error: 'unsubscribed', message: 'gone@x.com has unsubscribed; they must subscribe again themselves.' },

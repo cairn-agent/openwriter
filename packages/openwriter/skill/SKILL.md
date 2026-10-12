@@ -645,7 +645,7 @@ Requires authentication via `request_login_code` + `verify_login`. All publish t
 | Tool | Key Params | Description |
 |------|-----------|-------------|
 | `list_subscribers` | `limit?`, `offset?` | List newsletter subscribers with IDs, emails, names |
-| `add_subscriber` | `email`, `name?` | Add a single subscriber |
+| `add_subscriber` | `email`, `name?`, `send_welcome?` | Add a single subscriber; `send_welcome` also sends the welcome email (once per person) |
 | `import_subscribers` | `file?`, `csv_text?` | Bulk import from CSV (auto-detects ConvertKit, Mailchimp, Substack, Beehiiv formats) |
 | `list_newsletter_issues` | `limit?` | List past sends with open/click stats — returns issue IDs |
 | `get_newsletter_analytics` | `issue_id` | Detailed drill-down: delivery stats, per-subscriber events, recipient list |
@@ -667,12 +667,13 @@ Each profile gets a free site at `<name>.openwriter.io` with posts, subscribers 
 | Tool | Key Params | Description |
 |------|-----------|-------------|
 | `claim_site_name` | `name` | Claim `<name>.openwriter.io`, or rename it |
-| `get_site` | *(none)* | Site details, publication settings, and payments (Stripe connected, plans) |
+| `get_site` | *(none)* | Site details, sending limit (`sending`: status, daily cap, when review was asked for), publication settings, and payments (Stripe connected, plans) |
 | `update_site` | `name?`, `tagline?`, `about?`, `logo_url?`, `cover_url?` | Change site details |
-| `update_site_settings` | `default_audience?`, `auto_wall_after_days?`, `double_opt_in?`, `welcome_page?`, `welcome_email?`, `comments_enabled?`, `mailing_address?`, `private?`, `notify_subscribe_requests?`, `author_name?` | Change publication settings. A mailing address is needed before the first email |
+| `update_site_settings` | `default_audience?`, `auto_wall_after_days?`, `double_opt_in?`, `welcome_page?`, `welcome_email?`, `welcome_email_paid?`, `welcome_email_founding?`, `welcome_email_imported?`, `comments_enabled?`, `mailing_address?`, `private?`, `notify_subscribe_requests?`, `author_name?` | Change publication settings. A mailing address is needed before the first email |
 | `publish_to_site` | `title?`, `subtitle?`, `slug?`, `cover_url?`, `audience?`, `web_only?`, `email_only?`, `comments_audience?`, `publish_at?`, `send_email?`, `send_free_preview?`, `section?`, `tags?`, `authors?` | Publish the active doc as a post, or update the post it was published as before |
 | `unpublish_site_post` | `post_id?` | Take the active doc's post off the site |
 | `get_site_stats` | *(none)* | Subscriber counts, site totals, revenue, and the active doc's post stats |
+| `request_site_review` | `note?` | New sites email a limited number of people a day; ask OpenWriter to lift the limit (once a day, owners and admins) |
 
 - **Audience:** `everyone`, `subscribers` (free or paid), `paid`, or `founding`.
 - **Paywall:** put the line `<!-- paywall -->` between blocks. Everything above it is the free preview. One per doc, not inside a list or quote. With no marker, a walled post shows readers without access nothing past the title. The editor shows it as a "Paywall" divider (lock button in the toolbar), and `read_pad` shows it as `[hr:<id>] <!-- paywall -->`.

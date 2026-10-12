@@ -94,7 +94,8 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
     {
       name: 'get_site',
       description:
-        'Show the active profile\'s site: address, name, tagline, about, logo, cover, review status, and publication settings (default audience, auto-paywall, double opt-in, welcome page and email, comments, mailing address), ' +
+        'Show the active profile\'s site: address, name, tagline, about, logo, cover, publication settings (default audience, auto-paywall, double opt-in, welcome page and the welcome emails, comments, mailing address), ' +
+        'sending (status "review" = new site that can email daily_cap people a day until OpenWriter approves it, see request_site_review; "active" = no daily limit; "suspended" = cannot send; review_requested_at = when review was last asked for), ' +
         'and payments: whether Stripe is connected, the 7-day trial, and the paid plans (amounts in cents). ' +
         'role is your role on the site (owner, admin or contributor); payments are shown to the owner and admins.',
       inputSchema: { type: 'object', properties: { ...SITE_PARAM } },
@@ -102,7 +103,13 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
         const res = await publishFetch(config, '/sites', onSite(params.site));
         if (!res.ok) return apiError(res, 'Could not load the site');
         const { site, role, payments } = (await res.json()) as { site: any; role?: string; payments?: unknown };
-        return { address: site.slug ? `https://${site.slug}.openwriter.io` : null, role, site, payments };
+        const sending = {
+          status: site.status,
+          // The cap only limits sites in review; an approved site has none.
+          daily_cap: site.status === 'review' ? site.daily_send_cap : null,
+          review_requested_at: site.review_requested_at ?? null,
+        };
+        return { address: site.slug ? `https://${site.slug}.openwriter.io` : null, role, sending, site, payments };
       },
     },
 
@@ -141,7 +148,10 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
           auto_wall_after_days: { type: 'number', description: 'Public posts older than this many days become paid-only. 0 turns it off.' },
           double_opt_in: { type: 'boolean', description: 'New subscribers confirm by email before they are added.' },
           welcome_page: { type: 'boolean', description: 'Show first-time visitors a welcome page with a subscribe form.' },
-          welcome_email: { type: 'string', description: 'Text of the email new subscribers receive. An empty string clears it.' },
+          welcome_email: { type: 'string', description: 'Plain text of the welcome email new free subscribers receive. An empty string restores the default.' },
+          welcome_email_paid: { type: 'string', description: 'Plain text of the welcome email new paid (and comped) subscribers receive. An empty string restores the default.' },
+          welcome_email_founding: { type: 'string', description: 'Plain text of the welcome email new founding members receive. An empty string restores the default.' },
+          welcome_email_imported: { type: 'string', description: 'Plain text of the welcome email for imported subscribers. An empty string restores the default.' },
           comments_enabled: { type: 'boolean', description: 'Default for comments on new posts.' },
           mailing_address: { type: 'string', description: 'Postal address printed in every email.' },
           private: { type: 'boolean', description: 'Only approved subscribers can read the site; readers ask to subscribe and wait for approval.' },
@@ -152,8 +162,9 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
       },
       handler: async (params) => {
         const body = pick(params, [
-          'default_audience', 'auto_wall_after_days', 'double_opt_in', 'welcome_page', 'welcome_email', 'comments_enabled',
-          'mailing_address', 'private', 'notify_subscribe_requests', 'author_name',
+          'default_audience', 'auto_wall_after_days', 'double_opt_in', 'welcome_page', 'welcome_email', 'welcome_email_paid',
+          'welcome_email_founding', 'welcome_email_imported', 'comments_enabled', 'mailing_address', 'private',
+          'notify_subscribe_requests', 'author_name',
         ]);
         if (!Object.keys(body).length) return { error: 'Pass at least one setting to change.' };
         const res = await publishFetch(config, '/sites/settings', onSite(params.site, { method: 'PATCH', body: JSON.stringify(body) }));
