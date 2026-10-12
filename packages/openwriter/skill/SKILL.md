@@ -731,6 +731,9 @@ Every site tool takes an optional `site` (a site's name or id from `list_my_site
 | `list_site_comments` | `post_id?`, `reported?`, `status?`, `limit?`, `offset?` | Readers' comments with post, reader and report count; `reported: true` is the moderation queue |
 | `approve_site_comment` / `delete_site_comment` / `pin_site_comment` | `comment_id`; `pinned` to pin | Approve clears a reported comment's reports and keeps it up; delete takes it down for good |
 | `ban_readers` / `unban_reader` / `list_banned_readers` | `emails`, `reason?`, `delete_comments?`; `email` | Ban emails from commenting and subscribing; free subscriptions end, paid access is kept and listed in `paid_access_kept` to refund or cancel in Stripe |
+| `export_site` | `save_to?` | Everything as one zip: every post as Markdown (settings at the top) and HTML, subscribers CSV, comments, settings, sections, tags, plans. Without `save_to`, a download link good for 15 minutes |
+| `delete_site` | `confirm_name` | Owner only, cannot be undone: deletes the site and frees its address. Refused while readers still pay; `cancel_subscription` them first |
+| `transfer_site_ownership` | `member_id` or `email`, `confirm` | Owner only: an accepted admin becomes the owner and you stay as an admin; payments keep going to the connected Stripe until they connect their own |
 
 - `publish_to_site`: `section` is a section's name, slug or id (empty string for the main publication); `tags` are tag names; `authors` are ids from `list_site_team`, `"owner"` for the owner. A doc published to a team site keeps going to that site.
 - `publish_to_site` with `send_email` and `subject_b` runs a subject line test against the title: `ab_test_percent` (default 20) of recipients get one or the other, and after `ab_test_wait_minutes` (default 60) the subject opened more goes to the rest. It needs at least 200 recipients. Results per subject are in the post's stats (`subject_test`).

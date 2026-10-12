@@ -37,7 +37,7 @@ export function siteTeamTools(config: Record<string, string>): PluginMcpTool[] {
     {
       name: 'invite_to_team',
       description:
-        `Invite someone to the site's team by email. They get an email with an invite code and join with accept_team_invite from their own OpenWriter account. ${ROLES}`,
+        `Invite someone to the site's team by email. The email links a page on the site where they sign in to OpenWriter with an emailed code and join; an agent can join with accept_team_invite and the code instead. The site needs its address first. ${ROLES}`,
       inputSchema: {
         type: 'object',
         properties: {
@@ -53,12 +53,13 @@ export function siteTeamTools(config: Record<string, string>): PluginMcpTool[] {
         const body = pick(params, ['email', 'role', 'name', 'public']);
         const res = await publishFetch(config, '/sites/team', onSite(params.site, { method: 'POST', body: JSON.stringify(body) }));
         if (!res.ok) return apiError(res, 'Could not send the invite');
-        const { member, invite_token } = (await res.json()) as { member: unknown; invite_token: string };
+        const { member, invite_token, invite_url } = (await res.json()) as { member: unknown; invite_token: string; invite_url: string };
         return {
           success: true,
           member,
+          invite_link: invite_url,
           invite_code: invite_token,
-          note: 'The invite was emailed. The code can also be shared directly; they join with accept_team_invite.',
+          note: 'The invite was emailed. The link can also be shared directly: it signs them in and joins them. Agents can use the code with accept_team_invite.',
         };
       },
     },

@@ -24,6 +24,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### Changed
 - The tools for the domain your emails are sent from have plain names: `set_sending_domain`, `check_sending_domain` and `resend_sending_domain_verification`. The old names (`setup_custom_domain`, `check_domain_status`, `resend_domain_verification`) still work for now. The website-address tools (`set_site_domain` and its siblings) now say they are for the site's address, not for email.
 
+- Site account controls for the agent: `export_site` (everything as one zip: posts as Markdown and HTML, subscribers, comments, settings, sections, tags and plans; a download link, or saved to a path), `delete_site` (owner only, confirmed by typing the site's name; refused while readers still pay) and `transfer_site_ownership` (to an admin on the team; you stay as an admin). Team invites now link a page where the invitee signs in and joins, and `invite_to_team` returns that link.
+
 ### Removed
 - The old newsletter send is gone: the `send_newsletter` and `resend_to_unopened` tools, the newsletter view's Send button and the resend panel in newsletter analytics. They mailed an old subscriber list nobody joins any more. To email your readers, publish to your site (`publish_to_site` with `send_email`); site posts are emailed to the site's members. Past issues and their analytics stay.
 
