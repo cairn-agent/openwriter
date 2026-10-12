@@ -3,6 +3,7 @@ import type { Editor } from '@tiptap/react';
 import { useRightRail } from '../right-rail/RightRailContext';
 import { OpenRailIcon, FocusModeIcon } from '../right-rail/icons';
 import { useRailTabs } from '../right-rail/tabs';
+import ThemeToggle from '../themes/ThemeToggle';
 
 interface TitlebarProps {
   title: string;
@@ -222,6 +223,7 @@ export default function Titlebar({ title, onTitleChange, onToggleSidebar, canGoB
             </svg>
           </button>
         )}
+        {!railVisible && <ThemeToggle className="titlebar-nav-btn" />}
         {!railVisible && (
           <button
             className="titlebar-nav-btn"

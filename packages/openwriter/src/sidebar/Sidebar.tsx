@@ -10,6 +10,7 @@ import SidebarFiles from './SidebarFiles';
 import SidebarSchedule from './SidebarSchedule';
 import SidebarTasks from './SidebarTasks';
 import ProfileSwitcher from './ProfileSwitcher';
+import LayoutMenu from '../themes/LayoutMenu';
 import './Sidebar.css';
 import './sidebar-keyboard.css';
 import { useDocumentSearch } from './use-document-search';
@@ -226,6 +227,7 @@ export default function Sidebar({ open, onSwitchDocument, onCreateDocument, refr
           &times;
         </button>
       )}
+      <LayoutMenu className="layout-menu-btn" />
     </div>
   );
 
@@ -245,6 +247,7 @@ export default function Sidebar({ open, onSwitchDocument, onCreateDocument, refr
     return (
       <div ref={panelRef} aria-hidden={!open} onKeyDown={moveSidebarFocus} className={`sidebar sidebar-board-mode ${open ? 'open' : ''}`} style={sidebarStyle}>
         {renderMode()}
+        <LayoutMenu className="layout-menu-btn board-layout-btn" />
         {resizeHandle}
       </div>
     );

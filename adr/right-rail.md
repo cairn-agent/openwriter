@@ -14,7 +14,7 @@ The right rail consolidates every contextual surface into a single tabbed sideba
 - **The bell is the only chrome that broadcasts activity arrival.** A live `activity-event` WebSocket message pulses the bell IF (rail is closed) OR (rail is open but Activity is not the active tab). Pulse is purely visual (`scale 1 → 1.05 → 1` over ~400ms); no counter, no badge, no read/unread bookkeeping. Recency in the feed is communicated by relative timestamps and a fading accent bar on newly-arrived rows, not by a "new" badge.
 - **Activity persists to disk.** Append-only JSONL at `~/.openwriter/profiles/<profile>/activity.log`, never truncated. Client reads the tail on connect (last 500 entries via WS `activity-log` on connection) and consumes live `activity-event` broadcasts thereafter. The on-disk log is the source of truth — in-memory state in the client is a cache.
 - **Only agent-attributed actions become activity entries.** A human edit doesn't need to grab the human's attention via the feed. The `recordActivity()` server helper is called from broadcast sites that are themselves agent-attributed (`broadcastWritingStarted/Finished`, enrichment writes, references-frontmatter changes from minion sweeps). Plain `broadcastPendingDocsChanged` from human typing does not record activity.
-- **Tab scope determines display, not behavior.** Doc-scoped tabs (Review, Versions, Backlinks, Exports) read the active filename from app state and update on doc switch. Workspace-scoped tabs (Activity) ignore the active doc. The Settings tab (Appearance, Connections and Plugins as sections) ignores both. The rail container never re-mounts the tab body on doc switch — tabs handle their own re-fetch via the props they accept.
+- **Tab scope determines display, not behavior.** Doc-scoped tabs (Review, Versions, Backlinks, Exports) read the active filename from app state and update on doc switch. Workspace-scoped tabs (Activity) ignore the active doc. The Settings tab (Connections and Plugins as sections) ignores both. The rail container never re-mounts the tab body on doc switch — tabs handle their own re-fetch via the props they accept.
 - **Auto-open on pending writes is the one exception to "rail only opens when the user opens it."** When `pendingDocs.filenames` goes from empty to non-empty, the rail opens to the Review tab automatically. Closing the rail does NOT dismiss the pending writes — they remain in Review, the user just hid the surface. Re-arrival of pending writes will re-open the rail.
 
 ## Decision log (append-only)
@@ -282,3 +282,21 @@ are now sections of one Settings tab (gear icon), each the former tab's body unc
 strip goes from eight built-in icons to six. A saved rail state or an `openRailTab` call that
 names an old id (`plugins`, `connections`, `appearance`) opens Settings (`canonicalTabId` in
 `right-rail/types.ts`), so nothing that asked for an old tab breaks.
+
+### 2026-10-12 — Appearance moves beside what it changes
+
+Appearance leaves Settings; each control sits next to what it changes:
+- Typeface, spacing and canvas: an "Aa" menu at the end of the format bar
+  (`themes/DisplayMenu.tsx`), titled "Editor display, only you see this" so a
+  newsletter writer does not read it as the published style. Spacing shows a
+  small sketch of each preset instead of names like Butterick.
+- Light/dark: a button that moves between the rail top bar (rail open) and the
+  title bar (rail closed), like the format-bar toggle, so it is reachable in
+  Focus mode (`themes/ThemeToggle.tsx`).
+- Layout (Files, Timeline, Board): one button in the left rail's search row, and
+  at the right end of the board strip in Board mode so it never disappears
+  (`themes/LayoutMenu.tsx`).
+Every control writes through `updateAppearance` and re-reads on its change event,
+so two copies of a control never disagree. The menus render on the page body
+(`themes/Popover.tsx`) so the format bar's scrolling never clips them. Settings
+holds Connections and Plugins. Decided with a role-play of five writer types.

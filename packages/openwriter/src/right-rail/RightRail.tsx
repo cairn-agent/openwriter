@@ -26,6 +26,7 @@ import RailIconStrip from './RailIconStrip';
 import RailBody from './RailBody';
 import { HideRailIcon, FocusModeIcon, VoiceIcon } from './icons';
 import SyncButton from '../sync/SyncButton';
+import ThemeToggle from '../themes/ThemeToggle';
 import type { RightRailTabProps, TabId } from './types';
 import type { SyncStatus } from '../ws/client';
 
@@ -164,6 +165,7 @@ export default function RightRail(props: RightRailProps) {
               <path d="M8 12h8" />
             </svg>
           </button>
+          <ThemeToggle className="right-rail-topbar-btn" />
           {heatmapAvailable && (
             <button
               type="button"

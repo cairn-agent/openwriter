@@ -156,6 +156,24 @@ export function applyAppearance(
   localStorage.setItem(KEYS.canvas, canvas);
 }
 
+/** Fired on window after any appearance change, so every control showing a setting re-reads it. */
+export const APPEARANCE_CHANGE_EVENT = 'ow-appearance-change';
+
+/** Change some settings and keep the rest. */
+export function updateAppearance(patch: Partial<{
+  typeface: Typeface; mode: ThemeMode; sidebarMode: SidebarMode; spacing: SpacingPreset; canvas: CanvasStyle;
+}>): void {
+  applyAppearance(
+    patch.typeface ?? getTypeface(),
+    patch.mode ?? getMode(),
+    patch.sidebarMode ?? getSidebarMode(),
+    patch.spacing ?? getSpacing(),
+    patch.canvas ?? getCanvasStyle(),
+  );
+  if (patch.sidebarMode) window.dispatchEvent(new CustomEvent('ow-sidebar-mode-change', { detail: patch.sidebarMode }));
+  window.dispatchEvent(new Event(APPEARANCE_CHANGE_EVENT));
+}
+
 export function initAppearance(): void {
   migrateIfNeeded();
   applyAppearance(getTypeface(), getMode(), getSidebarMode(), getSpacing(), getCanvasStyle());

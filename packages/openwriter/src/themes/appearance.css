@@ -1,0 +1,131 @@
+/* ─── Appearance menus: the format bar's Aa, the left rail's layout ──── */
+
+.ow-popover {
+  position: fixed;
+  z-index: 1000;
+  width: 268px;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.appearance-menu-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 12px 14px 4px;
+}
+
+.appearance-menu-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-dark);
+}
+
+.appearance-menu-note {
+  font-size: 11px;
+  color: var(--ink-light);
+}
+
+.appearance-section {
+  padding: 10px 14px;
+}
+
+.appearance-section + .appearance-section {
+  border-top: 1px solid var(--border);
+}
+
+.appearance-section-title {
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.appearance-grid {
+  display: grid;
+  gap: 4px;
+}
+
+.appearance-grid--3 { grid-template-columns: repeat(3, 1fr); }
+.appearance-grid--4 { grid-template-columns: repeat(4, 1fr); }
+
+.appearance-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  color: var(--ink-light);
+  font-size: 11px;
+  font-family: var(--font-body);
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.appearance-option:hover {
+  background: var(--bg-hover);
+  color: var(--ink-dark);
+}
+
+.appearance-option.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  color: var(--ink-dark);
+  font-weight: 600;
+}
+
+.appearance-option--sketch {
+  padding: 4px 2px;
+}
+
+.appearance-option--icon {
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 4px;
+}
+
+/* The format bar's Aa button: a word, not an icon. */
+.format-toolbar__btn--text {
+  width: auto;
+  padding: 0 7px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+/* The left rail's layout button, in the search row and the board strip. */
+.layout-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  cursor: pointer;
+  color: var(--ink-light);
+}
+
+.layout-menu-btn:hover,
+.layout-menu-btn.active {
+  background: var(--bg-hover);
+  color: var(--ink-dark);
+}
+
+/* In Board mode the layout button sits at the right end of the board strip. */
+.board-layout-btn {
+  align-self: center;
+  margin-right: 10px;
+}

@@ -3,7 +3,7 @@
  *
  * Order is user-priority, not scope: Review → Activity → Backlinks → Exports
  * are the day-to-day primary actions; Versions → Settings are history and
- * setup (Settings holds Appearance, Connections and Plugins). A single visual
+ * setup (Settings holds Connections and Plugins). A single visual
  * divider sits between Exports and Versions to mark that transition.
  *
  * Review leads the strip because pending agent writes are the most time-

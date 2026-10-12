@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
 
 import { insertPaywall } from './Paywall';
+import DisplayMenu from '../themes/DisplayMenu';
 import './format-toolbar.css';
 
 function Btn({
@@ -278,6 +279,13 @@ export default function FormatToolbar({ editor }: { editor: Editor }) {
             <path d="M3 15h18" />
           </svg>
         </Btn>
+      </div>
+
+      <Divider />
+
+      {/* Editor display: typeface, spacing, canvas */}
+      <div className="format-toolbar__group">
+        <DisplayMenu />
       </div>
 
       <input

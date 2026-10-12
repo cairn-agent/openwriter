@@ -952,13 +952,7 @@
 }
 .av-credits-topup-toggle:hover { color: var(--ink-dark); }
 
-/* ─── Appearance tab ───────────────────────────────────────────────── */
-
-.appearance-tab {
-  padding: 4px 0;
-}
-
-/* Settings tab: Appearance, Connections and Plugins stacked as groups. */
+/* Settings tab: Connections and Plugins stacked as groups. */
 .settings-group + .settings-group {
   border-top: 1px solid var(--border);
 }
@@ -969,127 +963,6 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--ink);
-}
-
-.appearance-section {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
-}
-
-.appearance-section:last-child {
-  border-bottom: none;
-}
-
-.appearance-section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.appearance-section-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--ink-light);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.appearance-mode-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 7px;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  background: var(--bg-hover);
-  cursor: pointer;
-  color: var(--ink-light);
-  font-size: 11px;
-  font-family: var(--font-body);
-  transition: all 0.15s ease;
-}
-
-.appearance-mode-btn:hover {
-  background: var(--border);
-  color: var(--ink-dark);
-}
-
-.appearance-mode-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
-}
-
-.appearance-mode-option {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 4px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: none;
-  cursor: pointer;
-  color: var(--ink-light);
-  font-size: 10px;
-  font-family: var(--font-body);
-  transition: all 0.15s ease;
-}
-
-.appearance-mode-option:hover {
-  background: var(--bg-hover);
-  color: var(--ink-dark);
-}
-
-.appearance-mode-option.active {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
-  color: var(--ink-dark);
-  font-weight: 600;
-}
-
-.appearance-typeface-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-}
-
-.appearance-typography-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
-}
-
-.appearance-style-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
-}
-
-.appearance-style-option {
-  padding: 6px 4px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: none;
-  cursor: pointer;
-  color: var(--ink-light);
-  font-size: 10px;
-  font-family: var(--font-body);
-  text-align: center;
-  transition: all 0.15s ease;
-}
-
-.appearance-style-option:hover {
-  background: var(--bg-hover);
-  color: var(--ink-dark);
-}
-
-.appearance-style-option.active {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
-  color: var(--ink-dark);
-  font-weight: 600;
 }
 
 /* ─── Connections tab ──────────────────────────────────────────────── */
