@@ -2,6 +2,7 @@ import type { OpenWriterPlugin, PluginHost, PluginMcpTool, PluginRouteContext } 
 import { getServerModules, publishFetch } from './helpers.js';
 import { newsletterTools } from './newsletter-tools.js';
 import { siteGrowthTools } from './site-growth-tools.js';
+import { siteGrowthExtrasTools } from './site-growth-extras-tools.js';
 import { siteMemberTools } from './site-member-tools.js';
 import { siteMemberSupportTools } from './site-member-support-tools.js';
 import { siteSegmentsTools } from './site-segments-tools.js';
@@ -212,6 +213,7 @@ const plugin: OpenWriterPlugin = {
 
       // Growth tools (gifts, groups, referrals, recommendations)
       ...siteGrowthTools(config),
+      ...siteGrowthExtrasTools(config),
 
       // Team tools (your sites, team, private-site subscribe requests)
       ...siteTeamTools(config),

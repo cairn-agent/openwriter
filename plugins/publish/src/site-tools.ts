@@ -173,6 +173,15 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
           auto_wall_after_days: { type: 'number', description: 'Public posts older than this many days become paid-only. 0 turns it off.' },
           double_opt_in: { type: 'boolean', description: 'New subscribers confirm by email before they are added.' },
           welcome_page: { type: 'boolean', description: 'Show first-time visitors a welcome page with a subscribe form.' },
+          welcome_endorsements: {
+            type: 'boolean',
+            description: 'Show on the welcome page what other writers said when recommending this site (their blurb and name, up to three). On by default.',
+          },
+          recommendation_digest: {
+            type: 'boolean',
+            description: 'Email each new subscriber the sites this one recommends, a few days after they join. Never to imported or hand-added subscribers; one email each. Off by default.',
+          },
+          recommendation_digest_days: { type: 'number', description: 'Days after joining that the recommendation digest goes, 1 to 30 (default 3).' },
           welcome_email: { type: 'string', description: 'Plain text of the welcome email new free subscribers receive. An empty string restores the default.' },
           welcome_email_paid: { type: 'string', description: 'Plain text of the welcome email new paid (and comped) subscribers receive. An empty string restores the default.' },
           welcome_email_founding: { type: 'string', description: 'Plain text of the welcome email new founding members receive. An empty string restores the default.' },
@@ -226,7 +235,8 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
       },
       handler: async (params) => {
         const body = pick(params, [
-          'default_audience', 'auto_wall_after_days', 'double_opt_in', 'welcome_page', 'welcome_email', 'welcome_email_paid',
+          'default_audience', 'auto_wall_after_days', 'double_opt_in', 'welcome_page', 'welcome_endorsements', 'recommendation_digest',
+          'recommendation_digest_days', 'welcome_email', 'welcome_email_paid',
           'welcome_email_founding', 'welcome_email_imported', 'comments_enabled', 'mailing_address', 'private',
           'notify_subscribe_requests', 'author_name', 'email_header', 'email_footer', 'email_banner', 'reply_to',
           'notify_free_subscribers', 'notify_paid_subscribers', 'notify_cancellations', 'accent_color', 'heading_font', 'body_font',

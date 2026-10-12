@@ -125,7 +125,8 @@ export function siteGrowthTools(config: Record<string, string>): PluginMcpTool[]
       name: 'list_site_recommendations',
       description:
         'Sites this one recommends, with how many subscribers it sent each, and sites recommending this one, with how many subscribers they brought. ' +
-        'Recommendations are offered to new subscribers and shown on the site\'s /recommendations page.',
+        'Recommendations are offered to new subscribers and shown on the site\'s /recommendations page. ' +
+        'Each recommending site\'s blurb (recommended_by[].blurb) can show on this site\'s welcome page as an endorsement (welcome_endorsements in update_site_settings).',
       inputSchema: { type: 'object', properties: { ...SITE_PARAM } },
       handler: async (params) => {
         const res = await publishFetch(config, '/sites/recommendations', onSite(params.site));
