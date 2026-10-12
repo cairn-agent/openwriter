@@ -141,14 +141,17 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
           name: { type: 'string', description: 'Publication name shown on the site and in emails.' },
           tagline: { type: 'string', description: 'One-line description under the name.' },
           about: { type: 'string', description: 'About page content as HTML.' },
-          logo_url: { type: 'string', description: 'Logo image, an http(s) URL.' },
-          cover_url: { type: 'string', description: 'Cover image, an http(s) URL.' },
+          logo_url: { type: 'string', description: 'Logo image: an http(s) URL or a picture in this OpenWriter (/_images/...).' },
+          cover_url: { type: 'string', description: 'Cover image: an http(s) URL or a picture in this OpenWriter (/_images/...).' },
           ...SITE_PARAM,
         },
       },
       handler: async (params) => {
-        const body = pick(params, ['name', 'tagline', 'about', 'logo_url', 'cover_url']);
+        const body: Record<string, unknown> = pick(params, ['name', 'tagline', 'about', 'logo_url', 'cover_url']);
         if (!Object.keys(body).length) return { error: 'Pass at least one field to change.' };
+        // A picture on this computer is uploaded with the request, like a post's cover.
+        const images = await postImages('', [params.logo_url, params.cover_url]);
+        if (images.length) body.images = images;
         const res = await publishFetch(config, '/sites', onSite(params.site, { method: 'PATCH', body: JSON.stringify(body) }));
         if (!res.ok) return apiError(res, 'Could not update the site');
         return { success: true, ...((await res.json()) as object) };
