@@ -116,19 +116,19 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
         'payments: whether Stripe is connected, the 7-day trial, and the paid plans (amounts in cents), ' +
         'and sender: who emails come from (from_name, from_email), where reader replies go (reply_to; reply_to_is_default = the owner\'s account email), ' +
         'the sending domain and its status (ready, waiting_for_dns, waiting_for_sender_verification; null = sent from <name>@mail.openwriter.io, see set_sending_domain) and the mailing address. ' +
-        'role is your role on the site (owner, admin or contributor); payments and sender are shown to the owner and admins.',
+        'role is your role on the site (owner, admin or contributor) and team_id your place on its team (null for the owner); payments and sender are shown to the owner and admins.',
       inputSchema: { type: 'object', properties: { ...SITE_PARAM } },
       handler: async (params) => {
         const res = await publishFetch(config, '/sites', onSite(params.site));
         if (!res.ok) return apiError(res, 'Could not load the site');
-        const { site, role, payments, sender } = (await res.json()) as { site: any; role?: string; payments?: unknown; sender?: unknown };
+        const { site, role, team_id, payments, sender } = (await res.json()) as { site: any; role?: string; team_id?: string | null; payments?: unknown; sender?: unknown };
         const sending = {
           status: site.status,
           // The cap only limits sites in review; an approved site has none.
           daily_cap: site.status === 'review' ? site.daily_send_cap : null,
           review_requested_at: site.review_requested_at ?? null,
         };
-        return { address: site.slug ? `https://${site.slug}.openwriter.io` : null, role, sending, site, payments, sender };
+        return { address: site.slug ? `https://${site.slug}.openwriter.io` : null, role, team_id: team_id ?? null, sending, site, payments, sender };
       },
     },
 
