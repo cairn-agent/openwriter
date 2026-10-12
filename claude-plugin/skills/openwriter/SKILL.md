@@ -590,7 +590,7 @@ Requires authentication via `request_login_code` + `verify_login`. All publish t
 | Tool | Description |
 |------|-------------|
 | `request_login_code` | Send a 6-digit login code to an email address (signup or key recovery) |
-| `verify_login` | Verify the code → API key issued + auto-saved to plugin config |
+| `verify_login` | Verify the code → API key issued + auto-saved to plugin config. With two-factor sign-in on it answers `two_factor_required`: ask for the authenticator (or recovery) code and call again with `totp_code` |
 
 ```
 1. request_login_code({ email: "user@example.com" })   → 6-digit code sent to email

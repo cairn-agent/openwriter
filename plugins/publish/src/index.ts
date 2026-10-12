@@ -136,22 +136,30 @@ const plugin: OpenWriterPlugin = {
           properties: {
             email: { type: 'string', description: 'Email address the code was sent to' },
             code: { type: 'string', description: '6-digit verification code from email' },
+            totp_code: { type: 'string', description: 'Only when asked: the code from the user\'s authenticator app, or one of their recovery codes (two-factor sign-in)' },
           },
           required: ['email', 'code'],
         },
         handler: async (params) => {
           const email = params.email as string;
           const code = params.code as string;
+          const totp_code = typeof params.totp_code === 'string' && params.totp_code.trim() ? params.totp_code : undefined;
 
           const res = await fetch(`${baseUrl}/auth/verify-code`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, code }),
+            body: JSON.stringify({ email, code, totp_code }),
           });
 
           if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            return { error: `Verification failed: ${(err as any).error || res.statusText}` };
+            const err = await res.json().catch(() => ({})) as { error?: string; two_factor_required?: boolean };
+            if (err.two_factor_required && !totp_code) {
+              return {
+                two_factor_required: true,
+                message: 'This account has two-factor sign-in on. Ask the user for the 6-digit code from their authenticator app (or one of their recovery codes), then call verify_login again with the same email and code plus totp_code.',
+              };
+            }
+            return { error: `Verification failed: ${err.error || res.statusText}` };
           }
 
           const data = await res.json() as { apiKey: string; userId: string };
