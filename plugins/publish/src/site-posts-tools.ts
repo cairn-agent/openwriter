@@ -30,7 +30,7 @@ export function sitePostsTools(config: Record<string, string>): PluginMcpTool[] 
       description:
         'List the site\'s posts, newest first: drafts saved on the site, scheduled and published posts, each with its address and, ' +
         'for those who manage the site, its stats (views, recipients, opens, clicks, subscribers gained, and subject_test with each ' +
-        'subject\'s results when it was emailed with a subject line test).',
+        'subject\'s results when it was emailed with a subject line test), and its authors (each with id and name; a guest author also has guest).',
       inputSchema: {
         type: 'object',
         properties: {
@@ -56,7 +56,7 @@ export function sitePostsTools(config: Record<string, string>): PluginMcpTool[] 
           posts: posts.map((p) => ({
             id: p.id, title: p.title, subtitle: p.subtitle, slug: p.slug, status: p.status, audience: p.audience, pinned: p.pinned,
             web_only: p.web_only, email_only: p.email_only, publish_at: p.publish_at, published_at: p.published_at, emailed_at: p.emailed_at,
-            updated_at: p.updated_at, section_id: p.section_id, tags: p.tags, cover_url: p.cover_url,
+            updated_at: p.updated_at, section_id: p.section_id, tags: p.tags, authors: p.authors, cover_url: p.cover_url,
             url: p.status === 'published' && !p.email_only ? postUrl(slug, p.slug) : null,
             ...(p.stats ? { stats: p.stats } : {}),
           })),
