@@ -9,13 +9,13 @@ import { apiError, onSite, SITE_PARAM } from './site-tools.js';
  * web app's chat asks the writer to confirm.
  */
 
-const WHO = {
+export const WHO = {
   member_id: { type: 'string', description: 'The subscriber id (from list_subscribers or get_subscriber).' },
   email: { type: 'string', description: 'The subscriber\'s email, instead of member_id.' },
 };
 
 /** The member id from member_id, or found by exact email among the site's members. */
-async function memberId(config: Record<string, string>, params: Record<string, unknown>): Promise<{ id: string } | { error: string }> {
+export async function memberId(config: Record<string, string>, params: Record<string, unknown>): Promise<{ id: string } | { error: string }> {
   if (typeof params.member_id === 'string' && params.member_id.trim()) return { id: params.member_id.trim() };
   const email = typeof params.email === 'string' ? params.email.trim().toLowerCase() : '';
   if (!email) return { error: 'Give member_id (from list_subscribers) or email.' };

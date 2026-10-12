@@ -704,6 +704,11 @@ The writer connects their own Stripe; readers pay through Stripe Checkout to the
 | `set_site_plans` | `monthly`, `annual`, `founding?`, `currency?`, `trial_7_day?` | Replace the plan set. Each plan is `{ amount, benefits? }`; founding may add `flexible` |
 | `list_comps` / `grant_comp` / `end_comp` | `email` or `membership_id`, `duration`, `founding?` | Free paid access for `7d`, `30d`, `90d`, `6mo`, `1yr` or `forever` |
 | `list_offers` / `create_offer` / `end_offer` | `kind`, `trial_days` or `percent_off`/`amount_off` + `duration`, `plans?`, `code?`, `expires_at?`, `max_redemptions?` | Trial and discount links; each result has the link to share |
+| `email_offer` | `offer_id`, `subject`, `body`, `tier?` (default `free`), `section?`, `search?`, `dry_run?` | Email a live offer's link and terms, below the writer's message, to a group of subscribers |
+| `pause_billing` / `resume_billing` | `resume_at?` | Pause all paid billing for a break: no reader is charged (invoices voided), access is kept, new paid signups close; resumes on the date or by hand. Only when the writer asks |
+| `pause_subscriber_billing` | `member_id` or `email`, `paused?` (default true), `resume_at?` | Pause or resume one paying subscriber's billing; access is kept |
+| `set_pledges` / `list_pledges` | `enabled?`, `currency?`, `monthly?`, `annual?`, `founding?` | Before paid plans open, readers pledge on the subscribe page (and subscribe free); see the count and would-be monthly revenue |
+| `email_pledgers` | `subject?`, `body?`, `dry_run?` | Once plans are open, email each pledger the link to subscribe, once |
 
 - Minimums: 5.00 a month, 30.00 a year; founding must cost more than annual. `set_site_plans` replaces the whole set, so leaving `founding` out removes it.
 - An offer link is `https://<name>.openwriter.io/subscribe?offer=<CODE>`, for monthly and/or annual only.

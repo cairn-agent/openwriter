@@ -5,6 +5,7 @@ import { siteGrowthTools } from './site-growth-tools.js';
 import { siteMemberTools } from './site-member-tools.js';
 import { siteMemberSupportTools } from './site-member-support-tools.js';
 import { siteMoneyTools } from './site-money-tools.js';
+import { siteBillingTools } from './site-billing-tools.js';
 import { siteSenderTools } from './site-sender-tools.js';
 import { siteStructureTools } from './site-structure-tools.js';
 import { siteTeamTools } from './site-team-tools.js';
@@ -203,6 +204,7 @@ const plugin: OpenWriterPlugin = {
 
       // Paid plan tools (Stripe connect, plans, comps, offers)
       ...siteMoneyTools(config),
+      ...siteBillingTools(config),
 
       // Site structure tools (website address, sections, tags)
       ...siteStructureTools(config),
