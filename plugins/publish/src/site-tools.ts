@@ -111,7 +111,8 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
       name: 'get_site',
       description:
         'Show the active profile\'s site: address, name, tagline, about, logo, cover, publication settings (default audience, auto-paywall, double opt-in, welcome page and the welcome emails, comments, mailing address, the email header, footer and banner, reply-to, subscriber notices), ' +
-        'design (accent_color, heading_font, body_font, wordmark_url, wordmark_dark_url, home_layout, nav_links, home_links) and tracking (google_analytics_id, plausible_domain, block_ai_training) in site.settings, ' +
+        'design (accent_color, heading_font, body_font, wordmark_url, wordmark_dark_url, home_layout, nav_links, home_links), tracking (google_analytics_id, plausible_domain, block_ai_training) ' +
+        'and reader switches (show_likes, show_bylines, comment_images, allow_cross_posts, language) in site.settings, the site\'s own terms and privacy pages (site.terms, site.privacy; null = none), ' +
         'sending (status "review" = new site that can email daily_cap people a day until OpenWriter approves it, see request_site_review; "active" = no daily limit; "suspended" = cannot send; review_requested_at = when review was last asked for), ' +
         'payments: whether Stripe is connected, the 7-day trial, and the paid plans (amounts in cents), ' +
         'and sender: who emails come from (from_name, from_email), where reader replies go (reply_to; reply_to_is_default = the owner\'s account email), ' +
@@ -143,11 +144,19 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
           about: { type: 'string', description: 'About page content as HTML.' },
           logo_url: { type: 'string', description: 'Logo image: an http(s) URL or a picture in this OpenWriter (/_images/...).' },
           cover_url: { type: 'string', description: 'Cover image: an http(s) URL or a picture in this OpenWriter (/_images/...).' },
+          terms: {
+            type: 'string',
+            description: 'The site\'s own Terms page as HTML, shown at /terms and linked in the footer. An empty string removes the page.',
+          },
+          privacy: {
+            type: 'string',
+            description: 'The site\'s own Privacy page as HTML, shown at /privacy and linked in the footer. An empty string removes the page.',
+          },
           ...SITE_PARAM,
         },
       },
       handler: async (params) => {
-        const body: Record<string, unknown> = pick(params, ['name', 'tagline', 'about', 'logo_url', 'cover_url']);
+        const body: Record<string, unknown> = pick(params, ['name', 'tagline', 'about', 'logo_url', 'cover_url', 'terms', 'privacy']);
         if (!Object.keys(body).length) return { error: 'Pass at least one field to change.' };
         // A picture on this computer is uploaded with the request, like a post's cover.
         const images = await postImages('', [params.logo_url, params.cover_url]);
@@ -230,6 +239,20 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
             type: 'boolean',
             description: 'Ask AI crawlers not to train on the site (robots.txt for the AI training crawlers, ai.txt and noai tags). Search engines and AI search still see it.',
           },
+          show_likes: { type: 'boolean', description: 'Show like buttons and counts on posts (default true). Off hides them and stops new likes.' },
+          show_bylines: { type: 'boolean', description: 'Show author names on posts, post lists and post emails (default true).' },
+          comment_images: {
+            type: 'boolean',
+            description: 'Let signed-in readers attach one picture to a comment (default false). Pictures count against the owner\'s image storage; deleting the comment removes its picture.',
+          },
+          allow_cross_posts: {
+            type: 'boolean',
+            description: 'Let other OpenWriter sites cross-post this site\'s public posts, credited with a link back (default true). Off hides existing cross-posts at once.',
+          },
+          language: {
+            type: 'string',
+            description: 'The site\'s language as a code like en, fr or pt-BR (default en). Pages say it so browsers offer readers a translation, and post dates are written in it.',
+          },
           ...SITE_PARAM,
         },
       },
@@ -241,6 +264,7 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
           'notify_subscribe_requests', 'author_name', 'email_header', 'email_footer', 'email_banner', 'reply_to',
           'notify_free_subscribers', 'notify_paid_subscribers', 'notify_cancellations', 'accent_color', 'heading_font', 'body_font',
           'wordmark_url', 'wordmark_dark_url', 'home_layout', 'nav_links', 'home_links', 'google_analytics_id', 'plausible_domain', 'block_ai_training',
+          'show_likes', 'show_bylines', 'comment_images', 'allow_cross_posts', 'language',
         ]);
         // One audience at a time: the other keeps what it has now.
         let current: Record<string, { free: string | null; paid: string | null }> | null = null;
@@ -341,7 +365,7 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
           authors: {
             type: 'array',
             items: { type: 'string' },
-            description: 'Who the post is by, up to 10: "owner" for the site owner, or ids of team members who accepted (list_site_team). New posts by a team member default to them.',
+            description: 'Who the post is by, up to 10: "owner" for the site owner, ids of team members who accepted (list_site_team), or guest author ids (list_guest_authors). New posts by a team member default to them.',
           },
           ...SITE_PARAM,
         },

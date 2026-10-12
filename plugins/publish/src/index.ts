@@ -20,6 +20,7 @@ import { siteReviewTools } from './site-review-tools.js';
 import { siteInsightsTools } from './site-insights-tools.js';
 import { siteSendingTools } from './site-sending-tools.js';
 import { siteAccountTools } from './site-account-tools.js';
+import { siteExtrasTools } from './site-extras-tools.js';
 import { readFileSync, existsSync } from 'fs';
 import { join, extname } from 'path';
 import type { Request, Response } from 'express';
@@ -220,6 +221,7 @@ const plugin: OpenWriterPlugin = {
       // Team tools (your sites, team, private-site subscribe requests)
       ...siteTeamTools(config),
       ...siteAccountTools(config),
+      ...siteExtrasTools(config),
 
       // Sender tools (the email sending domain; old names kept as deprecated aliases)
       ...siteSenderTools(config),
