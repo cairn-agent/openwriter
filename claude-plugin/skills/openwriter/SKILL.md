@@ -603,19 +603,23 @@ Requires authentication via `request_login_code` + `verify_login`. All publish t
 - **Key recovery:** Same flow. Old keys are automatically revoked when a new one is issued
 - Codes expire in 10 minutes, max 3 attempts per code, rate-limited to 1 request per 60 seconds
 
-### Custom Domains
+### Sending Domain
+
+The domain site emails come from (newsletter@example.com). The website address is separate (`set_site_domain`). Reply-to is an `update_site_settings` field; `get_site` shows all sender settings together.
 
 | Tool | Description |
 |------|-------------|
-| `setup_custom_domain` | Configure a custom domain + from_email for newsletter sending |
-| `check_domain_status` | Check DNS and sender verification status |
-| `resend_domain_verification` | Re-send the SendGrid sender verification email |
+| `set_sending_domain` | Send emails from the writer's own domain + from_email |
+| `check_sending_domain` | Check DNS and sender verification status |
+| `resend_sending_domain_verification` | Re-send the SendGrid sender verification email |
+
+The old names `setup_custom_domain`, `check_domain_status` and `resend_domain_verification` still work and are deprecated.
 
 **Setup flow:**
-1. Call `setup_custom_domain` with domain + from_email
+1. Call `set_sending_domain` with domain + from_email
 2. Cloudflare domains: DNS auto-added. Non-CF: show DNS records for manual setup
 3. User checks email for SendGrid sender verification
-4. Wait ~30-60s, call `check_domain_status` to confirm
+4. Wait ~30-60s, call `check_sending_domain` to confirm
 5. Both `dns_verified` + `sender_verified` = domain ready
 
 ### Social Posting & Connections
@@ -667,9 +671,9 @@ Each profile gets a free site at `<name>.openwriter.io` with posts, subscribers 
 | Tool | Key Params | Description |
 |------|-----------|-------------|
 | `claim_site_name` | `name` | Claim `<name>.openwriter.io`, or rename it |
-| `get_site` | *(none)* | Site details, sending limit (`sending`: status, daily cap, when review was asked for), publication settings, and payments (Stripe connected, plans) |
+| `get_site` | *(none)* | Site details, sending limit (`sending`: status, daily cap, when review was asked for), publication settings, payments (Stripe connected, plans), and `sender`: from name and address, reply-to, sending domain status, mailing address |
 | `update_site` | `name?`, `tagline?`, `about?`, `logo_url?`, `cover_url?` | Change site details |
-| `update_site_settings` | `default_audience?`, `auto_wall_after_days?`, `double_opt_in?`, `welcome_page?`, `welcome_email?`, `welcome_email_paid?`, `welcome_email_founding?`, `welcome_email_imported?`, `comments_enabled?`, `mailing_address?`, `private?`, `notify_subscribe_requests?`, `author_name?` | Change publication settings. A mailing address is needed before the first email |
+| `update_site_settings` | `default_audience?`, `auto_wall_after_days?`, `double_opt_in?`, `welcome_page?`, `welcome_email?`, `welcome_email_paid?`, `welcome_email_founding?`, `welcome_email_imported?`, `comments_enabled?`, `mailing_address?`, `private?`, `notify_subscribe_requests?`, `author_name?`, `email_header?`, `email_footer?`, `email_banner?` (each also `_free?` / `_paid?`), `reply_to?`, `notify_free_subscribers?`, `notify_paid_subscribers?`, `notify_cancellations?` | Change publication settings. A mailing address is needed before the first email. Header, footer and banner appear only in post emails, for everyone or per audience. Subscriber notices: `off`, `each` or `digest` |
 | `publish_to_site` | `title?`, `subtitle?`, `slug?`, `cover_url?`, `audience?`, `web_only?`, `email_only?`, `comments_audience?`, `publish_at?`, `send_email?`, `send_free_preview?`, `subject_b?`, `ab_test_percent?`, `ab_test_wait_minutes?`, `section?`, `tags?`, `authors?` | Publish the active doc as a post, or update the post it was published as before |
 | `unpublish_site_post` | `post_id?` | Take the active doc's post off the site |
 | `get_site_stats` | `post_id?` | Subscriber counts, site totals, revenue, and one post's stats (any post by id or slug, else the active doc's): views, opens, clicks, unsubscribes and their rates |
@@ -709,7 +713,7 @@ Every site tool takes an optional `site` (a site's name or id from `list_my_site
 
 | Tool | Key Params | Description |
 |------|-----------|-------------|
-| `get_site_domain` / `set_site_domain` / `check_site_domain` | `hostname` | Custom domain: returns the CNAME (to `sites.openwriter.io`) and `_cf-custom-hostname` TXT records to add, and the status |
+| `get_site_domain` / `set_site_domain` / `check_site_domain` | `hostname` | Website address on the writer's own domain (not the email sending domain): returns the CNAME (to `sites.openwriter.io`) and `_cf-custom-hostname` TXT records to add, and the status |
 | `remove_site_domain` | `confirm` | Back to `<name>.openwriter.io` at once. Owner only, only when the writer asks |
 | `list_site_sections` / `save_site_section` | `section_id?`, `name`, `slug?`, `description?`, `hide_from_home?`, `add_new_by_default?`, `show_in_nav?`, `position?` | Sections: separate streams of posts readers can switch on or off. Without `section_id`, makes one |
 | `delete_site_section` | `section_id`, `confirm` | Its posts move to the main publication |
@@ -720,7 +724,7 @@ Every site tool takes an optional `site` (a site's name or id from `list_my_site
 | `get_site_referrals` / `update_site_referrals` | `enabled?`, `show_leaderboard?`, `email_line?`, `tiers?` | Referral program; `tiers` is all three, lowest first: `{ threshold, comp?, reward_text? }` |
 | `list_site_recommendations` / `recommend_site` / `remove_site_recommendation` | `slug`, `blurb?`, `show_on_home?` | Recommend other OpenWriter sites; see who recommends yours |
 | `list_my_sites` | *(none)* | Sites you own or joined, with your role |
-| `list_site_team` / `invite_to_team` / `update_team_member` | `email`, `role`, `name?`, `public?`; `member_id` to change | Team: `admin`, `contributor` (posts only) or `byline` (named on posts, no access) |
+| `list_site_team` / `invite_to_team` / `update_team_member` | `email`, `role`, `name?`, `public?`; `member_id` to change; `notify?` (an admin's own subscriber emails) | Team: `admin`, `contributor` (posts only) or `byline` (named on posts, no access) |
 | `remove_team_member` | `member_id`, `confirm` | Takes away access; their posts with no other author become the owner's |
 | `accept_team_invite` | `code` | Join a team with the code from the invite email |
 | `list_subscribe_requests` / `decide_subscribe_request` | `status?`; `request_id`, `decision` | Private site: approve or deny readers who ask to subscribe |

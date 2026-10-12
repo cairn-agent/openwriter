@@ -5,6 +5,7 @@ import { siteGrowthTools } from './site-growth-tools.js';
 import { siteMemberTools } from './site-member-tools.js';
 import { siteMemberSupportTools } from './site-member-support-tools.js';
 import { siteMoneyTools } from './site-money-tools.js';
+import { siteSenderTools } from './site-sender-tools.js';
 import { siteStructureTools } from './site-structure-tools.js';
 import { siteTeamTools } from './site-team-tools.js';
 import { siteTools } from './site-tools.js';
@@ -191,7 +192,7 @@ const plugin: OpenWriterPlugin = {
       // Paid plan tools (Stripe connect, plans, comps, offers)
       ...siteMoneyTools(config),
 
-      // Site structure tools (custom domain, sections, tags)
+      // Site structure tools (website address, sections, tags)
       ...siteStructureTools(config),
 
       // Growth tools (gifts, groups, referrals, recommendations)
@@ -200,159 +201,8 @@ const plugin: OpenWriterPlugin = {
       // Team tools (your sites, team, private-site subscribe requests)
       ...siteTeamTools(config),
 
-      // --- Domain tools ---
-
-      {
-        name: 'setup_custom_domain',
-        description:
-          'Set up a custom sending domain for newsletters. Automatically handles SendGrid domain auth, DNS records (auto-added for Cloudflare domains), and sender verification. Follow the next_action field in the response.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            domain: { type: 'string', description: 'Domain to set up (e.g. "yourdomain.com")' },
-            from_email: {
-              type: 'string',
-              description: 'From email address (e.g. "newsletter@yourdomain.com")',
-            },
-            from_name: {
-              type: 'string',
-              description: 'From display name (e.g. "Your Newsletter")',
-            },
-            physical_address: {
-              type: 'string',
-              description: 'Physical mailing address for CAN-SPAM compliance (required before sending). E.g. "123 Main St, Portland, OR 97201"',
-            },
-          },
-          required: ['domain', 'from_email'],
-        },
-        handler: async (params) => {
-          const res = await publishFetch(config, '/newsletter/domains', {
-            method: 'POST',
-            body: JSON.stringify({
-              domain: params.domain,
-              from_email: params.from_email,
-              from_name: params.from_name || undefined,
-              physical_address: params.physical_address || undefined,
-            }),
-          });
-
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            return { error: `Failed to setup domain: ${(err as any).error || res.statusText}` };
-          }
-
-          const data = await res.json() as {
-            domain: any;
-            dnsRecords: any[];
-            cloudflare_managed: boolean;
-            dns_auto_added: boolean;
-            sender_verification_sent: boolean;
-            next_action: string;
-          };
-          return {
-            success: true,
-            domainId: data.domain.id,
-            domain: data.domain.domain,
-            dnsRecords: data.dnsRecords,
-            cloudflare_managed: data.cloudflare_managed,
-            dns_auto_added: data.dns_auto_added,
-            sender_verification_sent: data.sender_verification_sent,
-            next_action: data.next_action,
-          };
-        },
-      },
-
-      {
-        name: 'check_domain_status',
-        description:
-          'Check if a custom domain is fully ready (DNS verified + sender verified). If domain_id omitted, lists all domains with their status.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            domain_id: {
-              type: 'string',
-              description: 'Domain ID to check (from setup_custom_domain). Omit to list all domains.',
-            },
-          },
-        },
-        handler: async (params) => {
-          if (!params.domain_id) {
-            const res = await publishFetch(config, '/newsletter/domains');
-            if (!res.ok) {
-              const err = await res.json().catch(() => ({}));
-              return { error: `Failed to list domains: ${(err as any).error || res.statusText}` };
-            }
-            const data = await res.json() as { domains: any[] };
-            return {
-              domains: data.domains.map((d: any) => ({
-                id: d.id,
-                domain: d.domain,
-                fromEmail: d.from_email,
-                status: d.status,
-                senderStatus: d.sender_status,
-                cloudflareManaged: d.cloudflare_managed,
-                hasPhysicalAddress: !!d.physical_address,
-              })),
-            };
-          }
-
-          const res = await publishFetch(config, `/newsletter/domains/${params.domain_id}/verify`, {
-            method: 'POST',
-          });
-
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            return { error: `Status check failed: ${(err as any).error || res.statusText}` };
-          }
-
-          const data = await res.json() as {
-            domain: string;
-            dns_verified: boolean;
-            sender_verified: boolean;
-            fully_ready: boolean;
-            next_action: string;
-          };
-          return {
-            domain: data.domain,
-            dns_verified: data.dns_verified,
-            sender_verified: data.sender_verified,
-            fully_ready: data.fully_ready,
-            next_action: data.next_action,
-          };
-        },
-      },
-
-      {
-        name: 'resend_domain_verification',
-        description:
-          'Resend the SendGrid sender verification email for a custom domain. Use when the user did not receive or cannot find the original verification email.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            domain_id: {
-              type: 'string',
-              description: 'Domain ID to resend verification for.',
-            },
-          },
-          required: ['domain_id'],
-        },
-        handler: async (params) => {
-          const res = await publishFetch(config, `/newsletter/domains/${params.domain_id}/resend-verification`, {
-            method: 'POST',
-          });
-
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            return { error: `Resend failed: ${(err as any).error || res.statusText}` };
-          }
-
-          const data = await res.json() as { success: boolean; message: string };
-          return {
-            success: true,
-            message: data.message,
-          };
-        },
-      },
+      // Sender tools (the email sending domain; old names kept as deprecated aliases)
+      ...siteSenderTools(config),
 
       // --- Connection tools ---
 

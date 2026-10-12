@@ -81,7 +81,8 @@ export function siteTeamTools(config: Record<string, string>): PluginMcpTool[] {
 
     {
       name: 'update_team_member',
-      description: `Change a team member's role, name or whether they are on the About page. Only the fields you pass change. ${ROLES}`,
+      description: `Change a team member's role, name or whether they are on the About page. Only the fields you pass change. ${ROLES} ` +
+        'An admin can also turn on the subscriber emails for themselves (notify): new free and paid subscribers and cancellations, as the site settings send them to the owner.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -89,12 +90,13 @@ export function siteTeamTools(config: Record<string, string>): PluginMcpTool[] {
           role: { type: 'string', enum: TEAM_ROLES, description: 'New role.' },
           name: { type: 'string', description: 'Their name as shown on posts, up to 100 characters.' },
           public: { type: 'boolean', description: 'List them on the About page.' },
+          notify: { type: 'boolean', description: 'Your own subscriber emails, as an admin: only on your own team entry.' },
           ...SITE_PARAM,
         },
         required: ['member_id'],
       },
       handler: async (params) => {
-        const body = pick(params, ['role', 'name', 'public']);
+        const body = pick(params, ['role', 'name', 'public', 'notify']);
         if (!Object.keys(body).length) return { error: 'Pass at least one field to change.' };
         const res = await publishFetch(config, `/sites/team/${encodeURIComponent(params.member_id as string)}`, onSite(params.site, {
           method: 'PATCH',

@@ -6,14 +6,15 @@ const DNS_NEXT =
   'Add these records at the domain\'s DNS host. The TXT record proves the domain is yours; the CNAME points it at the site. ' +
   'Then run check_site_domain until status is active. Until then the site stays on <name>.openwriter.io.';
 
-/** Where the site lives and how it is organized: a custom domain, sections, tags. */
+/** Where the site lives and how it is organized: its web address on the writer's own domain, sections, tags. */
 export function siteStructureTools(config: Record<string, string>): PluginMcpTool[] {
   return [
     {
       name: 'get_site_domain',
       description:
-        'The site\'s custom domain, if it has one: its status, the DNS records it needs (a CNAME to sites.openwriter.io and a _cf-custom-hostname TXT proving ownership), ' +
-        'whether ownership is verified, and any errors. apex is true for a bare domain (example.com), which needs a DNS host that can flatten a CNAME at the root.',
+        'The site\'s website address on the writer\'s own domain, if it has one: its status, the DNS records it needs (a CNAME to sites.openwriter.io and a _cf-custom-hostname TXT proving ownership), ' +
+        'whether ownership is verified, and any errors. apex is true for a bare domain (example.com), which needs a DNS host that can flatten a CNAME at the root. ' +
+        'The domain emails are sent from is separate: check_sending_domain.',
       inputSchema: { type: 'object', properties: { ...SITE_PARAM } },
       handler: async (params) => {
         const res = await publishFetch(config, '/sites/domain', onSite(params.site));
@@ -26,8 +27,8 @@ export function siteStructureTools(config: Record<string, string>): PluginMcpToo
     {
       name: 'set_site_domain',
       description:
-        'Serve the site on the writer\'s own domain, like www.example.com or example.com. Needs a claimed site name, and a site has one custom domain. ' +
-        'Returns the DNS records the writer adds at their DNS host.',
+        'Website address: serve the site on the writer\'s own domain, like www.example.com or example.com. Needs a claimed site name, and a site has one. ' +
+        'Returns the DNS records the writer adds at their DNS host. This does not change who emails come from; that is set_sending_domain.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -53,7 +54,7 @@ export function siteStructureTools(config: Record<string, string>): PluginMcpToo
 
     {
       name: 'check_site_domain',
-      description: 'Check the custom domain now: asks again whether the DNS records are in place and returns the updated status and any errors.',
+      description: 'Check the website address on the writer\'s own domain now: asks again whether the DNS records are in place and returns the updated status and any errors.',
       inputSchema: { type: 'object', properties: { ...SITE_PARAM } },
       handler: async (params) => {
         const res = await publishFetch(config, '/sites/domain/check', onSite(params.site, { method: 'POST' }));
@@ -66,7 +67,7 @@ export function siteStructureTools(config: Record<string, string>): PluginMcpToo
     {
       name: 'remove_site_domain',
       description:
-        'Remove the custom domain. The site goes back to <name>.openwriter.io at once and links to the old domain stop working. Only the site owner can do this. ' +
+        'Remove the website address on the writer\'s own domain. The site goes back to <name>.openwriter.io at once and links to the old domain stop working. Only the site owner can do this. ' +
         'Only call this when the writer has asked, and pass confirm: true.',
       inputSchema: {
         type: 'object',

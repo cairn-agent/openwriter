@@ -4,6 +4,9 @@ import { placeWall } from './site-wall.js';
 
 const AUDIENCES = ['everyone', 'subscribers', 'paid', 'founding'];
 const COMMENTS = [...AUDIENCES, 'off'];
+const NOTICE_MODES = ['off', 'each', 'digest'];
+/** Post-email extras the writer sets for all readers, or for free and paid readers apart. */
+const EMAIL_PARTS = ['email_header', 'email_footer', 'email_banner'] as const;
 
 /** Doc metadata key holding the post this doc was published as. */
 const POST_KEY = 'sitePost';
@@ -94,22 +97,24 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
     {
       name: 'get_site',
       description:
-        'Show the active profile\'s site: address, name, tagline, about, logo, cover, publication settings (default audience, auto-paywall, double opt-in, welcome page and the welcome emails, comments, mailing address), ' +
+        'Show the active profile\'s site: address, name, tagline, about, logo, cover, publication settings (default audience, auto-paywall, double opt-in, welcome page and the welcome emails, comments, mailing address, the email header, footer and banner, reply-to, subscriber notices), ' +
         'sending (status "review" = new site that can email daily_cap people a day until OpenWriter approves it, see request_site_review; "active" = no daily limit; "suspended" = cannot send; review_requested_at = when review was last asked for), ' +
-        'and payments: whether Stripe is connected, the 7-day trial, and the paid plans (amounts in cents). ' +
-        'role is your role on the site (owner, admin or contributor); payments are shown to the owner and admins.',
+        'payments: whether Stripe is connected, the 7-day trial, and the paid plans (amounts in cents), ' +
+        'and sender: who emails come from (from_name, from_email), where reader replies go (reply_to; reply_to_is_default = the owner\'s account email), ' +
+        'the sending domain and its status (ready, waiting_for_dns, waiting_for_sender_verification; null = sent from <name>@mail.openwriter.io, see set_sending_domain) and the mailing address. ' +
+        'role is your role on the site (owner, admin or contributor); payments and sender are shown to the owner and admins.',
       inputSchema: { type: 'object', properties: { ...SITE_PARAM } },
       handler: async (params) => {
         const res = await publishFetch(config, '/sites', onSite(params.site));
         if (!res.ok) return apiError(res, 'Could not load the site');
-        const { site, role, payments } = (await res.json()) as { site: any; role?: string; payments?: unknown };
+        const { site, role, payments, sender } = (await res.json()) as { site: any; role?: string; payments?: unknown; sender?: unknown };
         const sending = {
           status: site.status,
           // The cap only limits sites in review; an approved site has none.
           daily_cap: site.status === 'review' ? site.daily_send_cap : null,
           review_requested_at: site.review_requested_at ?? null,
         };
-        return { address: site.slug ? `https://${site.slug}.openwriter.io` : null, role, sending, site, payments };
+        return { address: site.slug ? `https://${site.slug}.openwriter.io` : null, role, sending, site, payments, sender };
       },
     },
 
@@ -140,7 +145,9 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
       name: 'update_site_settings',
       description:
         'Update publication settings. Only the fields you pass change. A mailing address is required before the first email goes out. ' +
-        'A private site is readable by approved subscribers only: readers ask to subscribe, and the writer approves or denies each request (list_subscribe_requests).',
+        'A private site is readable by approved subscribers only: readers ask to subscribe, and the writer approves or denies each request (list_subscribe_requests). ' +
+        'Post emails can carry a header, footer and banner, the same for everyone or different for free and paid readers; they appear only in emails. ' +
+        'The returned settings show each as { free, paid } (null = none).',
       inputSchema: {
         type: 'object',
         properties: {
@@ -157,6 +164,19 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
           private: { type: 'boolean', description: 'Only approved subscribers can read the site; readers ask to subscribe and wait for approval.' },
           notify_subscribe_requests: { type: 'boolean', description: 'Email the writer when a reader asks to subscribe to a private site.' },
           author_name: { type: 'string', description: 'The owner\'s name as a post author and on the About page. An empty string clears it.' },
+          email_header: { type: 'string', description: 'Short text at the top of every post email, for all readers. Simple markdown: **bold**, *italic*, [links](https://...). An empty string removes it.' },
+          email_header_free: { type: 'string', description: 'The email header for free readers only (instead of email_header). An empty string removes it for them.' },
+          email_header_paid: { type: 'string', description: 'The email header for paid readers only (paid, comped and founding). An empty string removes it for them.' },
+          email_footer: { type: 'string', description: 'Short text at the end of every post email, for all readers. Same markdown as the header. An empty string removes it.' },
+          email_footer_free: { type: 'string', description: 'The email footer for free readers only.' },
+          email_footer_paid: { type: 'string', description: 'The email footer for paid readers only.' },
+          email_banner: { type: 'string', description: 'Banner image at the top of every post email, an https URL, for all readers. An empty string removes it.' },
+          email_banner_free: { type: 'string', description: 'The email banner for free readers only.' },
+          email_banner_paid: { type: 'string', description: 'The email banner for paid readers only.' },
+          reply_to: { type: 'string', description: 'Where reader replies to post and welcome emails go. An empty string goes back to the owner\'s account email.' },
+          notify_free_subscribers: { type: 'string', enum: NOTICE_MODES, description: 'Email the owner (and admins who opt in) about new free subscribers: off, each (one email each) or digest (one a day). Default digest.' },
+          notify_paid_subscribers: { type: 'string', enum: NOTICE_MODES, description: 'Email about new paid subscribers. Default each.' },
+          notify_cancellations: { type: 'string', enum: NOTICE_MODES, description: 'Email about paid subscribers who cancel. Default each.' },
           ...SITE_PARAM,
         },
       },
@@ -164,8 +184,25 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
         const body = pick(params, [
           'default_audience', 'auto_wall_after_days', 'double_opt_in', 'welcome_page', 'welcome_email', 'welcome_email_paid',
           'welcome_email_founding', 'welcome_email_imported', 'comments_enabled', 'mailing_address', 'private',
-          'notify_subscribe_requests', 'author_name',
+          'notify_subscribe_requests', 'author_name', 'email_header', 'email_footer', 'email_banner', 'reply_to',
+          'notify_free_subscribers', 'notify_paid_subscribers', 'notify_cancellations',
         ]);
+        // One audience at a time: the other keeps what it has now.
+        let current: Record<string, { free: string | null; paid: string | null }> | null = null;
+        for (const part of EMAIL_PARTS) {
+          const free = params[`${part}_free`];
+          const paid = params[`${part}_paid`];
+          if (free === undefined && paid === undefined) continue;
+          if (params[part] !== undefined) return { error: `Pass ${part} for all readers, or ${part}_free and ${part}_paid, not both.` };
+          if (free === undefined || paid === undefined) {
+            if (!current) {
+              const res = await publishFetch(config, '/sites/settings', onSite(params.site));
+              if (!res.ok) return apiError(res, 'Could not load settings');
+              current = ((await res.json()) as { settings: any }).settings;
+            }
+          }
+          body[part] = { free: free ?? current?.[part]?.free ?? null, paid: paid ?? current?.[part]?.paid ?? null };
+        }
         if (!Object.keys(body).length) return { error: 'Pass at least one setting to change.' };
         const res = await publishFetch(config, '/sites/settings', onSite(params.site, { method: 'PATCH', body: JSON.stringify(body) }));
         if (!res.ok) return apiError(res, 'Could not update settings');
