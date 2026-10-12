@@ -12,8 +12,8 @@
  *
  * The rail topbar holds chrome that USED to live in the global titlebar:
  * HideRail close button (far-left, inward edge — mirror of sidebar's
- * collapse button on its right edge), format-toolbar toggle, and the
- * sync button cluster. When the rail is closed they all hide (mirror of
+ * collapse button on its right edge), Focus, light/dark, and the sync
+ * button cluster. The format-toolbar toggle lives in the titlebar. When the rail is closed they all hide (mirror of
  * left sidebar — close it and its topbar contents go away too).
  *
  * adr: adr/right-rail.md
@@ -33,14 +33,12 @@ import type { SyncStatus } from '../ws/client';
 interface RightRailProps extends RightRailTabProps {
   syncStatus: SyncStatus;
   onSync: () => void;
-  onToggleToolbar: () => void;
-  toolbarOpen: boolean;
   focusMode: boolean;
   onToggleFocusMode: () => void;
 }
 
 export default function RightRail(props: RightRailProps) {
-  const { syncStatus, onSync, onToggleToolbar, toolbarOpen, focusMode, onToggleFocusMode, ...tabProps } = props;
+  const { syncStatus, onSync, focusMode, onToggleFocusMode, ...tabProps } = props;
   const { open, visible, overlay, activeTab, width, setWidth, closeRail, openTab } = useRightRail();
   const ref = useRef<HTMLElement>(null);
   usePanelVisibility(ref, visible, '[aria-label="Show right rail"]');
@@ -145,20 +143,6 @@ export default function RightRail(props: RightRailProps) {
             aria-pressed={focusMode}
           >
             <FocusModeIcon />
-          </button>
-          <button
-            type="button"
-            className={`right-rail-topbar-btn${toolbarOpen ? ' right-rail-topbar-btn--active' : ''}`}
-            onClick={onToggleToolbar}
-            title="Toggle format toolbar"
-            aria-label="Toggle format toolbar"
-            aria-pressed={toolbarOpen}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 20h16" />
-              <path d="m6 16 6-12 6 12" />
-              <path d="M8 12h8" />
-            </svg>
           </button>
           <ThemeToggle className="right-rail-topbar-btn" />
         </div>

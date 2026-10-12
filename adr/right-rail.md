@@ -330,3 +330,10 @@ lives in the title bar, left of the plugin toggles, rail open or closed.
 `themes/rails.css` also offers `.rail-label`, `.rail-note`, `.rail-btn` and
 `.rail-btn--primary` for plugin panels, so a plugin's panel (the web chat) matches the
 built-in tabs without restyling them itself.
+
+### 2026-10-12 — Format-bar toggle joins the title bar
+
+The format-bar toggle moved between the rail's top bar (rail open) and the title bar (rail
+closed). It now stays in the title bar, left of the Voice heatmap and the chat, rail open
+or closed: the document's own controls sit together and never move. The rail's top bar
+keeps Hide, Focus, light/dark and Sync.

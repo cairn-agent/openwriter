@@ -14,12 +14,12 @@ interface TitlebarProps {
   onGoBack?: () => void;
   onGoForward?: () => void;
   editor?: Editor | null;
-  /** Toggle for the format toolbar. Always passed; the titlebar renders the
-   *  button only when the rail is closed (otherwise the rail topbar owns it). */
+  /** Toggle for the format toolbar. Always in the titlebar, left of the Voice
+   *  heatmap, rail open or closed. */
   onToggleToolbar?: () => void;
   toolbarOpen?: boolean;
-  /** Focus mode toggle. Same pattern as the format toggle: titlebar renders
-   *  it only when the rail is closed; the rail topbar owns it when open. */
+  /** Focus mode toggle. The titlebar renders it only when the rail is
+   *  closed; the rail topbar owns it when open. */
   focusMode?: boolean;
   onToggleFocusMode?: () => void;
   /** Voice heatmap (human vs agent). Always in the titlebar, left of the plugin
@@ -40,16 +40,11 @@ interface UpdateInfo {
  * Titlebar. After the 2026-05-23 right-rail refactor, this is intentionally
  * lean: navigation, undo/redo, title, update badge.
  *
- * Right side of the titlebar — slight asymmetry vs. the left side:
- *   - rail OPEN: empty (HideRail + format toggle + sync all live inside
- *     the rail topbar)
- *   - rail CLOSED: format-toolbar toggle + OpenRail icon
- *
- * The format-toggle "moves" between the rail topbar (when rail open) and
- * the titlebar (when rail closed) so the user can still collapse the
- * formatting bar without first reopening the rail. This is the one place
- * where the rail asymmetrically differs from the left sidebar (which has
- * no equivalent always-on control).
+ * Right side of the titlebar:
+ *   - always: format-toolbar toggle, Voice heatmap, plugin toggles (the chat)
+ *     — controls for the document, so they never move
+ *   - rail CLOSED also: Focus, light/dark, OpenRail (the rail topbar holds
+ *     these while it is open)
  *
  * Sync stays inside the rail topbar — opening the rail is required to
  * trigger a sync, matching how the left sidebar gates search + tree.
@@ -187,6 +182,21 @@ export default function Titlebar({ title, onTitleChange, onToggleSidebar, canGoB
       </div>
       <div className="titlebar-right">
         {focusMode && <div id="focus-review-controls" />}
+        {onToggleToolbar && (
+          <button
+            className={`titlebar-nav-btn${toolbarOpen ? ' titlebar-nav-btn--active' : ''}`}
+            onClick={onToggleToolbar}
+            title="Toggle format toolbar"
+            aria-label="Toggle format toolbar"
+            aria-pressed={toolbarOpen}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 20h16" />
+              <path d="m6 16 6-12 6 12" />
+              <path d="M8 12h8" />
+            </svg>
+          </button>
+        )}
         {heatmapAvailable && onToggleHeatmap && (
           <button
             className={`titlebar-nav-btn${heatmapOn ? ' titlebar-nav-btn--active' : ''}`}
@@ -223,21 +233,6 @@ export default function Titlebar({ title, onTitleChange, onToggleSidebar, canGoB
             aria-pressed={focusMode}
           >
             <FocusModeIcon />
-          </button>
-        )}
-        {!railVisible && onToggleToolbar && (
-          <button
-            className={`titlebar-nav-btn${toolbarOpen ? ' titlebar-nav-btn--active' : ''}`}
-            onClick={onToggleToolbar}
-            title="Toggle format toolbar"
-            aria-label="Toggle format toolbar"
-            aria-pressed={toolbarOpen}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 20h16" />
-              <path d="m6 16 6-12 6 12" />
-              <path d="M8 12h8" />
-            </svg>
           </button>
         )}
         {!railVisible && <ThemeToggle className="titlebar-nav-btn" />}

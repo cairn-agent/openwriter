@@ -1421,8 +1421,6 @@ export default function App() {
         docVersionRef={docVersionRef}
         syncStatus={syncStatus}
         onSync={handleSync}
-        onToggleToolbar={toggleToolbar}
-        toolbarOpen={showToolbar}
         focusMode={focusMode}
         onToggleFocusMode={toggleFocusMode}
       />
