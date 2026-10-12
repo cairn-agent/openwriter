@@ -190,6 +190,10 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
           email_only: { type: 'boolean', description: 'Email only; keep it off the site.' },
           comments_audience: { type: 'string', enum: COMMENTS, description: 'Who may comment, or off.' },
           publish_at: { type: 'string', description: 'ISO date-time in the future to schedule the post instead of publishing now.' },
+          draft: {
+            type: 'boolean',
+            description: 'Save the post on the site without publishing it, to preview it (preview_site_post), send a test email (send_test_email) or share it by secret link (get_post_share_link). Readers see nothing until it is published.',
+          },
           send_email: { type: 'boolean', description: 'Also email the post to subscribers when it publishes. Each audience gets its own version.' },
           send_free_preview: {
             type: 'boolean',
@@ -231,12 +235,22 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
           section = { section_id: id };
         }
 
+        if (params.draft && (params.publish_at || params.send_email)) {
+          return { error: 'A draft is not scheduled or emailed. Leave out draft to publish, schedule or send.' };
+        }
+
         // Update the post this doc was published as, unless it has since been deleted.
         let existingId: string | null = meta[POST_KEY]?.id ?? null;
         if (existingId) {
           const check = await publishFetch(config, `/sites/posts/${existingId}`, onSite(site));
           if (check.status === 404) existingId = null;
           else if (!check.ok) return apiError(check, 'Could not load the existing post');
+          else if (params.draft) {
+            const { post: current } = (await check.json()) as { post: { status: string } };
+            if (current.status !== 'draft') {
+              return { error: `This post is ${current.status === 'published' ? 'already published, so saving it updates what readers see' : 'scheduled'}. Unpublish it first (unpublish_site_post) to work on it as a draft.` };
+            }
+          }
         }
 
         const fields: Record<string, unknown> = {
@@ -246,7 +260,7 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
           wall_at: wall.wall_at,
           ...pick({ ...params, cover_url: coverUrl }, ['subtitle', 'slug', 'cover_url', 'audience', 'web_only', 'email_only', 'comments_audience', 'tags', 'authors']),
           ...section,
-          ...(params.publish_at ? { status: 'scheduled', publish_at: params.publish_at } : { status: 'published' }),
+          ...(params.draft ? { status: 'draft' } : params.publish_at ? { status: 'scheduled', publish_at: params.publish_at } : { status: 'published' }),
           ...(images.length ? { images } : {}),
         };
         const res = existingId
