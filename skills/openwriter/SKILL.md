@@ -670,13 +670,16 @@ Each profile gets a free site at `<name>.openwriter.io` with posts, subscribers 
 | `get_site` | *(none)* | Site details, sending limit (`sending`: status, daily cap, when review was asked for), publication settings, and payments (Stripe connected, plans) |
 | `update_site` | `name?`, `tagline?`, `about?`, `logo_url?`, `cover_url?` | Change site details |
 | `update_site_settings` | `default_audience?`, `auto_wall_after_days?`, `double_opt_in?`, `welcome_page?`, `welcome_email?`, `welcome_email_paid?`, `welcome_email_founding?`, `welcome_email_imported?`, `comments_enabled?`, `mailing_address?`, `private?`, `notify_subscribe_requests?`, `author_name?` | Change publication settings. A mailing address is needed before the first email |
-| `publish_to_site` | `title?`, `subtitle?`, `slug?`, `cover_url?`, `audience?`, `web_only?`, `email_only?`, `comments_audience?`, `publish_at?`, `send_email?`, `send_free_preview?`, `section?`, `tags?`, `authors?` | Publish the active doc as a post, or update the post it was published as before |
+| `publish_to_site` | `title?`, `subtitle?`, `slug?`, `cover_url?`, `audience?`, `web_only?`, `email_only?`, `comments_audience?`, `publish_at?`, `send_email?`, `send_free_preview?`, `subject_b?`, `ab_test_percent?`, `ab_test_wait_minutes?`, `section?`, `tags?`, `authors?` | Publish the active doc as a post, or update the post it was published as before |
 | `unpublish_site_post` | `post_id?` | Take the active doc's post off the site |
 | `get_site_stats` | `post_id?` | Subscriber counts, site totals, revenue, and one post's stats (any post by id or slug, else the active doc's): views, opens, clicks, unsubscribes and their rates |
 | `get_subscriber_growth` | `interval?`, `from?`, `to?` | Subscribers (free, paid, comp, total) at the end of each day or week |
 | `get_paid_retention` | `months?` | New paid, cancelled, churn rate and MRR per month, with today's MRR |
 | `get_traffic_sources` | `post_id?`, `from?`, `to?` | Where post views came from: direct, your site, search, social, webmail, other websites, utm_source |
 | `request_site_review` | `note?` | New sites email a limited number of people a day; ask OpenWriter to lift the limit (once a day, owners and admins) |
+| `email_subscribers` | `subject`, `body`, `email?`, `member_id?`, `tier?`, `section?`, `search?`, `dry_run?` | Email one subscriber or a group a message that is not a post (never on the site); `dry_run` counts who would get it |
+| `list_sent_messages` | `limit?`, `offset?` | Past messages: subject, who it went to, who sent it, when, delivered and opens |
+| `resend_post_to_unopened` | `post_id`, `subject?`, `dry_run?` | Resend an emailed post once to who did not open it, from 24 hours after it was sent; `dry_run` counts first |
 
 - **Audience:** `everyone`, `subscribers` (free or paid), `paid`, or `founding`.
 - **Paywall:** put the line `<!-- paywall -->` between blocks. Everything above it is the free preview. One per doc, not inside a list or quote. With no marker, a walled post shows readers without access nothing past the title. The editor shows it as a "Paywall" divider (lock button in the toolbar), and `read_pad` shows it as `[hr:<id>] <!-- paywall -->`.
@@ -726,6 +729,7 @@ Every site tool takes an optional `site` (a site's name or id from `list_my_site
 | `ban_readers` / `unban_reader` / `list_banned_readers` | `emails`, `reason?`, `delete_comments?`; `email` | Ban emails from commenting and subscribing; free subscriptions end, paid access is kept and listed in `paid_access_kept` to refund or cancel in Stripe |
 
 - `publish_to_site`: `section` is a section's name, slug or id (empty string for the main publication); `tags` are tag names; `authors` are ids from `list_site_team`, `"owner"` for the owner. A doc published to a team site keeps going to that site.
+- `publish_to_site` with `send_email` and `subject_b` runs a subject line test against the title: `ab_test_percent` (default 20) of recipients get one or the other, and after `ab_test_wait_minutes` (default 60) the subject opened more goes to the rest. It needs at least 200 recipients. Results per subject are in the post's stats (`subject_test`).
 - Referral rewards: on a site selling paid plans each tier's `comp` (`7d`, `30d`, `90d`, `6mo`, `1yr`); otherwise its `reward_text` is emailed. Referrals are off while the site is private.
 - A bare domain (`example.com`, `apex: true`) needs a DNS host that can put a CNAME at the root; otherwise use `www`.
 

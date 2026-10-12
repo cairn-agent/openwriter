@@ -29,7 +29,8 @@ export function sitePostsTools(config: Record<string, string>): PluginMcpTool[] 
       name: 'list_site_posts',
       description:
         'List the site\'s posts, newest first: drafts saved on the site, scheduled and published posts, each with its address and, ' +
-        'for those who manage the site, its stats (views, recipients, opens, clicks, subscribers gained).',
+        'for those who manage the site, its stats (views, recipients, opens, clicks, subscribers gained, and subject_test with each ' +
+        'subject\'s results when it was emailed with a subject line test).',
       inputSchema: {
         type: 'object',
         properties: {

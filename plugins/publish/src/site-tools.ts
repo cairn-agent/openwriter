@@ -210,6 +210,19 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
             type: 'boolean',
             description: 'With send_email on a paid or founding post: also email free subscribers the preview above the paywall.',
           },
+          subject_b: {
+            type: 'string',
+            description: 'With send_email: a second subject line to test against the title. A share of recipients (ab_test_percent) get one or the other; ' +
+              'after the wait the subject with the higher open rate goes to everyone else. Needs at least 200 recipients. Results are in the post\'s stats (subject_test).',
+          },
+          ab_test_percent: {
+            type: 'number',
+            description: 'With subject_b: the share of recipients in the test, split evenly between the two subjects, 10 to 50 (default 20).',
+          },
+          ab_test_wait_minutes: {
+            type: 'number',
+            description: 'With subject_b: minutes to wait before sending the winning subject to the rest, 30 to 240 (default 60).',
+          },
           section: {
             type: 'string',
             description: 'Section the post belongs to, by name, slug or id (list_site_sections). An empty string puts it in the main publication.',
@@ -248,6 +261,9 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
 
         if (params.draft && (params.publish_at || params.send_email)) {
           return { error: 'A draft is not scheduled or emailed. Leave out draft to publish, schedule or send.' };
+        }
+        if (!params.send_email && (params.subject_b || params.ab_test_percent !== undefined || params.ab_test_wait_minutes !== undefined)) {
+          return { error: 'A subject line test runs on the email: pass send_email with subject_b.' };
         }
 
         // Update the post this doc was published as, unless it has since been deleted.
@@ -310,17 +326,23 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
         if (params.send_email) {
           const send = await publishFetch(config, `/sites/posts/${post.id}/send`, onSite(site, {
             method: 'POST',
-            body: JSON.stringify(pick(params, ['send_free_preview'])),
+            body: JSON.stringify(pick(params, ['send_free_preview', 'subject_b', 'ab_test_percent', 'ab_test_wait_minutes'])),
           }));
           if (!send.ok) {
             result.email = (await apiError(send, 'Post saved, but the email was not sent')).error;
           } else {
             const s = (await send.json()) as {
               scheduled?: boolean; recipients?: number; issue_id?: string; free_preview?: boolean; send_free_preview?: boolean;
+              subject_test?: { subject_b: string; percent: number; wait_minutes: number; test_recipients?: number; decide_at?: string } | null;
             };
             const preview = s.free_preview || s.send_free_preview ? ' Free subscribers get the preview.' : '';
-            result.email = (s.scheduled ? 'Will be emailed when the post publishes.' : `Sending to ${s.recipients} subscribers.`) + preview;
+            const t = s.subject_test;
+            const test = !t ? '' : t.test_recipients !== undefined
+              ? ` Subject line test: ${t.test_recipients} get the title or "${t.subject_b}" now; the one opened more goes to the rest after ${t.wait_minutes} minutes.`
+              : ` Subject line test: ${t.percent}% get the title or "${t.subject_b}"; the one opened more goes to the rest ${t.wait_minutes} minutes later.`;
+            result.email = (s.scheduled ? 'Will be emailed when the post publishes.' : `Sending to ${s.recipients} subscribers.`) + preview + test;
             if (s.issue_id) result.issue_id = s.issue_id;
+            if (t) result.subject_test = t;
           }
         }
         return result;
@@ -362,7 +384,7 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
         'Site numbers: subscriber counts by type and status, site totals, revenue, and stats for one post: post_id (any post, ' +
         'by id or slug), else the active document\'s post if it has one. A post\'s stats are views, subscribers gained after it ' +
         'was published and, once emailed, recipients, opens, clicks and unsubscribes with open_rate, click_rate and ' +
-        'unsubscribe_rate (percent of recipients). ' +
+        'unsubscribe_rate (percent of recipients), and subject_test (each subject\'s sent, opens and open rate and the winner) when it was emailed with subject_b. ' +
         'Revenue (site.revenue) gives paid members by plan, how many are in a free trial, comps, monthly recurring revenue, ' +
         'OpenWriter\'s 5% fee and what the writer keeps, in cents of the plans\' currency.',
       inputSchema: {
