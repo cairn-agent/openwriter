@@ -17,15 +17,28 @@ const FILTER_PARAMS = {
   tier: { type: 'string', enum: TIERS, description: 'Only members on this tier.' },
   source: { type: 'string', description: 'Only members who came from this source (e.g. import, manual, site, embed).' },
   search: { type: 'string', description: 'Only members whose email or name contains this, any case (e.g. "ann@" or "smith").' },
+  tag: { type: 'string', description: 'Only members with this tag (tag_subscribers, list_subscriber_tags).' },
+  joined_after: { type: 'string', description: 'Only members who subscribed on or after this date (ISO, e.g. 2026-01-01).' },
+  joined_before: { type: 'string', description: 'Only members who subscribed before this date (ISO).' },
+  opened_within_days: { type: 'number', description: 'Only members who opened or clicked an email from the site in the last this many days.' },
+  not_opened_days: { type: 'number', description: 'Only members who opened and clicked nothing from the site in the last this many days.' },
+  segment: { type: 'string', description: 'A saved segment by name (list_segments), instead of the other filters.' },
 };
 
-/** Query string for the member filters; status defaults to active. */
+/** Query string for the member filters; status defaults to active. A segment carries its own filters. */
 function filterQuery(params: Record<string, unknown>, extra: Record<string, unknown> = {}): string {
   const q = new URLSearchParams();
-  const status = typeof params.status === 'string' ? params.status : 'active';
-  if (status !== 'all') q.set('status', status);
-  for (const [k, v] of Object.entries({ tier: params.tier, source: params.source, search: params.search, ...extra })) {
-    if (v !== undefined && v !== null && v !== '') q.set(k, String(v));
+  const segment = typeof params.segment === 'string' && params.segment.trim() ? params.segment.trim() : null;
+  const filters = segment
+    ? { segment }
+    : {
+        status: typeof params.status === 'string' ? params.status : 'active',
+        tier: params.tier, source: params.source, search: params.search, tag: params.tag,
+        from: params.joined_after, to: params.joined_before,
+        opened_within_days: params.opened_within_days, not_opened_days: params.not_opened_days,
+      };
+  for (const [k, v] of Object.entries({ ...filters, ...extra })) {
+    if (v !== undefined && v !== null && v !== '' && !(k === 'status' && v === 'all')) q.set(k, String(v));
   }
   const s = q.toString();
   return s ? `?${s}` : '';
@@ -40,7 +53,7 @@ function csvField(s: string): string {
  * Reads exports from ConvertKit, Mailchimp, Substack, Beehiiv and the like: finds the email and name
  * columns (or first + last name) by their usual headers, and drops rows whose status says unsubscribed.
  */
-export function readSubscriberCsv(raw: string): { rows: { email: string; name?: string }[]; skippedStatus: number } | { error: string } {
+export function readSubscriberCsv(raw: string): { rows: { email: string; name?: string; tags?: string }[]; skippedStatus: number } | { error: string } {
   const lines = raw.split(/\r?\n/).filter((l) => l.trim());
   if (lines.length < 2) return { error: 'CSV must have a header row and at least one data row' };
 
@@ -71,10 +84,11 @@ export function readSubscriberCsv(raw: string): { rows: { email: string; name?: 
   const firstIdx = findCol(['first_name', 'first name', 'firstname', 'first']);
   const lastIdx = findCol(['last_name', 'last name', 'lastname', 'last']);
   const statusIdx = findCol(['status', 'state', 'subscription_status']);
+  const tagsIdx = findCol(['tags', 'tag', 'labels']);
   if (emailIdx === -1) return { error: `Could not find email column. Found headers: ${headers.join(', ')}` };
 
   const skipStatuses = new Set(['unsubscribed', 'cancelled', 'canceled', 'inactive', 'bounced', 'complained']);
-  const rows: { email: string; name?: string }[] = [];
+  const rows: { email: string; name?: string; tags?: string }[] = [];
   let skippedStatus = 0;
   const clean = (s: string | undefined) => (s || '').replace(/['"]/g, '').trim();
 
@@ -91,7 +105,8 @@ export function readSubscriberCsv(raw: string): { rows: { email: string; name?: 
     else if (firstIdx !== -1) {
       name = [clean(fields[firstIdx]), lastIdx !== -1 ? clean(fields[lastIdx]) : ''].filter(Boolean).join(' ') || undefined;
     }
-    rows.push({ email, ...(name ? { name } : {}) });
+    const tags = tagsIdx !== -1 ? clean(fields[tagsIdx]) : '';
+    rows.push({ email, ...(name ? { name } : {}), ...(tags ? { tags } : {}) });
   }
   return { rows, skippedStatus };
 }
@@ -101,8 +116,9 @@ export function siteMemberTools(config: Record<string, string>): PluginMcpTool[]
     {
       name: 'list_subscribers',
       description:
-        'List the site\'s subscribers (its members: the list site posts are emailed to), newest first. ' +
-        'Active members by default; filter by status, tier, source, search or section (who gets that section\'s emails). ' +
+        'List the site\'s subscribers (its members: the list site posts are emailed to), newest first, with their tags. ' +
+        'Active members by default; filter by status, tier, source, search, section (who gets that section\'s emails), tag, ' +
+        'when they joined, and whether they opened an email lately; or give a saved segment instead. ' +
         'Works before a site name is claimed too.',
       inputSchema: {
         type: 'object',
@@ -129,7 +145,7 @@ export function siteMemberTools(config: Record<string, string>): PluginMcpTool[]
           count: data.total,
           subscribers: data.members.map((m) => ({
             id: m.id, email: m.email, name: m.name, tier: m.tier, status: m.status, source: m.source,
-            subscribedAt: m.subscribed_at,
+            subscribedAt: m.subscribed_at, tags: m.tags ?? [],
           })),
         };
       },
@@ -137,12 +153,16 @@ export function siteMemberTools(config: Record<string, string>): PluginMcpTool[]
 
     {
       name: 'get_subscriber_counts',
-      description: 'How many subscribers the site has: active members by tier (free, paid, founding, comp) and every member by status.',
-      inputSchema: { type: 'object', properties: { ...SITE_PARAM } },
+      description:
+        'How many subscribers the site has: active members by tier (free, paid, founding, comp) and every member by status. ' +
+        'With segment, the same counts for that saved segment.',
+      inputSchema: { type: 'object', properties: { segment: FILTER_PARAMS.segment, ...SITE_PARAM } },
       handler: async (params) => {
-        const res = await publishFetch(config, '/sites/members/counts', onSite(params.site));
+        const segment = typeof params.segment === 'string' && params.segment.trim() ? params.segment.trim() : null;
+        const res = await publishFetch(config, `/sites/members/counts${segment ? `?segment=${encodeURIComponent(segment)}` : ''}`, onSite(params.site));
         if (!res.ok) return apiError(res, 'Failed to count subscribers');
-        return ((await res.json()) as { counts: object }).counts;
+        const data = (await res.json()) as { counts: object; segment?: string };
+        return data.segment ? { segment: data.segment, ...data.counts } : data.counts;
       },
     },
 
@@ -205,6 +225,7 @@ export function siteMemberTools(config: Record<string, string>): PluginMcpTool[]
         'Bulk import subscribers into the site\'s list from a CSV file or pasted CSV text (up to 10,000 rows). Reads exports ' +
         'from ConvertKit, Mailchimp, Substack, Beehiiv, etc. (email/Email Address, name or first+last name). Skips invalid ' +
         'emails, rows marked unsubscribed, repeats, and anyone already on the list (an unsubscribed person is never re-added). ' +
+        'A "tags" column (tags separated by commas or semicolons) tags each row\'s subscriber, new or already on the list. ' +
         'Imported people get no confirmation email.',
       inputSchema: {
         type: 'object',
@@ -230,7 +251,7 @@ export function siteMemberTools(config: Record<string, string>): PluginMcpTool[]
         const { rows, skippedStatus } = parsed;
         if (rows.length === 0) return { error: `No valid subscribers found. ${skippedStatus} skipped (unsubscribed/inactive).` };
 
-        const csv = ['email,name', ...rows.map((r) => `${csvField(r.email)},${csvField(r.name ?? '')}`)].join('\n');
+        const csv = ['email,name,tags', ...rows.map((r) => `${csvField(r.email)},${csvField(r.name ?? '')},${csvField(r.tags ?? '')}`)].join('\n');
         const res = await publishFetch(config, '/sites/members/import', onSite(params.site, {
           method: 'POST',
           body: JSON.stringify({ csv }),
@@ -238,11 +259,13 @@ export function siteMemberTools(config: Record<string, string>): PluginMcpTool[]
         if (!res.ok) return apiError(res, 'Import failed');
         const data = (await res.json()) as {
           imported: number;
+          tagged?: number;
           skipped: { already_members: number; duplicate_in_file: number; invalid: number; banned?: number };
           invalid_examples: string[];
         };
         const s = data.skipped;
         const notes = [
+          data.tagged && `${data.tagged} tagged from the tags column`,
           skippedStatus && `${skippedStatus} skipped (unsubscribed/inactive in the file)`,
           s.already_members && `${s.already_members} already on the list (left as they were)`,
           s.duplicate_in_file && `${s.duplicate_in_file} repeated in the file`,
@@ -257,6 +280,7 @@ export function siteMemberTools(config: Record<string, string>): PluginMcpTool[]
           duplicates: s.duplicate_in_file,
           skippedInvalid: s.invalid,
           skippedBanned: s.banned ?? 0,
+          tagged: data.tagged ?? 0,
           invalidExamples: data.invalid_examples,
           message: `Imported ${data.imported} subscribers.${notes.length ? ` ${notes.join('. ')}.` : ''}`,
         };
@@ -266,7 +290,8 @@ export function siteMemberTools(config: Record<string, string>): PluginMcpTool[]
     {
       name: 'export_subscribers',
       description:
-        'Export the site\'s subscribers as CSV (email, name, tier, status, source, subscribed_at). Active members by default. ' +
+        'Export the site\'s subscribers as CSV (email, name, tier, status, source, subscribed_at, tags, billing_country). ' +
+        'Active members by default; takes the same filters as list_subscribers, or a saved segment. ' +
         'Saves to file when given, otherwise returns the CSV text.',
       inputSchema: {
         type: 'object',

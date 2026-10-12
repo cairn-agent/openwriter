@@ -11,7 +11,7 @@ import { apiError, onSite, resolveSection, SITE_PARAM } from './site-tools.js';
 const TIERS = ['free', 'paid', 'founding', 'comp'];
 
 /** The API's answer as the tool's result; a refusal keeps its plain sentence (and when it can be done). */
-async function sendAnswer(res: Response, what: string): Promise<Record<string, unknown>> {
+export async function sendAnswer(res: Response, what: string): Promise<Record<string, unknown>> {
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {
     return {
@@ -28,7 +28,7 @@ export function siteSendingTools(config: Record<string, string>): PluginMcpTool[
       name: 'email_subscribers',
       description:
         'Email one subscriber, or a group of subscribers, a message that is not a post: it is never shown on the site. ' +
-        'Give email or member_id for one person, or any of tier, section and search for a group; with none of them it goes to every active subscriber. ' +
+        'Give email or member_id for one person, any of tier, section and search for a group, or a saved segment; with none of them it goes to every active subscriber. ' +
         'Only active subscribers are emailed. It carries the site\'s mailing address and an unsubscribe link, counts against the daily limit ' +
         'while the site is in review, and is listed by list_sent_messages. Run with dry_run first: it returns how many would get it and sends nothing.',
       inputSchema: {
@@ -41,6 +41,7 @@ export function siteSendingTools(config: Record<string, string>): PluginMcpTool[
           tier: { type: 'string', enum: TIERS, description: 'Only subscribers of this kind: free, paid, founding or comp.' },
           section: { type: 'string', description: 'Only subscribers who get this section, by name, slug or id (list_site_sections).' },
           search: { type: 'string', description: 'Only subscribers whose email or name contains this.' },
+          segment: { type: 'string', description: 'A saved segment by name (list_segments), instead of tier, section and search.' },
           dry_run: { type: 'boolean', description: 'Count who would get it and send nothing.' },
           ...SITE_PARAM,
         },
@@ -49,7 +50,7 @@ export function siteSendingTools(config: Record<string, string>): PluginMcpTool[
       handler: async (params) => {
         if (typeof params.body !== 'string' || !params.body.trim()) return { error: 'The message needs a body.' };
         const payload: Record<string, unknown> = { subject: params.subject, body_html: md.render(params.body) };
-        for (const k of ['email', 'member_id', 'tier', 'search', 'dry_run']) if (params[k] !== undefined) payload[k] = params[k];
+        for (const k of ['email', 'member_id', 'tier', 'search', 'segment', 'dry_run']) if (params[k] !== undefined) payload[k] = params[k];
         if (typeof params.section === 'string' && params.section.trim()) {
           const id = await resolveSection(config, params.site, params.section);
           if (id && typeof id === 'object') return id;

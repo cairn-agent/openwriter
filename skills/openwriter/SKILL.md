@@ -648,7 +648,7 @@ The old names `setup_custom_domain`, `check_domain_status` and `resend_domain_ve
 
 | Tool | Key Params | Description |
 |------|-----------|-------------|
-| `list_subscribers` | `limit?`, `offset?`, `status?`, `tier?`, `search?`, `section?` | List subscribers with IDs, emails, names; `section` lists who gets that section's emails |
+| `list_subscribers` | `limit?`, `offset?`, `status?`, `tier?`, `search?`, `section?`, `tag?`, `joined_after?`, `joined_before?`, `opened_within_days?`, `not_opened_days?`, `segment?` | List subscribers with IDs, emails, names and tags; `section` lists who gets that section's emails; `segment` uses a saved segment instead of the filters |
 | `add_subscriber` | `email`, `name?`, `send_welcome?` | Add a single subscriber; `send_welcome` also sends the welcome email (once per person) |
 | `import_subscribers` | `file?`, `csv_text?` | Bulk import from CSV (auto-detects ConvertKit, Mailchimp, Substack, Beehiiv formats) |
 | `list_newsletter_issues` | `limit?` | List past sends with open/click stats — returns issue IDs |
@@ -682,7 +682,7 @@ Each profile gets a free site at `<name>.openwriter.io` with posts, subscribers 
 | `get_paid_retention` | `months?` | New paid, cancelled, churn rate and MRR per month, with today's MRR |
 | `get_traffic_sources` | `post_id?`, `from?`, `to?` | Where post views came from: direct, your site, search, social, webmail, other websites, utm_source |
 | `request_site_review` | `note?` | New sites email a limited number of people a day; ask OpenWriter to lift the limit (once a day, owners and admins) |
-| `email_subscribers` | `subject`, `body`, `email?`, `member_id?`, `tier?`, `section?`, `search?`, `dry_run?` | Email one subscriber or a group a message that is not a post (never on the site); `dry_run` counts who would get it |
+| `email_subscribers` | `subject`, `body`, `email?`, `member_id?`, `tier?`, `section?`, `search?`, `segment?`, `dry_run?` | Email one subscriber, a group or a saved segment a message that is not a post (never on the site); `dry_run` counts who would get it |
 | `list_sent_messages` | `limit?`, `offset?` | Past messages: subject, who it went to, who sent it, when, delivered and opens |
 | `resend_post_to_unopened` | `post_id`, `subject?`, `dry_run?` | Resend an emailed post once to who did not open it, from 24 hours after it was sent; `dry_run` counts first |
 
@@ -737,6 +737,11 @@ Every site tool takes an optional `site` (a site's name or id from `list_my_site
 | `list_site_comments` | `post_id?`, `reported?`, `status?`, `limit?`, `offset?` | Readers' comments with post, reader and report count; `reported: true` is the moderation queue |
 | `approve_site_comment` / `delete_site_comment` / `pin_site_comment` | `comment_id`; `pinned` to pin | Approve clears a reported comment's reports and keeps it up; delete takes it down for good |
 | `ban_readers` / `unban_reader` / `list_banned_readers` | `emails`, `reason?`, `delete_comments?`; `email` | Ban emails from commenting and subscribing; free subscriptions end, paid access is kept and listed in `paid_access_kept` to refund or cancel in Stripe |
+| `tag_subscribers` / `list_subscriber_tags` | `emails?` or `member_ids?`, `add?`, `remove?` | Put tags on subscribers or take them off (many at once; also from an import's `tags` column); list tags with how many have each |
+| `save_segment` / `list_segments` / `delete_segment` | `name`, `tier?`, `status?`, `source?`, `search?`, `section?`, `tag?`, `joined_after?`, `joined_before?`, `opened_within_days?`, `not_opened_days?` | Named saved filters with live counts; `list_subscribers`, `export_subscribers`, `get_subscriber_counts` and `email_subscribers` take `segment` |
+| `get_paid_by_country` | *(none)* | Paid subscribers per billing country (from Stripe), plus how many have none yet |
+| `find_inactive_subscribers` / `ask_inactive_subscribers` | `days?` (180), `min_sent?` (5); ask: `subject?`, `body?`, `dry_run?` | Free subscribers who opened nothing in `days` though emailed `min_sent` times, and why pruning helps delivery; ask emails them "still want this?" first |
+| `prune_inactive_subscribers` / `list_pruned_subscribers` | `days?`, `min_sent?`, `dry_run` | Unsubscribe them (never paid, comp or founding); `dry_run: true` first. Waits 7 days after an ask; the list shows who went and why |
 | `export_site` | `save_to?` | Everything as one zip: every post as Markdown (settings at the top) and HTML, subscribers CSV, comments, settings, sections, tags, plans. Without `save_to`, a download link good for 15 minutes |
 | `delete_site` | `confirm_name` | Owner only, cannot be undone: deletes the site and frees its address. Refused while readers still pay; `cancel_subscription` them first |
 | `transfer_site_ownership` | `member_id` or `email`, `confirm` | Owner only: an accepted admin becomes the owner and you stay as an admin; payments keep going to the connected Stripe until they connect their own |
