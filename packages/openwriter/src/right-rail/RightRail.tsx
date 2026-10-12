@@ -24,7 +24,7 @@ import './RightRail.css';
 import { useRightRail } from './RightRailContext';
 import RailIconStrip from './RailIconStrip';
 import RailBody from './RailBody';
-import { HideRailIcon, FocusModeIcon, VoiceIcon } from './icons';
+import { HideRailIcon, FocusModeIcon } from './icons';
 import SyncButton from '../sync/SyncButton';
 import ThemeToggle from '../themes/ThemeToggle';
 import type { RightRailTabProps, TabId } from './types';
@@ -37,15 +37,10 @@ interface RightRailProps extends RightRailTabProps {
   toolbarOpen: boolean;
   focusMode: boolean;
   onToggleFocusMode: () => void;
-  // Author-attribution heatmap toggle. adr: adr/document-history-attribution.md
-  heatmapOn: boolean;
-  onToggleHeatmap: () => void;
-  heatmapAvailable: boolean;
-  heatmapTitle: string;
 }
 
 export default function RightRail(props: RightRailProps) {
-  const { syncStatus, onSync, onToggleToolbar, toolbarOpen, focusMode, onToggleFocusMode, heatmapOn, onToggleHeatmap, heatmapAvailable, heatmapTitle, ...tabProps } = props;
+  const { syncStatus, onSync, onToggleToolbar, toolbarOpen, focusMode, onToggleFocusMode, ...tabProps } = props;
   const { open, visible, overlay, activeTab, width, setWidth, closeRail, openTab } = useRightRail();
   const ref = useRef<HTMLElement>(null);
   usePanelVisibility(ref, visible, '[aria-label="Show right rail"]');
@@ -166,18 +161,6 @@ export default function RightRail(props: RightRailProps) {
             </svg>
           </button>
           <ThemeToggle className="right-rail-topbar-btn" />
-          {heatmapAvailable && (
-            <button
-              type="button"
-              className={`right-rail-topbar-btn${heatmapOn ? ' right-rail-topbar-btn--active' : ''}`}
-              onClick={onToggleHeatmap}
-              title={heatmapTitle}
-              aria-label="Voice heatmap (human vs agent)"
-              aria-pressed={heatmapOn}
-            >
-              <VoiceIcon />
-            </button>
-          )}
         </div>
         <div className="right-rail-topbar-actions right-rail-topbar-actions--end">
           <SyncButton syncStatus={syncStatus} onSync={onSync} />

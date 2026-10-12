@@ -1243,6 +1243,12 @@ export default function App() {
           toolbarOpen={showToolbar}
           focusMode={focusMode}
           onToggleFocusMode={toggleFocusMode}
+          heatmapOn={heatmapOn}
+          onToggleHeatmap={() => setHeatmapOn((v) => !v)}
+          heatmapAvailable={!!metadata?.docId}
+          heatmapTitle={attribution?.tracked
+            ? `Voice heatmap — ${attribution.percent.human}% human · ${attribution.percent.agent}% agent${attribution.percent.unknown ? ` · ${attribution.percent.unknown}% unknown` : ''}`
+            : 'Voice heatmap — attribution starts on the next edit'}
         />
         {showToolbar && editorInstance && (
           <FormatToolbar editor={activeEditor || editorInstance} />
@@ -1419,12 +1425,6 @@ export default function App() {
         toolbarOpen={showToolbar}
         focusMode={focusMode}
         onToggleFocusMode={toggleFocusMode}
-        heatmapOn={heatmapOn}
-        onToggleHeatmap={() => setHeatmapOn((v) => !v)}
-        heatmapAvailable={!!metadata?.docId}
-        heatmapTitle={attribution?.tracked
-          ? `Voice heatmap — ${attribution.percent.human}% human · ${attribution.percent.agent}% agent${attribution.percent.unknown ? ` · ${attribution.percent.unknown}% unknown` : ''}`
-          : 'Voice heatmap — attribution starts on the next edit'}
       />
       <ContextMenu editorRef={editorRef} allEditors={allEditors} documentId={activeFilename} docId={(metadata?.docId as string) || undefined} />
       <CommentPopover documentId={activeFilename} />

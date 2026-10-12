@@ -126,6 +126,40 @@
   color: var(--ink-light);
 }
 
+/* For plugin panels: the same label, note and button as the built-in tabs.
+   A plugin adds these classes instead of styling its own. */
+.rail-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--ink-light);
+}
+
+.rail-note {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-light);
+}
+
+.rail-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--ink-dark);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.rail-btn:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--accent); }
+.rail-btn:disabled { opacity: 0.4; cursor: default; }
+.rail-btn--primary { border-color: var(--accent); color: var(--accent); }
+.rail-btn--primary:hover:not(:disabled) { background: var(--accent); color: #fff; }
+[data-mode="dark"] .rail-btn { background: transparent; }
+
 /* One icon weight across the app's chrome: every 24-unit icon in the title
    bar, both rails' top bars, the tab strip and the layout button. */
 :is(.titlebar, .sidebar-topbar, .right-rail-topbar, .rail-icon-strip, .layout-menu-btn)

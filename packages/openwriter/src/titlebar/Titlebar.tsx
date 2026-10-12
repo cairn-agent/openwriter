@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
 import { useRightRail } from '../right-rail/RightRailContext';
-import { OpenRailIcon, FocusModeIcon } from '../right-rail/icons';
+import { OpenRailIcon, FocusModeIcon, VoiceIcon } from '../right-rail/icons';
 import { useRailTabs } from '../right-rail/tabs';
 import ThemeToggle from '../themes/ThemeToggle';
 
@@ -22,6 +22,12 @@ interface TitlebarProps {
    *  it only when the rail is closed; the rail topbar owns it when open. */
   focusMode?: boolean;
   onToggleFocusMode?: () => void;
+  /** Voice heatmap (human vs agent). Always in the titlebar, left of the plugin
+   *  toggles (the chat), rail open or closed. adr: adr/document-history-attribution.md */
+  heatmapOn?: boolean;
+  onToggleHeatmap?: () => void;
+  heatmapAvailable?: boolean;
+  heatmapTitle?: string;
 }
 
 interface UpdateInfo {
@@ -50,7 +56,7 @@ interface UpdateInfo {
  *
  * adr: adr/right-rail.md
  */
-export default function Titlebar({ title, onTitleChange, onToggleSidebar, canGoBack, canGoForward, onGoBack, onGoForward, editor, onToggleToolbar, toolbarOpen, focusMode, onToggleFocusMode }: TitlebarProps) {
+export default function Titlebar({ title, onTitleChange, onToggleSidebar, canGoBack, canGoForward, onGoBack, onGoForward, editor, onToggleToolbar, toolbarOpen, focusMode, onToggleFocusMode, heatmapOn, onToggleHeatmap, heatmapAvailable, heatmapTitle }: TitlebarProps) {
   const { visible: railVisible, openTab, activeTab, closeRail } = useRightRail();
   const toggleTabs = useRailTabs().filter((t) => t.titlebarToggle);
   const [editing, setEditing] = useState(false);
@@ -181,6 +187,17 @@ export default function Titlebar({ title, onTitleChange, onToggleSidebar, canGoB
       </div>
       <div className="titlebar-right">
         {focusMode && <div id="focus-review-controls" />}
+        {heatmapAvailable && onToggleHeatmap && (
+          <button
+            className={`titlebar-nav-btn${heatmapOn ? ' titlebar-nav-btn--active' : ''}`}
+            onClick={onToggleHeatmap}
+            title={heatmapTitle}
+            aria-label="Voice heatmap (human vs agent)"
+            aria-pressed={heatmapOn}
+          >
+            <VoiceIcon />
+          </button>
+        )}
         {/* Plugin tabs that asked for a titlebar toggle: always here, rail open or closed. */}
         {toggleTabs.map((tab) => {
           const showing = railVisible && activeTab === tab.id;

@@ -320,3 +320,13 @@ Chrome icons had three stroke weights (1.6, 1.75, 2) and two sizes. Every 24-uni
 the title bar, both top bars, the tab strip and the layout button now draws at 1.75 (one
 rule in `rails.css`). The timeline layout icon was redrawn with two entries instead of
 three so it reads at 16px.
+
+### 2026-10-12 — Voice heatmap moves to the title bar; plugin panels share the rail styles
+
+The Voice heatmap button sat in the rail's top bar, so it vanished with the rail and sat
+apart from the other per-document toggle (a plugin's titlebar toggle, the chat). It now
+lives in the title bar, left of the plugin toggles, rail open or closed.
+
+`themes/rails.css` also offers `.rail-label`, `.rail-note`, `.rail-btn` and
+`.rail-btn--primary` for plugin panels, so a plugin's panel (the web chat) matches the
+built-in tabs without restyling them itself.
