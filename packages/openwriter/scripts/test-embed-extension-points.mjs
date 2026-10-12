@@ -80,7 +80,7 @@ console.log('\nIn-process plugin:');
 assert((await get('/api/demo')).status === 200, 'its routes are mounted');
 assert(host && host.rootDir === dataDir && host.tools().some((t) => t.name === 'write_to_pad'), 'the host gives rootDir and the live tool list');
 const descriptor = (await (await get('/api/plugins')).json()).plugins.find((p) => p.name === 'demo-plugin');
-assert(descriptor?.clientModule === '/plugin-client/demo-plugin/main.js', 'its client module is listed for the browser');
+assert(/^\/plugin-client\/demo-plugin\/main\.js\?v=\w+$/.test(descriptor?.clientModule ?? ''), 'its client module is listed for the browser, versioned by its build');
 assert((await get(descriptor.clientModule)).status === 200, 'its client module is served');
 const listed = (await (await get('/api/available-plugins')).json()).plugins.find((p) => p.name === 'demo-plugin');
 assert(listed?.required === true && listed.displayName === 'Demo', 'the plugin list shows its own name and marks it required');

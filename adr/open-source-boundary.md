@@ -75,3 +75,11 @@ not recognised by the editor. Review actions run through `decorations/review-act
 with the Review tab, so there is one way to settle a document's review. An in-process plugin is
 the embedder's own code: switching it off from the plugin list took down the embedder's routes,
 so the list shows its own name and no switch, and the server refuses to disable it.
+
+### 2026-10-12 — A plugin's browser module URL changes with each build
+
+The plugin list hands out each browser module's URL with `?v=` and the file's modified time
+(`clientModuleUrl`, `server/plugin-manager.ts`). At a fixed URL a browser, or a proxy in front
+of the server, kept the old module for hours after a new build (four hours behind Cloudflare),
+and a hard reload does not refetch a module the page imports itself, so a plugin's UI stayed
+stale after every deploy. Generic: any plugin with a `clientModule` gets it, locally too.

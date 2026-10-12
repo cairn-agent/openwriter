@@ -5,6 +5,8 @@
 
 import type { Express, Router, Request, Response, NextFunction } from 'express';
 import express, { Router as createRouter } from 'express';
+import { statSync } from 'fs';
+import { join } from 'path';
 import { discoverPlugins, loadPluginModule, type DiscoveredPlugin } from './plugin-discovery.js';
 import { registerPluginTools, removePluginTools, TOOL_REGISTRY } from './mcp.js';
 import { readConfig, saveConfig, getDataDir, getConfigFile, ROOT_DIR } from './helpers.js';
@@ -36,6 +38,20 @@ function redactConfig(config: Record<string, string>): Record<string, string> {
 /** Where a plugin's browser module is served: /plugin-client/<plugin name, URL-safe>. */
 function clientModuleBase(pluginName: string): string {
   return `/plugin-client/${pluginName.replace(/[^a-zA-Z0-9-]+/g, '-').replace(/^-+/, '')}`;
+}
+
+/**
+ * The module's URL carries its file's modified time, so a new build gets a new URL. A browser,
+ * or a proxy in front of the server, can cache a fixed URL for hours, and a hard reload does not
+ * refetch a module the page imports itself, so writers would keep the old plugin UI.
+ */
+function clientModuleUrl(pluginName: string, mod: { dir: string; entry: string }): string {
+  const url = `${clientModuleBase(pluginName)}/${mod.entry}`;
+  try {
+    return `${url}?v=${Math.floor(statSync(join(mod.dir, mod.entry)).mtimeMs).toString(36)}`;
+  } catch {
+    return url;
+  }
 }
 
 interface ManagedPlugin {
@@ -271,7 +287,7 @@ export class PluginManager {
         contextMenuItems: managed.plugin.contextMenuItems?.() || [],
         sidebarMenuItems: managed.plugin.sidebarMenuItems?.() || [],
         clientModule: managed.plugin.clientModule
-          ? `${clientModuleBase(managed.plugin.name)}/${managed.plugin.clientModule.entry}`
+          ? clientModuleUrl(managed.plugin.name, managed.plugin.clientModule)
           : undefined,
       });
     }
