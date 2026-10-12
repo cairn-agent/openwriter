@@ -40,7 +40,7 @@ them stay in the public history; that cannot be undone and they hold no secrets.
     `disable()` refuses them.
   - **Plugin host**: `PluginHost` (`server/plugin-types.ts`) gives a plugin `saveConfig`,
     `createDocument`, `tools()` (the live tool list, to run OpenWriter's own tools in-process),
-    `pendingDocs()` and `rootDir`. A plugin never calls its own server over HTTP.
+    `pendingDocs()`, `documentTitle(docId)` and `rootDir`. A plugin never calls its own server over HTTP.
   - **Client modules**: a plugin's `clientModule: { dir, entry }` is served under
     `/plugin-client/<plugin>/` and imported by the browser at page load. Its default export
     receives the client plugin API (`src/plugins/client-plugins.tsx`): right-rail tabs
@@ -83,3 +83,10 @@ The plugin list hands out each browser module's URL with `?v=` and the file's mo
 of the server, kept the old module for hours after a new build (four hours behind Cloudflare),
 and a hard reload does not refetch a module the page imports itself, so a plugin's UI stayed
 stale after every deploy. Generic: any plugin with a `clientModule` gets it, locally too.
+
+### 2026-10-12 — The plugin host names documents by title
+
+`PluginHost.documentTitle(docId)` returns a document's title as the sidebar shows it, or null.
+Tool calls carry document ids, so a plugin that shows a writer what a tool is doing (an activity
+line, a confirm prompt) could only print the id. Generic: any plugin reporting on documents needs
+the same lookup, and it reads nothing the writer cannot already see.

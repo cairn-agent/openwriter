@@ -72,6 +72,8 @@ export interface PluginHost {
   tools(): ReadonlyArray<import('./mcp.js').ToolDef>;
   /** The documents with changes waiting for review. */
   pendingDocs(): ReturnType<typeof import('./state.js').getPendingDocInfo>;
+  /** A document's title as the sidebar shows it, or null when no document has this docId. */
+  documentTitle(docId: string): string | null;
   /** OpenWriter's data folder (~/.openwriter, or OW_DATA_DIR). */
   rootDir: string;
 }

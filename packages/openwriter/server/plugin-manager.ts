@@ -13,6 +13,8 @@ import { readConfig, saveConfig, getDataDir, getConfigFile, ROOT_DIR } from './h
 import type { OpenWriterPlugin, PluginConfigField, PluginContextMenuItem, PluginHost, PluginSidebarMenuItem } from './plugin-types.js';
 import { createDocumentFromRequest } from './document-create.js';
 import { getPendingDocInfo } from './state.js';
+import { filenameByDocId } from './documents.js';
+import { getDocTitle } from './workspaces.js';
 import { embedOptions } from './embed-options.js';
 import { broadcastPluginsChanged } from './ws.js';
 import { isAllowedPublishApiUrl } from './connections.js';
@@ -146,6 +148,10 @@ export class PluginManager {
       createDocument: (body, tab) => createDocumentFromRequest(body, tab),
       tools: () => TOOL_REGISTRY,
       pendingDocs: () => getPendingDocInfo(),
+      documentTitle: (docId) => {
+        const filename = filenameByDocId(docId);
+        return filename ? getDocTitle(filename) : null;
+      },
       rootDir: ROOT_DIR,
     };
 
