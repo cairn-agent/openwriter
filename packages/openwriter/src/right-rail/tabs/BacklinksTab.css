@@ -1,32 +1,19 @@
 /* ─── Backlinks tab ────────────────────────────────────────────────── */
+/* Type sizes come from themes/rails.css; this file holds the layout. */
 
 .backlinks-tab {
   padding: 4px 0;
 }
 
 .backlinks-tab__empty {
-  padding: 32px 18px;
+  padding: var(--rail-empty-pad);
   display: flex;
   flex-direction: column;
   gap: 8px;
-  color: var(--ink-light);
-}
-
-.backlinks-tab__empty-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-body);
-}
-
-.backlinks-tab__empty-note {
-  font-size: 12px;
-  line-height: 1.5;
 }
 
 .backlinks-tab__inline-note {
-  padding: 8px 14px;
-  font-size: 11px;
-  font-style: italic;
+  padding: 2px var(--rail-inset) 6px;
 }
 
 .backlinks-tab__group + .backlinks-tab__group {
@@ -39,12 +26,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ink-light);
-  padding: 10px 14px 4px;
-  font-weight: 600;
+  padding: 8px var(--rail-inset) 2px;
 }
 
 .backlinks-tab__count {
@@ -60,7 +42,7 @@
   display: block;
   width: 100%;
   text-align: left;
-  padding: 8px 14px;
+  padding: var(--rail-row-pad) var(--rail-inset) var(--rail-row-pad) calc(var(--rail-inset) - 2px);
   border: none;
   background: none;
   cursor: pointer;
@@ -75,18 +57,13 @@
 }
 
 .backlinks-tab__entry-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ink-dark);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .backlinks-tab__entry-snippet {
-  font-size: 11px;
-  color: var(--ink-light);
-  margin-top: 2px;
+  margin-top: 1px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

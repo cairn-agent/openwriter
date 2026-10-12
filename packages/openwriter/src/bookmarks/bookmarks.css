@@ -114,11 +114,6 @@
 .comments-resolved__restore { margin-right: 6px; }
 
 /* Bookmarks list in the Review rail — mirrors the Manuscripts rows. */
-.bookmarks-empty {
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--ink-light);
-}
 .bookmarks-list {
   list-style: none;
   margin: 0;
@@ -144,21 +139,17 @@
   text-align: left;
   border: none;
   background: transparent;
-  padding: 6px 8px;
+  padding: 4px 8px;
   cursor: pointer;
   font-family: var(--font-body);
 }
 .bookmarks-row__main:disabled { cursor: default; opacity: 0.6; }
 .bookmarks-row__note {
-  font-size: 13px;
-  color: var(--ink-body);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .bookmarks-row__preview {
-  font-size: 11px;
-  color: var(--ink-light);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

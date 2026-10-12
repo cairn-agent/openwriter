@@ -300,3 +300,23 @@ Every control writes through `updateAppearance` and re-reads on its change event
 so two copies of a control never disagree. The menus render on the page body
 (`themes/Popover.tsx`) so the format bar's scrolling never clips them. Settings
 holds Connections and Plugins. Decided with a role-play of five writer types.
+
+### 2026-10-12 — One type scale for both rails; one icon weight
+
+Each panel had picked its own sizes (row titles at 12, 12.5 or 13px; labels at three
+letter-spacings; empty notes italic in some tabs, centered in others). The left rail's
+Timeline was the cleanest, so its values are now the only ones: `themes/rails.css` styles
+each kind of text once (panel heading, section label, row title, second line, small meta,
+empty-state title and note) for every panel that has it, and sets the shared spacing
+(14px side inset, 26px one-line rows, 5px padding on two-line rows). It is imported after
+all other styles, so it wins; panel stylesheets keep only their layout. To add a panel,
+reuse these classes' roles: add the new class to the matching list in `rails.css` rather
+than giving it its own font size.
+
+RightRail.css was split first into one stylesheet per tab (pure move), since it had grown
+past 1,500 lines.
+
+Chrome icons had three stroke weights (1.6, 1.75, 2) and two sizes. Every 24-unit icon in
+the title bar, both top bars, the tab strip and the layout button now draws at 1.75 (one
+rule in `rails.css`). The timeline layout icon was redrawn with two entries instead of
+three so it reads at 16px.

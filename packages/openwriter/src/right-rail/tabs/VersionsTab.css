@@ -1,4 +1,4 @@
-.version-save-form { display: grid; gap: 8px; padding: 12px; border-bottom: 1px solid var(--border); }
+.version-save-form { display: grid; gap: 8px; padding: 10px var(--rail-inset); border-bottom: 1px solid var(--border); }
 .version-save-form label { font-size: 12px; color: var(--ink-dark); }
 .version-save-form input { min-width: 0; padding: 8px; background: var(--bg-surface); color: var(--ink-dark); border: 1px solid var(--border); border-radius: 6px; font: inherit; }
 .version-save-form > div { display: flex; gap: 8px; }
@@ -17,17 +17,13 @@
 }
 
 .versions-tab__empty {
-  padding: 32px 18px;
-  font-size: 12px;
-  color: var(--ink-light);
-  text-align: center;
-  line-height: 1.5;
+  padding: var(--rail-empty-pad);
 }
 
 .versions-tab__item {
   display: flex;
   flex-direction: column;
-  padding: 8px 14px;
+  padding: var(--rail-row-pad) var(--rail-inset);
   cursor: pointer;
   border-left: 3px solid transparent;
   transition: background 0.12s ease, border-left-color 0.12s ease;
@@ -42,22 +38,14 @@
   border-left-color: var(--accent);
 }
 
-.versions-tab__item-time {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ink-dark);
-}
-
 .versions-tab__item-meta {
-  font-size: 10px;
-  color: var(--ink-light);
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .versions-tab__footer {
   display: flex;
   gap: 6px;
-  padding: 10px 14px;
+  padding: 10px var(--rail-inset);
   border-top: 1px solid var(--border);
   background: var(--bg-titlebar);
   flex-shrink: 0;
@@ -105,7 +93,7 @@
  * adr: adr/document-history-attribution.md
  * ========================================================================== */
 .versions-tab__actions {
-  padding: 10px 14px;
+  padding: 10px var(--rail-inset);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -126,7 +114,7 @@
 .versions-tab__save-btn:disabled { opacity: 0.4; cursor: default; }
 
 .commit-row {
-  padding: 9px 14px;
+  padding: var(--rail-row-pad) var(--rail-inset) var(--rail-row-pad) calc(var(--rail-inset) - 3px);
   cursor: pointer;
   border-left: 3px solid transparent;
   border-bottom: 1px solid var(--border);
@@ -135,9 +123,8 @@
 .commit-row:hover { background: var(--bg-hover); }
 .commit-row--expanded { background: color-mix(in srgb, var(--accent) 5%, transparent); border-left-color: var(--accent); }
 .commit-row__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.commit-row__time { font-size: 12px; font-weight: 500; color: var(--ink-dark); }
 .commit-row__authors { display: inline-flex; gap: 4px; }
-.commit-row__label { font-size: 11px; color: var(--ink-light); margin-top: 3px; font-variant-numeric: tabular-nums; }
+.commit-row__label { margin-top: 1px; font-variant-numeric: tabular-nums; }
 .commit-row__note { font-size: 11px; color: var(--ink-dark); margin-top: 3px; font-style: italic; }
 
 .commit-badge {
@@ -154,7 +141,7 @@
 .commit-badge--unknown { background: rgba(156, 163, 175, 0.12); color: var(--color-attr-unknown, #9ca3af); }
 
 .commit-row__detail { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
-.commit-row__trigger { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-light); margin-bottom: 6px; }
+.commit-row__trigger { margin-bottom: 6px; }
 .commit-row__breakdown { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .commit-row__breakdown li { font-size: 11px; color: var(--ink-dark); display: flex; align-items: center; gap: 6px; }
 .commit-row__restore {
@@ -164,7 +151,7 @@
   border-radius: 6px;
   background: var(--bg-surface);
   color: var(--ink-dark);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   font-family: var(--font-body);
   cursor: pointer;

@@ -10,7 +10,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 10px 6px 10px var(--rail-inset);
   border-bottom: 1px solid var(--border);
 }
 
@@ -33,9 +33,6 @@
 
 .sidebar-tasks-header h3 {
   margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-dark);
 }
 
 .sidebar-tasks-add-btn {
@@ -66,7 +63,8 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  padding: 6px 12px;
+  min-height: var(--rail-row);
+  padding: 4px var(--rail-inset);
   transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
@@ -88,15 +86,12 @@
 }
 
 .sidebar-tasks-text {
-  font-size: 12px;
-  color: var(--ink-dark);
   flex: 1;
   min-width: 0;
   word-break: break-word;
-  line-height: 1.4;
 }
 
-.sidebar-tasks-text.completed {
+.sidebar-tasks-text.sidebar-tasks-text.completed {
   text-decoration: line-through;
   color: var(--ink-light);
 }
@@ -130,7 +125,7 @@
 
 /* Inline add input */
 .sidebar-tasks-add {
-  padding: 6px 12px;
+  padding: 6px var(--rail-inset);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -160,20 +155,6 @@
 .sidebar-tasks-empty {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
-  text-align: center;
-  color: var(--ink-light);
-}
-
-.sidebar-tasks-empty-title {
-  font-size: 13px;
-  font-weight: 500;
-  margin-bottom: 4px;
-}
-
-.sidebar-tasks-empty-desc {
-  font-size: 11px;
-  opacity: 0.7;
+  gap: 4px;
+  padding: var(--rail-empty-pad);
 }

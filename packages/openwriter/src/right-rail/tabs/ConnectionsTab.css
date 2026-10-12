@@ -10,7 +10,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
+  padding: var(--rail-row-pad) var(--rail-inset);
   transition: background 0.12s ease;
 }
 
@@ -29,17 +29,12 @@
 .connections-dropdown__info { flex: 1; min-width: 0; }
 
 .connections-dropdown__name {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ink-dark);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .connections-dropdown__type {
-  font-size: 11px;
-  color: var(--ink-light);
   display: flex;
   align-items: center;
   gap: 5px;
@@ -164,10 +159,7 @@
 }
 
 .connections-dropdown__upsell {
-  padding: 16px 14px;
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: var(--ink-light);
+  padding: 8px var(--rail-inset);
 }
 
 .connections-dropdown__upsell p { margin: 0 0 8px; }

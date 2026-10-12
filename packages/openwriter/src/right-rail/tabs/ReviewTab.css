@@ -8,11 +8,11 @@
 
 /* Small bottom padding: Comments/Bookmarks sections follow directly below. */
 .review-tab__empty {
-  padding: 32px 18px 4px;
+  padding: var(--rail-empty-pad);
+  padding-bottom: 4px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  color: var(--ink-light);
 }
 
 /* Inline variant: sits below other sections, so reduced top padding. */
@@ -20,19 +20,8 @@
   padding-top: 16px;
 }
 
-.review-tab__empty-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-body);
-}
-
-.review-tab__empty-note {
-  font-size: 12px;
-  line-height: 1.5;
-}
-
 .review-tab__section {
-  padding: 6px 14px;
+  padding: 6px var(--rail-inset);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -42,14 +31,6 @@
   border-top: 1px solid var(--border);
   margin-top: 6px;
   padding-top: 12px;
-}
-
-.review-tab__section-label {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 600;
-  color: var(--ink-light);
 }
 
 .review-tab__row {

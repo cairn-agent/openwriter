@@ -10,7 +10,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 10px 6px 10px var(--rail-inset);
   border-bottom: 1px solid var(--border);
 }
 
@@ -33,9 +33,6 @@
 
 .sidebar-schedule-header h3 {
   margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-dark);
 }
 
 .sidebar-schedule-actions {
@@ -71,12 +68,7 @@
 .schedule-day-header {
   display: flex;
   align-items: center;
-  padding: 6px 12px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--ink-light);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  padding: 8px var(--rail-inset) 2px;
   background: var(--bg-titlebar);
   position: sticky;
   top: 0;
@@ -88,7 +80,7 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  padding: 8px 12px;
+  padding: var(--rail-row-pad) var(--rail-inset);
   border-bottom: 1px solid var(--border-light);
   cursor: pointer;
   transition: background 0.1s;
@@ -100,11 +92,8 @@
 
 .schedule-item-time {
   flex-shrink: 0;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--ink-light);
   width: 50px;
-  padding-top: 1px;
+  line-height: 18px;
 }
 
 .schedule-item-content {
@@ -113,8 +102,6 @@
 }
 
 .schedule-item-text {
-  font-size: 12px;
-  color: var(--ink-dark);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -124,9 +111,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 2px;
-  font-size: 10px;
-  color: var(--ink-light);
+  margin-top: 1px;
 }
 
 .schedule-item-status {
@@ -146,37 +131,17 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 4px var(--rail-inset);
   border-bottom: 1px solid var(--border-light);
   opacity: 0.5;
-}
-
-.schedule-slot-empty-label {
-  font-size: 11px;
-  color: var(--ink-light);
-  font-style: italic;
 }
 
 /* Empty state */
 .schedule-empty {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
-  text-align: center;
-  color: var(--ink-light);
-}
-
-.schedule-empty-title {
-  font-size: 13px;
-  font-weight: 500;
-  margin-bottom: 4px;
-}
-
-.schedule-empty-desc {
-  font-size: 11px;
-  opacity: 0.7;
+  gap: 4px;
+  padding: var(--rail-empty-pad);
 }
 
 /* Expanded item */

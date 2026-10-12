@@ -13,6 +13,8 @@ import './tweet-compose/tweet-compose.css';
 import './article-compose/ArticleComposeView.css';
 import App from './App';
 import './App.css';
+// Last, so the shared rail type scale applies over each panel's own styles.
+import './themes/rails.css';
 import { loadClientPlugins } from './plugins/client-plugins';
 
 initAppearance();

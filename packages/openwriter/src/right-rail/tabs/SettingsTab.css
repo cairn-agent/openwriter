@@ -1,12 +1,11 @@
-/* Settings tab: Connections and Plugins stacked as groups. */
+/* Settings tab: Connections and Plugins stacked as groups. Each group title
+   is a panel heading (themes/rails.css), like the Timeline's header. */
 .settings-group + .settings-group {
   border-top: 1px solid var(--border);
 }
 
 .settings-group-title {
   margin: 0;
-  padding: 14px 14px 2px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink);
+  padding: 10px var(--rail-inset);
+  border-bottom: 1px solid var(--border);
 }

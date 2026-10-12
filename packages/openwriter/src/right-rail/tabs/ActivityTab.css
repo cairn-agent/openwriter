@@ -5,22 +5,11 @@
 }
 
 .activity-tab__empty {
-  padding: 32px 20px;
+  padding: var(--rail-empty-pad);
   display: flex;
   flex-direction: column;
   gap: 8px;
   color: var(--ink-light);
-}
-
-.activity-tab__empty-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-body);
-}
-
-.activity-tab__empty-note {
-  font-size: 12px;
-  line-height: 1.5;
 }
 
 .activity-tab__group + .activity-tab__group {
@@ -28,20 +17,16 @@
 }
 
 .activity-tab__group-label {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ink-light);
-  padding: 10px 14px 4px;
-  font-weight: 600;
+  padding: 8px var(--rail-inset) 2px;
 }
 
 .activity-tab__entry {
   position: relative;
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 8px 14px 8px 18px;
+  gap: 8px;
+  min-height: var(--rail-row);
+  padding: 4px var(--rail-inset) 4px calc(var(--rail-inset) - 2px);
   border-left: 2px solid transparent;
   transition: background 0.15s ease, border-left-color 1.5s ease;
 }
@@ -82,7 +67,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  margin-top: 7px;
+  margin-top: 6px;
   flex-shrink: 0;
   background: var(--ink-light);
 }
@@ -117,31 +102,19 @@
 }
 
 .activity-tab__headline {
-  font-size: 12.5px;
-  color: var(--ink-dark);
-  line-height: 1.4;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.activity-tab__entry--clickable .activity-tab__headline {
-  font-weight: 500;
-}
-
 .activity-tab__detail {
-  font-size: 11px;
-  color: var(--ink-light);
-  line-height: 1.4;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .activity-tab__ts {
-  font-size: 11px;
-  color: var(--ink-light);
   flex-shrink: 0;
   white-space: nowrap;
-  margin-top: 1px;
+  line-height: 18px;
 }

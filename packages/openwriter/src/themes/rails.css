@@ -1,0 +1,134 @@
+/* ─── Rails: one type scale for both side panels ──────────────────────
+   The left rail's Timeline is the reference. Each kind of text in a
+   panel (heading, section label, row title, second line, small meta,
+   empty-state note) is styled here once, for every panel that has it,
+   so a label or a row looks the same in every tab and every mode.
+   Panels keep their own layout (padding, gaps, borders) and read the
+   spacing values below. Imported after the app's other styles, so these
+   rules are the ones that apply. adr: adr/right-rail.md
+   ──────────────────────────────────────────────────────────────────── */
+
+:root {
+  --rail-inset: 14px;          /* side padding of headings, labels, rows and notes */
+  --rail-row: 26px;            /* height of a one-line row */
+  --rail-row-pad: 5px;         /* top and bottom padding of a row with a second line */
+  --rail-empty-pad: 20px var(--rail-inset) 8px;
+}
+
+/* Panel headings (Timeline's header title): dark capitals. */
+.tl-title,
+.settings-group-title,
+.sidebar-schedule-header h3,
+.sidebar-tasks-header h3 {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--ink-dark);
+}
+
+/* Section labels (Timeline's date label): small grey capitals. */
+.tl-date,
+.activity-tab__group-label,
+.backlinks-tab__group-label,
+.review-tab__section-label,
+.exports-tab__book-label,
+.commit-row__trigger,
+.schedule-day-header,
+.github-plugin-settings__title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--ink-light);
+}
+
+/* Row titles (Timeline's item title). */
+.tl-item-title,
+.files-row-label,
+.sidebar-item-title,
+.activity-tab__headline,
+.backlinks-tab__entry-title,
+.exports-tab__item-label,
+.connections-dropdown__name,
+.plugin-item-name,
+.versions-tab__item-time,
+.commit-row__time,
+.ms-row__title,
+.ms-item,
+.bookmarks-row__note,
+.schedule-item-text,
+.sidebar-tasks-text {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+  color: var(--ink-dark);
+}
+
+/* Second lines under a row title: descriptions, details, previews. */
+.activity-tab__detail,
+.backlinks-tab__entry-snippet,
+.exports-tab__item-desc,
+.connections-dropdown__type,
+.plugin-item-desc,
+.commit-row__label,
+.bookmarks-row__preview {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ink-light);
+}
+
+/* Small meta beside a row (Timeline's item meta): times, counts, versions. */
+.tl-item-meta,
+.sidebar-item-meta,
+.files-row-count,
+.activity-tab__ts,
+.versions-tab__item-meta,
+.plugin-item-version,
+.schedule-item-time,
+.schedule-item-meta {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--ink-light);
+}
+
+/* Empty states: a short title and a plain note, never italic. */
+.activity-tab__empty-title,
+.backlinks-tab__empty-title,
+.review-tab__empty-title,
+.schedule-empty-title,
+.sidebar-tasks-empty-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-body);
+}
+
+.activity-tab__empty-note,
+.backlinks-tab__empty-note,
+.backlinks-tab__inline-note,
+.review-tab__empty-note,
+.versions-tab__empty,
+.plugin-empty,
+.plugin-setup-hint,
+.ms-note,
+.ms-empty,
+.bookmarks-empty,
+.exports-tab__book-note,
+.connections-dropdown__upsell,
+.schedule-empty-desc,
+.schedule-slot-empty-label,
+.sidebar-tasks-empty-desc,
+.search-empty,
+.sidebar-empty {
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.5;
+  color: var(--ink-light);
+}
+
+/* One icon weight across the app's chrome: every 24-unit icon in the title
+   bar, both rails' top bars, the tab strip and the layout button. */
+:is(.titlebar, .sidebar-topbar, .right-rail-topbar, .rail-icon-strip, .layout-menu-btn)
+  svg[viewBox="0 0 24 24"] :is(path, line, polyline, polygon, circle, rect, ellipse) {
+  stroke-width: 1.75;
+}

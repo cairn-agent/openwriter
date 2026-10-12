@@ -1,4 +1,5 @@
 /* ─── Exports tab ──────────────────────────────────────────────────── */
+/* Type sizes come from themes/rails.css; this file holds the layout. */
 
 .exports-tab {
   padding: 4px 0;
@@ -13,7 +14,7 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 10px 14px;
+  padding: var(--rail-row-pad) var(--rail-inset);
   cursor: pointer;
   background: none;
   border: none;
@@ -29,8 +30,8 @@
 
 .exports-tab__item-icon {
   flex-shrink: 0;
+  height: 18px;
   color: var(--ink-light);
-  margin-top: 1px;
   display: flex;
   align-items: center;
 }
@@ -42,31 +43,13 @@
   flex: 1;
 }
 
-.exports-tab__item-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ink-dark);
-}
-
-.exports-tab__item-desc {
-  font-size: 11px;
-  color: var(--ink-light);
-  margin-top: 1px;
-}
-
 /* A manuscript downloads as the book, with its paragraph style. */
 .exports-tab__book-label {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--ink-light);
-  margin: 10px 14px 6px;
+  margin: 8px var(--rail-inset) 6px;
 }
 .exports-tab > .review-tab__toggle {
-  margin: 0 14px;
+  margin: 0 var(--rail-inset);
 }
 .exports-tab__book-note {
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--ink-light);
-  margin: 8px 14px;
+  margin: 8px var(--rail-inset);
 }
