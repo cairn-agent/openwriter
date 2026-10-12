@@ -688,7 +688,7 @@ Each profile gets a free site at `<name>.openwriter.io` with posts, subscribers 
 | `get_traffic_sources` | `post_id?`, `from?`, `to?` | Where post views came from: direct, your site, search, social, webmail, other websites, utm_source |
 | `request_site_review` | `note?` | New sites email a limited number of people a day; ask OpenWriter to lift the limit (once a day, owners and admins) |
 | `get_poll_results` | `post_id?` | Each poll in a post: question, total votes, each choice's votes and percent (the active doc's post by default) |
-| `attach_file_to_post` | `path`, `name?` | Upload a PDF, EPUB, ZIP, CSV, TXT, DOCX, XLSX or PPTX (up to 20 MB) and get a markdown link to put on its own line in the post; counts against storage |
+| `attach_file_to_post` | `path` (or `content_base64` + `name`), `name?` | Upload a PDF, EPUB, ZIP, CSV, TXT, DOCX, XLSX or PPTX (up to 20 MB) and get a markdown link to put on its own line in the post; counts against storage |
 | `email_subscribers` | `subject`, `body`, `email?`, `member_id?`, `tier?`, `section?`, `search?`, `segment?`, `dry_run?` | Email one subscriber, a group or a saved segment a message that is not a post (never on the site); `dry_run` counts who would get it |
 | `list_sent_messages` | `limit?`, `offset?` | Past messages: subject, who it went to, who sent it, when, delivered and opens |
 | `resend_post_to_unopened` | `post_id`, `subject?`, `dry_run?` | Resend an emailed post once to who did not open it, from 24 hours after it was sent; `dry_run` counts first |

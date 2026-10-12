@@ -56,21 +56,32 @@ export function siteBlocksTools(config: Record<string, string>): PluginMcpTool[]
         type: 'object',
         properties: {
           path: { type: 'string', description: 'The file on this computer: a full path, or a path inside the OpenWriter data folder.' },
+          content_base64: { type: 'string', description: 'The file\'s bytes as base64, instead of path (a file picked in a browser). Needs name.' },
           name: { type: 'string', description: 'The name readers see and download it as, with its extension. Defaults to the file\'s own name.' },
           ...SITE_PARAM,
         },
-        required: ['path'],
       },
       handler: async (params) => {
-        const raw = typeof params.path === 'string' ? params.path.trim() : '';
-        if (!raw) return { error: 'Pass the path of the file to attach.' };
-        const file = isAbsolute(raw) && existsSync(raw) ? raw : join((await getServerModules()).getDataDir(), raw);
-        if (!existsSync(file) || !statSync(file).isFile()) return { error: `There is no file at ${raw}.` };
-        if (statSync(file).size > MAX_FILE_MB * 1024 * 1024) return { error: `The file is larger than ${MAX_FILE_MB} MB.` };
-        const name = typeof params.name === 'string' && params.name.trim() ? params.name.trim() : basename(file);
+        const given = typeof params.name === 'string' && params.name.trim() ? params.name.trim() : '';
+        let data: string;
+        let name: string;
+        if (typeof params.content_base64 === 'string' && params.content_base64) {
+          if (!given) return { error: 'Pass name (with its extension) along with content_base64.' };
+          if (Buffer.byteLength(params.content_base64, 'base64') > MAX_FILE_MB * 1024 * 1024) return { error: `The file is larger than ${MAX_FILE_MB} MB.` };
+          data = params.content_base64;
+          name = given;
+        } else {
+          const raw = typeof params.path === 'string' ? params.path.trim() : '';
+          if (!raw) return { error: 'Pass the path of the file to attach, or its content_base64 and name.' };
+          const file = isAbsolute(raw) && existsSync(raw) ? raw : join((await getServerModules()).getDataDir(), raw);
+          if (!existsSync(file) || !statSync(file).isFile()) return { error: `There is no file at ${raw}.` };
+          if (statSync(file).size > MAX_FILE_MB * 1024 * 1024) return { error: `The file is larger than ${MAX_FILE_MB} MB.` };
+          data = readFileSync(file).toString('base64');
+          name = given || basename(file);
+        }
         const res = await publishFetch(config, '/sites/files', onSite(params.site, {
           method: 'POST',
-          body: JSON.stringify({ name, data: readFileSync(file).toString('base64') }),
+          body: JSON.stringify({ name, data }),
         }));
         if (!res.ok) return apiError(res, 'Could not attach the file');
         const { file: stored, markdown } = (await res.json()) as {
