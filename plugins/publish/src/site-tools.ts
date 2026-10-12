@@ -274,6 +274,9 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
         'Publish the active document as a post on the site, or update the post it was published as before. ' +
         'A line `<!-- paywall -->` in the document places the paywall: everything above it is the free preview for readers without access. ' +
         'At most one paywall per document; with none, a walled post shows nothing past the title to readers without access. ' +
+        'Blocks are lines of their own: [paid-only] ... [/paid-only] and [free-only] ... [/free-only] (parts only paid readers, or only everyone else, see, on the site, in email and in RSS), ' +
+        '[callout] ... [/callout] (a box), [drop-cap] (before a paragraph), [subscribe] (a subscribe button), and "[poll] Question" followed by a bulleted list of 2 to 6 choices (get_poll_results). ' +
+        'A file from attach_file_to_post is its link on a line of its own. Broken markers are refused with what to fix. ' +
         'Pass publish_at to schedule instead of publishing now, and send_email to also email it to subscribers (a post is emailed once). ' +
         'On an update, settings you leave out keep their current values. ' +
         'A document published to a team site keeps going to that site; pass site to publish it somewhere else.',

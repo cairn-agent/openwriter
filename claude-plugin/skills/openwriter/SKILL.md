@@ -687,12 +687,22 @@ Each profile gets a free site at `<name>.openwriter.io` with posts, subscribers 
 | `get_paid_retention` | `months?` | New paid, cancelled, churn rate and MRR per month, with today's MRR |
 | `get_traffic_sources` | `post_id?`, `from?`, `to?` | Where post views came from: direct, your site, search, social, webmail, other websites, utm_source |
 | `request_site_review` | `note?` | New sites email a limited number of people a day; ask OpenWriter to lift the limit (once a day, owners and admins) |
+| `get_poll_results` | `post_id?` | Each poll in a post: question, total votes, each choice's votes and percent (the active doc's post by default) |
+| `attach_file_to_post` | `path`, `name?` | Upload a PDF, EPUB, ZIP, CSV, TXT, DOCX, XLSX or PPTX (up to 20 MB) and get a markdown link to put on its own line in the post; counts against storage |
 | `email_subscribers` | `subject`, `body`, `email?`, `member_id?`, `tier?`, `section?`, `search?`, `segment?`, `dry_run?` | Email one subscriber, a group or a saved segment a message that is not a post (never on the site); `dry_run` counts who would get it |
 | `list_sent_messages` | `limit?`, `offset?` | Past messages: subject, who it went to, who sent it, when, delivered and opens |
 | `resend_post_to_unopened` | `post_id`, `subject?`, `dry_run?` | Resend an emailed post once to who did not open it, from 24 hours after it was sent; `dry_run` counts first |
 
 - **Audience:** `everyone`, `subscribers` (free or paid), `paid`, or `founding`.
 - **Paywall:** put the line `<!-- paywall -->` between blocks. Everything above it is the free preview. One per doc, not inside a list or quote. With no marker, a walled post shows readers without access nothing past the title. The editor shows it as a "Paywall" divider (lock button in the toolbar), and `read_pad` shows it as `[hr:<id>] <!-- paywall -->`.
+- **Blocks:** type each marker as a line of its own (a paragraph by itself, not in a list, quote or bold), with blank lines around it in markdown:
+  - `[paid-only]` … `[/paid-only]`: only paid subscribers see the lines between (on the site, in their email; never in RSS or to free readers). `[free-only]` … `[/free-only]`: everyone except paid subscribers, e.g. an upgrade note. Not one inside the other.
+  - `[callout]` … `[/callout]`: the lines between in a highlighted box.
+  - `[drop-cap]`: the next paragraph starts with a large first letter.
+  - `[subscribe]`: a subscribe button (a form on the site, a button in email).
+  - `[poll] Which topic next?` followed directly by a bulleted list of 2 to 6 choices: readers vote once, on the page or by tapping a choice in the email; results show after voting; `get_poll_results` for the writer. Each poll in a post needs its own question; rewording a question starts a new poll.
+  - A file: `attach_file_to_post` returns `[name](url)`; put that link alone on its line.
+  - Broken markers (unclosed, nested, a poll without choices) make `publish_to_site` fail with what to fix.
 - The post id is saved in the doc's metadata (`sitePost`), so publishing the same doc again updates that post. Only accepted text is published, never pending changes.
 - `send_email` emails the post once; later updates change the web copy only. `send_free_preview` (with `send_email`, on a paid or founding post) also emails free subscribers the preview above the paywall.
 - Pictures stored in this OpenWriter (`/_images/...`), in the body or as `cover_url`, are uploaded with the post; https images are used as they are.
