@@ -38,13 +38,26 @@ export function pick(params: Record<string, unknown>, keys: string[]): Record<st
 }
 
 /**
- * Pictures stored on this computer that the post uses, in the body and as the cover,
- * sent with the request. The API uploads them and points the post at the copies.
+ * Pictures stored on this computer that a request uses, in the body and as its image fields
+ * (a cover, a social image, a wordmark), sent with it. The API uploads them and points the
+ * request at the copies.
  */
-export function postImages(html: string, coverUrl: unknown, dataDir?: string) {
-  const cover = typeof coverUrl === 'string' && coverUrl.startsWith('/_images/') ? coverUrl : '';
-  return extractLocalImages(cover ? `${html} ${cover}` : html, dataDir);
+export function postImages(html: string, imageFields: unknown[], dataDir?: string) {
+  const local = imageFields.filter((u): u is string => typeof u === 'string' && u.startsWith('/_images/'));
+  return extractLocalImages([html, ...local].join(' '), dataDir);
 }
+
+const FONTS = ['source-serif', 'literata', 'newsreader', 'playfair-display', 'inter', 'serif', 'sans', 'mono'];
+
+const LINKS = (what: string) => ({
+  type: 'array',
+  description: `${what}, up to 6, replacing the current ones; an empty list removes them. Each url is an http(s) address or a path on the site starting with /.`,
+  items: {
+    type: 'object',
+    properties: { label: { type: 'string', description: 'The link text, up to 40 characters.' }, url: { type: 'string' } },
+    required: ['label', 'url'],
+  },
+});
 
 /** The cover the desk shows for the document: the blog cover, else the article cover. */
 export function docCover(meta: Record<string, any>): string | undefined {
@@ -98,6 +111,7 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
       name: 'get_site',
       description:
         'Show the active profile\'s site: address, name, tagline, about, logo, cover, publication settings (default audience, auto-paywall, double opt-in, welcome page and the welcome emails, comments, mailing address, the email header, footer and banner, reply-to, subscriber notices), ' +
+        'design (accent_color, heading_font, body_font, wordmark_url, wordmark_dark_url, home_layout, nav_links, home_links) and tracking (google_analytics_id, plausible_domain, block_ai_training) in site.settings, ' +
         'sending (status "review" = new site that can email daily_cap people a day until OpenWriter approves it, see request_site_review; "active" = no daily limit; "suspended" = cannot send; review_requested_at = when review was last asked for), ' +
         'payments: whether Stripe is connected, the 7-day trial, and the paid plans (amounts in cents), ' +
         'and sender: who emails come from (from_name, from_email), where reader replies go (reply_to; reply_to_is_default = the owner\'s account email), ' +
@@ -144,10 +158,11 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
     {
       name: 'update_site_settings',
       description:
-        'Update publication settings. Only the fields you pass change. A mailing address is required before the first email goes out. ' +
+        'Update publication settings, the site\'s design (accent colour, typefaces, wordmark, homepage layout, links) and tracking. Only the fields you pass change. A mailing address is required before the first email goes out. ' +
         'A private site is readable by approved subscribers only: readers ask to subscribe, and the writer approves or denies each request (list_subscribe_requests). ' +
         'Post emails can carry a header, footer and banner, the same for everyone or different for free and paid readers; they appear only in emails. ' +
-        'The returned settings show each as { free, paid } (null = none).',
+        'A tracking ID adds that provider\'s tag to the site\'s pages only, never to emails or previews. ' +
+        'The returned settings show the email parts as { free, paid } (null = none).',
       inputSchema: {
         type: 'object',
         properties: {
@@ -177,6 +192,32 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
           notify_free_subscribers: { type: 'string', enum: NOTICE_MODES, description: 'Email the owner (and admins who opt in) about new free subscribers: off, each (one email each) or digest (one a day). Default digest.' },
           notify_paid_subscribers: { type: 'string', enum: NOTICE_MODES, description: 'Email about new paid subscribers. Default each.' },
           notify_cancellations: { type: 'string', enum: NOTICE_MODES, description: 'Email about paid subscribers who cancel. Default each.' },
+          accent_color: { type: 'string', description: 'Colour of buttons and links on the site and in its emails, as #rrggbb. Adjusted per theme so it stays readable. An empty string restores the default blue.' },
+          heading_font: {
+            type: 'string', enum: FONTS,
+            description: 'Typeface for titles and headings: source-serif (default), literata, newsreader, playfair-display, inter, or the reader\'s own serif, sans or mono.',
+          },
+          body_font: { type: 'string', enum: FONTS, description: 'Typeface for post text and subtitles, from the same list.' },
+          wordmark_url: {
+            type: 'string',
+            description: 'An image of the publication\'s name, shown at the top of the site instead of the name in type: an http(s) URL or a picture in this OpenWriter (/_images/...). Use a transparent PNG or SVG drawn for a light page. An empty string removes it.',
+          },
+          wordmark_dark_url: {
+            type: 'string',
+            description: 'The wordmark for the dark theme (light lettering). Without it, the dark theme shows the name in type. Same forms as wordmark_url.',
+          },
+          home_layout: {
+            type: 'string', enum: ['magazine', 'list', 'grid'],
+            description: 'Homepage: magazine (a featured post, then tiles and rows; default), list (every post as a row beside the sidebar), grid (every post as a picture tile, three across).',
+          },
+          nav_links: LINKS('Links added to the site\'s navigation, after the sections'),
+          home_links: LINKS('Links shown on the homepage under the subscribe box, such as social profiles'),
+          google_analytics_id: { type: 'string', description: 'Google Analytics 4 measurement ID (G-XXXXXXXXXX). An empty string removes the tag.' },
+          plausible_domain: { type: 'string', description: 'The domain the site is registered under in Plausible (plausible.io), like example.com. An empty string removes the tag.' },
+          block_ai_training: {
+            type: 'boolean',
+            description: 'Ask AI crawlers not to train on the site (robots.txt for the AI training crawlers, ai.txt and noai tags). Search engines and AI search still see it.',
+          },
           ...SITE_PARAM,
         },
       },
@@ -185,7 +226,8 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
           'default_audience', 'auto_wall_after_days', 'double_opt_in', 'welcome_page', 'welcome_email', 'welcome_email_paid',
           'welcome_email_founding', 'welcome_email_imported', 'comments_enabled', 'mailing_address', 'private',
           'notify_subscribe_requests', 'author_name', 'email_header', 'email_footer', 'email_banner', 'reply_to',
-          'notify_free_subscribers', 'notify_paid_subscribers', 'notify_cancellations',
+          'notify_free_subscribers', 'notify_paid_subscribers', 'notify_cancellations', 'accent_color', 'heading_font', 'body_font',
+          'wordmark_url', 'wordmark_dark_url', 'home_layout', 'nav_links', 'home_links', 'google_analytics_id', 'plausible_domain', 'block_ai_training',
         ]);
         // One audience at a time: the other keeps what it has now.
         let current: Record<string, { free: string | null; paid: string | null }> | null = null;
@@ -204,6 +246,9 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
           body[part] = { free: free ?? current?.[part]?.free ?? null, paid: paid ?? current?.[part]?.paid ?? null };
         }
         if (!Object.keys(body).length) return { error: 'Pass at least one setting to change.' };
+        // A wordmark on this computer is uploaded with the request, like a post's pictures.
+        const images = await postImages('', [params.wordmark_url, params.wordmark_dark_url]);
+        if (images.length) body.images = images;
         const res = await publishFetch(config, '/sites/settings', onSite(params.site, { method: 'PATCH', body: JSON.stringify(body) }));
         if (!res.ok) return apiError(res, 'Could not update settings');
         return { success: true, ...((await res.json()) as object) };
@@ -227,7 +272,15 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
           slug: { type: 'string', description: 'URL slug (/p/<slug>). Defaults to one made from the title on first publish.' },
           cover_url: {
             type: 'string',
-            description: 'Cover and social image: an http(s) URL or a picture in this OpenWriter (/_images/...). An empty string clears it.',
+            description: 'Cover image: an http(s) URL or a picture in this OpenWriter (/_images/...). An empty string clears it.',
+          },
+          social_image_url: {
+            type: 'string',
+            description: 'The picture shown when the post is shared (link previews), if it should differ from the cover; 1200x630 works best. An http(s) URL or a picture in this OpenWriter (/_images/...). An empty string goes back to the cover.',
+          },
+          seo_description: {
+            type: 'string',
+            description: 'The description search engines and link previews show, up to 300 characters (about 155 show in search). An empty string goes back to the subtitle.',
           },
           audience: {
             type: 'string',
@@ -287,7 +340,7 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
         if (!wall.ok) return { error: wall.error };
         // No cover passed: use the document's own cover. An empty string still clears it.
         const coverUrl = params.cover_url ?? docCover(meta);
-        const images = await postImages(wall.html, coverUrl);
+        const images = await postImages(wall.html, [coverUrl, params.social_image_url]);
 
         let section: Record<string, unknown> = {};
         if (typeof params.section === 'string') {
@@ -322,7 +375,10 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
           ...(params.title || !existingId ? { title: (params.title as string) || subject } : {}),
           body_html: wall.html,
           wall_at: wall.wall_at,
-          ...pick({ ...params, cover_url: coverUrl }, ['subtitle', 'slug', 'cover_url', 'audience', 'web_only', 'email_only', 'comments_audience', 'tags', 'authors']),
+          ...pick({ ...params, cover_url: coverUrl }, [
+            'subtitle', 'slug', 'cover_url', 'social_image_url', 'seo_description', 'audience', 'web_only', 'email_only',
+            'comments_audience', 'tags', 'authors',
+          ]),
           ...section,
           ...(params.draft ? { status: 'draft' } : params.publish_at ? { status: 'scheduled', publish_at: params.publish_at } : { status: 'published' }),
           ...(images.length ? { images } : {}),
@@ -350,6 +406,8 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
           audience: post.audience,
           wall_at: post.wall_at,
           section_id: post.section_id,
+          social_image_url: post.social_image_url,
+          seo_description: post.seo_description,
           tags: post.tags,
           authors: post.authors,
           url,
