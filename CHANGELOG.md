@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Plugins can add to the app's interface: a plugin's browser module can add right-rail tabs (with an optional title bar button) and right-click menu panels.
 - OpenWriter can run inside another Node program (`startOpenWriter` from `openwriter/server`), with its own request check, tool and plugin filters, and plugins passed in directly. `OW_DATA_DIR` moves OpenWriter's data folder.
 - The GitHub plugin can bring in changes from GitHub when OpenWriter starts (`pullOnStart`, off by default).
+- Site comment moderation and reader bans for the agent: `list_site_comments` (with the reported queue), `delete_site_comment`, `pin_site_comment`, `approve_site_comment`, `ban_readers` (up to 500 emails, optionally deleting their comments), `unban_reader` and `list_banned_readers`. A ban stops a reader commenting and subscribing; it never cancels paid access, which the result lists so the writer can refund or cancel it.
 
 ### Removed
 - The old newsletter send is gone: the `send_newsletter` and `resend_to_unopened` tools, the newsletter view's Send button and the resend panel in newsletter analytics. They mailed an old subscriber list nobody joins any more. To email your readers, publish to your site (`publish_to_site` with `send_email`); site posts are emailed to the site's members. Past issues and their analytics stay.

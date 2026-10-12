@@ -230,7 +230,7 @@ export function siteMemberTools(config: Record<string, string>): PluginMcpTool[]
         if (!res.ok) return apiError(res, 'Import failed');
         const data = (await res.json()) as {
           imported: number;
-          skipped: { already_members: number; duplicate_in_file: number; invalid: number };
+          skipped: { already_members: number; duplicate_in_file: number; invalid: number; banned?: number };
           invalid_examples: string[];
         };
         const s = data.skipped;
@@ -239,6 +239,7 @@ export function siteMemberTools(config: Record<string, string>): PluginMcpTool[]
           s.already_members && `${s.already_members} already on the list (left as they were)`,
           s.duplicate_in_file && `${s.duplicate_in_file} repeated in the file`,
           s.invalid && `${s.invalid} skipped (invalid email)`,
+          s.banned && `${s.banned} skipped (banned from the site)`,
         ].filter(Boolean);
         return {
           success: true,
@@ -247,6 +248,7 @@ export function siteMemberTools(config: Record<string, string>): PluginMcpTool[]
           alreadyMembers: s.already_members,
           duplicates: s.duplicate_in_file,
           skippedInvalid: s.invalid,
+          skippedBanned: s.banned ?? 0,
           invalidExamples: data.invalid_examples,
           message: `Imported ${data.imported} subscribers.${notes.length ? ` ${notes.join('. ')}.` : ''}`,
         };

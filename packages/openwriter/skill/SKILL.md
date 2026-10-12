@@ -718,6 +718,9 @@ Every site tool takes an optional `site` (a site's name or id from `list_my_site
 | `remove_team_member` | `member_id`, `confirm` | Takes away access; their posts with no other author become the owner's |
 | `accept_team_invite` | `code` | Join a team with the code from the invite email |
 | `list_subscribe_requests` / `decide_subscribe_request` | `status?`; `request_id`, `decision` | Private site: approve or deny readers who ask to subscribe |
+| `list_site_comments` | `post_id?`, `reported?`, `status?`, `limit?`, `offset?` | Readers' comments with post, reader and report count; `reported: true` is the moderation queue |
+| `approve_site_comment` / `delete_site_comment` / `pin_site_comment` | `comment_id`; `pinned` to pin | Approve clears a reported comment's reports and keeps it up; delete takes it down for good |
+| `ban_readers` / `unban_reader` / `list_banned_readers` | `emails`, `reason?`, `delete_comments?`; `email` | Ban emails from commenting and subscribing; free subscriptions end, paid access is kept and listed in `paid_access_kept` to refund or cancel in Stripe |
 
 - `publish_to_site`: `section` is a section's name, slug or id (empty string for the main publication); `tags` are tag names; `authors` are ids from `list_site_team`, `"owner"` for the owner. A doc published to a team site keeps going to that site.
 - Referral rewards: on a site selling paid plans each tier's `comp` (`7d`, `30d`, `90d`, `6mo`, `1yr`); otherwise its `reward_text` is emailed. Referrals are off while the site is private.

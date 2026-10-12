@@ -9,6 +9,7 @@ import { siteStructureTools } from './site-structure-tools.js';
 import { siteTeamTools } from './site-team-tools.js';
 import { siteTools } from './site-tools.js';
 import { sitePostsTools } from './site-posts-tools.js';
+import { siteModerationTools } from './site-moderation-tools.js';
 import { siteReviewTools } from './site-review-tools.js';
 import { readFileSync, existsSync } from 'fs';
 import { join, extname } from 'path';
@@ -180,6 +181,7 @@ const plugin: OpenWriterPlugin = {
 
       // Post tools (the posts list, delete, pin, previews, test emails, secret draft links)
       ...sitePostsTools(config),
+      ...siteModerationTools(config),
       ...siteReviewTools(config),
 
       // Paid plan tools (Stripe connect, plans, comps, offers)
