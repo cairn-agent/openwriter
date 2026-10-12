@@ -15,6 +15,7 @@ import { siteTools } from './site-tools.js';
 import { sitePostsTools } from './site-posts-tools.js';
 import { siteImportTools } from './site-import-tools.js';
 import { siteBlocksTools } from './site-blocks-tools.js';
+import { siteSurveysTools } from './site-surveys-tools.js';
 import { siteModerationTools } from './site-moderation-tools.js';
 import { siteReviewTools } from './site-review-tools.js';
 import { siteInsightsTools } from './site-insights-tools.js';
@@ -202,6 +203,7 @@ const plugin: OpenWriterPlugin = {
       ...sitePostsTools(config),
       ...siteImportTools(config),
       ...siteBlocksTools(config),
+      ...siteSurveysTools(config),
       ...siteModerationTools(config),
       ...siteReviewTools(config),
       ...siteInsightsTools(config),

@@ -689,6 +689,13 @@ Each profile gets a free site at `<name>.openwriter.io` with posts, subscribers 
 | `request_site_review` | `note?` | New sites email a limited number of people a day; ask OpenWriter to lift the limit (once a day, owners and admins) |
 | `get_poll_results` | `post_id?` | Each poll in a post: question, total votes, each choice's votes and percent (the active doc's post by default) |
 | `attach_file_to_post` | `path` (or `content_base64` + `name`), `name?` | Upload a PDF, EPUB, ZIP, CSV, TXT, DOCX, XLSX or PPTX (up to 20 MB) and get a markdown link to put on its own line in the post; counts against storage |
+| `list_surveys` | | The site's surveys: questions, who can answer, closed or not, response count, page link and the marker line for a post (contributors too) |
+| `save_survey` | `survey_id?`, `title?`, `intro?`, `questions?` (`{type, text, required?, choices?}`; `short_answer`, `long_answer`, `multiple_choice`, `checkboxes`), `who_can_answer?` (`subscribers` or `anyone`) | Make a survey (title and 1 to 20 questions) or change one; it gets its own page; with responses, questions can only be reworded |
+| `close_survey` | `survey_id`, `reopen?` | Stop new responses (the responses stay), or take them again |
+| `delete_survey` | `survey_id` | Delete a survey and all its responses (only when asked) |
+| `get_survey_results` | `survey_id` | Responses count; per question counts and percents, or the text answers |
+| `list_survey_responses` | `survey_id`, `limit?`, `offset?` | Each response with the reader's email when they were signed in, answers in words |
+| `export_survey_responses` | `survey_id`, `file?` | Every response as CSV, saved to `file` or returned |
 | `email_subscribers` | `subject`, `body`, `email?`, `member_id?`, `tier?`, `section?`, `search?`, `segment?`, `dry_run?` | Email one subscriber, a group or a saved segment a message that is not a post (never on the site); `dry_run` counts who would get it |
 | `list_sent_messages` | `limit?`, `offset?` | Past messages: subject, who it went to, who sent it, when, delivered and opens |
 | `resend_post_to_unopened` | `post_id`, `subject?`, `dry_run?` | Resend an emailed post once to who did not open it, from 24 hours after it was sent; `dry_run` counts first |
@@ -702,6 +709,7 @@ Each profile gets a free site at `<name>.openwriter.io` with posts, subscribers 
   - `[subscribe]`: a subscribe button (a form on the site, a button in email).
   - `[poll] Which topic next?` followed directly by a bulleted list of 2 to 6 choices: readers vote once, on the page or by tapping a choice in the email; results show after voting; `get_poll_results` for the writer. Each poll in a post needs its own question; rewording a question starts a new poll.
   - A file: `attach_file_to_post` returns `[name](url)`; put that link alone on its line.
+  - `[survey] reader-survey`: a card linking to that survey's page (a link in email and RSS). Make the survey first with `save_survey`; it returns the exact line as `marker`.
   - Broken markers (unclosed, nested, a poll without choices) make `publish_to_site` fail with what to fix.
 - The post id is saved in the doc's metadata (`sitePost`), so publishing the same doc again updates that post. Only accepted text is published, never pending changes.
 - `send_email` emails the post once; later updates change the web copy only. `send_free_preview` (with `send_email`, on a paid or founding post) also emails free subscribers the preview above the paywall.
