@@ -958,6 +958,19 @@
   padding: 4px 0;
 }
 
+/* Settings tab: Appearance, Connections and Plugins stacked as groups. */
+.settings-group + .settings-group {
+  border-top: 1px solid var(--border);
+}
+
+.settings-group-title {
+  margin: 0;
+  padding: 14px 14px 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
 .appearance-section {
   padding: 10px 14px;
   border-bottom: 1px solid var(--border);

@@ -14,9 +14,14 @@ export type TabId =
   | 'backlinks'
   | 'exports'
   | 'activity'
-  | 'plugins'
-  | 'connections'
-  | 'appearance';
+  | 'settings';
+
+/** Tabs merged into Settings (2026-10-12): a saved or requested old id opens Settings. */
+const MERGED_INTO_SETTINGS = new Set(['plugins', 'connections', 'appearance']);
+
+export function canonicalTabId(id: string): string {
+  return MERGED_INTO_SETTINGS.has(id) ? 'settings' : id;
+}
 
 /**
  * Scope determines which app state a tab reads from. The rail container does

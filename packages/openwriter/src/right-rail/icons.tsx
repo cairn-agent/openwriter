@@ -49,32 +49,11 @@ export const ActivityIcon = () => (
   </svg>
 );
 
-export const PluginsIcon = () => (
+/** Settings — a gear. Appearance, Connections and Plugins share this one tab. */
+export const SettingsIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-    <path d="M12 22v-5" stroke="currentColor" {...s} />
-    <path d="M9 8V2" stroke="currentColor" {...s} />
-    <path d="M15 8V2" stroke="currentColor" {...s} />
-    <path d="M17 8a1 1 0 0 1 1 1v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1z" stroke="currentColor" {...s} />
-  </svg>
-);
-
-export const ConnectionsIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-    <circle cx="12" cy="5" r="3" stroke="currentColor" {...s} />
-    <circle cx="5" cy="19" r="3" stroke="currentColor" {...s} />
-    <circle cx="19" cy="19" r="3" stroke="currentColor" {...s} />
-    <line x1="12" y1="8" x2="5" y2="16" stroke="currentColor" {...s} />
-    <line x1="12" y1="8" x2="19" y2="16" stroke="currentColor" {...s} />
-  </svg>
-);
-
-export const AppearanceIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-    <path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" stroke="currentColor" {...s} />
-    <circle cx="13.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
-    <circle cx="17.5" cy="10.5" r="1" fill="currentColor" stroke="none" />
-    <circle cx="6.5" cy="12.5" r="1" fill="currentColor" stroke="none" />
-    <circle cx="8.5" cy="7.5" r="1" fill="currentColor" stroke="none" />
+    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" stroke="currentColor" {...s} />
+    <circle cx="12" cy="12" r="3" stroke="currentColor" {...s} />
   </svg>
 );
 

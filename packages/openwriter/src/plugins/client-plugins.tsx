@@ -19,6 +19,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { DOMSerializer } from '@tiptap/pm/model';
 import { showToast } from '../utils/toast';
 import { TAB_ID } from '../ws/client';
+import { canonicalTabId } from '../right-rail/types';
 
 /** A plugin's mounted view. `update` receives fresh context; `unmount` tears it down. */
 export interface MountedView<C> {
@@ -164,11 +165,12 @@ export function pluginTabId(id: string): `plugin:${string}` {
   return `plugin:${id}`;
 }
 
-const BUILT_IN_TABS = new Set(['review', 'versions', 'backlinks', 'exports', 'activity', 'plugins', 'connections', 'appearance']);
+const BUILT_IN_TABS = new Set(['review', 'versions', 'backlinks', 'exports', 'activity', 'settings']);
 
-/** A built-in id stays as is; anything else names a plugin tab. */
+/** A built-in id stays as is (an old merged id becomes Settings); anything else names a plugin tab. */
 export function resolveTabId(id: string): string {
-  return BUILT_IN_TABS.has(id) || id.startsWith('plugin:') ? id : pluginTabId(id);
+  const builtIn = canonicalTabId(id);
+  return BUILT_IN_TABS.has(builtIn) || id.startsWith('plugin:') ? builtIn : pluginTabId(id);
 }
 
 let railOpener: ((id: string) => void) | null = null;

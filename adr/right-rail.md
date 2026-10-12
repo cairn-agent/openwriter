@@ -14,7 +14,7 @@ The right rail consolidates every contextual surface into a single tabbed sideba
 - **The bell is the only chrome that broadcasts activity arrival.** A live `activity-event` WebSocket message pulses the bell IF (rail is closed) OR (rail is open but Activity is not the active tab). Pulse is purely visual (`scale 1 → 1.05 → 1` over ~400ms); no counter, no badge, no read/unread bookkeeping. Recency in the feed is communicated by relative timestamps and a fading accent bar on newly-arrived rows, not by a "new" badge.
 - **Activity persists to disk.** Append-only JSONL at `~/.openwriter/profiles/<profile>/activity.log`, never truncated. Client reads the tail on connect (last 500 entries via WS `activity-log` on connection) and consumes live `activity-event` broadcasts thereafter. The on-disk log is the source of truth — in-memory state in the client is a cache.
 - **Only agent-attributed actions become activity entries.** A human edit doesn't need to grab the human's attention via the feed. The `recordActivity()` server helper is called from broadcast sites that are themselves agent-attributed (`broadcastWritingStarted/Finished`, enrichment writes, references-frontmatter changes from minion sweeps). Plain `broadcastPendingDocsChanged` from human typing does not record activity.
-- **Tab scope determines display, not behavior.** Doc-scoped tabs (Review, Versions, Backlinks, Exports) read the active filename from app state and update on doc switch. Workspace-scoped tabs (Activity) ignore the active doc. Settings tabs (Plugins, Connections, Appearance) ignore both. The rail container never re-mounts the tab body on doc switch — tabs handle their own re-fetch via the props they accept.
+- **Tab scope determines display, not behavior.** Doc-scoped tabs (Review, Versions, Backlinks, Exports) read the active filename from app state and update on doc switch. Workspace-scoped tabs (Activity) ignore the active doc. The Settings tab (Appearance, Connections and Plugins as sections) ignores both. The rail container never re-mounts the tab body on doc switch — tabs handle their own re-fetch via the props they accept.
 - **Auto-open on pending writes is the one exception to "rail only opens when the user opens it."** When `pendingDocs.filenames` goes from empty to non-empty, the rail opens to the Review tab automatically. Closing the rail does NOT dismiss the pending writes — they remain in Review, the user just hid the surface. Re-arrival of pending writes will re-open the rail.
 
 ## Decision log (append-only)
@@ -274,3 +274,11 @@ all read `useRailTabs()`. A plugin tab may ask for a titlebar toggle (opens the 
 closes the rail while it shows, rail open or closed) and may hold the rail: while it is the
 open tab, new pending changes do not switch the rail to Review. A plugin tab's body is the
 plugin's own view mounted into a plain element, never part of the app's React tree.
+
+### 2026-10-12 — Plugins, Connections and Appearance become one Settings tab
+
+A plugin tab (the web app's chat) made the strip too wide for its row. The three setup tabs
+are now sections of one Settings tab (gear icon), each the former tab's body unchanged, so the
+strip goes from eight built-in icons to six. A saved rail state or an `openRailTab` call that
+names an old id (`plugins`, `connections`, `appearance`) opens Settings (`canonicalTabId` in
+`right-rail/types.ts`), so nothing that asked for an old tab breaks.

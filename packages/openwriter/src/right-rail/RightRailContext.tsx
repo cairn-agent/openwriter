@@ -7,7 +7,7 @@
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { TabId } from './types';
+import { canonicalTabId, type TabId } from './types';
 import { setRailOpener } from '../plugins/client-plugins';
 
 const STORAGE_KEY = 'ow-right-rail';
@@ -51,7 +51,7 @@ function loadPersisted(): PersistedState {
     const parsed = JSON.parse(raw) as Partial<PersistedState>;
     return {
       open: Boolean(parsed.open),
-      activeTab: (parsed.activeTab as TabId | null) ?? null,
+      activeTab: parsed.activeTab ? (canonicalTabId(parsed.activeTab) as TabId) : null,
       width: clampWidth(typeof parsed.width === 'number' ? parsed.width : DEFAULT_WIDTH),
     };
   } catch {
