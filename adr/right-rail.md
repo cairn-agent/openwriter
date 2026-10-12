@@ -337,3 +337,9 @@ The format-bar toggle moved between the rail's top bar (rail open) and the title
 closed). It now stays in the title bar, left of the Voice heatmap and the chat, rail open
 or closed: the document's own controls sit together and never move. The rail's top bar
 keeps Hide, Focus, light/dark and Sync.
+
+### 2026-10-12 — Plugin buttons with words in the title bar
+
+The title bar's right side now starts with any buttons plugins registered through
+`registerTopbarButton` (labelled, bordered, `titlebar-text-btn`), before the format toggle.
+They stay put whether the rail is open or closed, like the other document controls.

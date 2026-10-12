@@ -4,6 +4,7 @@ import { useRightRail } from '../right-rail/RightRailContext';
 import { OpenRailIcon, FocusModeIcon, VoiceIcon } from '../right-rail/icons';
 import { useRailTabs } from '../right-rail/tabs';
 import ThemeToggle from '../themes/ThemeToggle';
+import { useClientPlugins } from '../plugins/client-plugins';
 
 interface TitlebarProps {
   title: string;
@@ -54,6 +55,7 @@ interface UpdateInfo {
 export default function Titlebar({ title, onTitleChange, onToggleSidebar, canGoBack, canGoForward, onGoBack, onGoForward, editor, onToggleToolbar, toolbarOpen, focusMode, onToggleFocusMode, heatmapOn, onToggleHeatmap, heatmapAvailable, heatmapTitle }: TitlebarProps) {
   const { visible: railVisible, openTab, activeTab, closeRail } = useRightRail();
   const toggleTabs = useRailTabs().filter((t) => t.titlebarToggle);
+  const { topbarButtons } = useClientPlugins();
   const [editing, setEditing] = useState(false);
   const [, setTick] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -182,6 +184,12 @@ export default function Titlebar({ title, onTitleChange, onToggleSidebar, canGoB
       </div>
       <div className="titlebar-right">
         {focusMode && <div id="focus-review-controls" />}
+        {/* Plugin buttons with words (a way into a plugin's own screens): always here. */}
+        {topbarButtons.map((b) => (
+          <button key={b.id} type="button" className="titlebar-text-btn" onClick={() => b.onClick()} title={b.title ?? b.label}>
+            {b.label}
+          </button>
+        ))}
         {onToggleToolbar && (
           <button
             className={`titlebar-nav-btn${toolbarOpen ? ' titlebar-nav-btn--active' : ''}`}

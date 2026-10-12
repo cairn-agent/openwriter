@@ -623,6 +623,25 @@ img.pending-delete {
   color: var(--accent);
 }
 
+/* A plugin's labelled title bar button (registerTopbarButton): words, not an icon. */
+.titlebar-text-btn {
+  height: 26px;
+  padding: 0 10px;
+  margin-right: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-dark);
+  font: 500 12px/1 var(--font-body, inherit);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.titlebar-text-btn:hover {
+  background: var(--bg-hover);
+}
+
 .titlebar-divider {
   width: 1px;
   height: 18px;

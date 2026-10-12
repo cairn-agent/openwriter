@@ -105,3 +105,10 @@ The publish plugin declares `PUBLISH_API_KEY` as the environment variable for it
 server's platform calls (`server/connections.ts`) read only the saved config, so the variable did
 nothing there. They now fall back to it when no key is saved, read on every call. A program
 embedding OpenWriter can hand its user's key over without writing OpenWriter's config file.
+
+### 2026-10-12 — Plugins can add a labelled title bar button
+
+`registerTopbarButton({ id, label, title?, onClick })` on the client plugin API puts a button
+with words in the title bar, always visible, beside the plugin toggles. A rail tab is the wrong
+shape for a plugin's own full screens (a dashboard, a settings page): it is narrow and hides with
+the rail. Generic: any plugin with its own screens needs a way in that does not depend on the rail.

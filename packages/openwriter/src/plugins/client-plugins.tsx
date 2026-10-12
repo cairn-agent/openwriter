@@ -119,9 +119,20 @@ export interface AppActions {
   previewOriginal(nodeId: string | null): void;
 }
 
+/** A labelled button in the rail's top bar, beside Sync: a way into a plugin's own screens. */
+export interface PluginTopbarButton {
+  id: string;
+  /** The button's words, short ("Your site"). */
+  label: string;
+  /** The tooltip; defaults to the label. */
+  title?: string;
+  onClick(): void;
+}
+
 export interface ClientPluginApi {
   registerRailTab(tab: PluginRailTab): void;
   registerMenuPanel(panel: PluginMenuPanel): void;
+  registerTopbarButton(button: PluginTopbarButton): void;
   /** Open a rail tab: a built-in id or a plugin tab's own id. */
   openRailTab(id: string): void;
   showToast: typeof showToast;
@@ -141,8 +152,8 @@ export const CONNECTION_LOST_EVENT = 'ow-connection-lost';
 
 // ---- Registry ----
 
-interface Registry { railTabs: PluginRailTab[]; menuPanels: PluginMenuPanel[] }
-let registry: Registry = { railTabs: [], menuPanels: [] };
+interface Registry { railTabs: PluginRailTab[]; menuPanels: PluginMenuPanel[]; topbarButtons: PluginTopbarButton[] }
+let registry: Registry = { railTabs: [], menuPanels: [], topbarButtons: [] };
 const listeners = new Set<() => void>();
 
 function update(next: Partial<Registry>): void {
@@ -211,6 +222,9 @@ const api: ClientPluginApi = {
   },
   registerMenuPanel(panel) {
     update({ menuPanels: [...registry.menuPanels.filter((p) => p.id !== panel.id), panel] });
+  },
+  registerTopbarButton(button) {
+    update({ topbarButtons: [...registry.topbarButtons.filter((b) => b.id !== button.id), button] });
   },
   openRailTab(id) {
     railOpener?.(resolveTabId(id));
