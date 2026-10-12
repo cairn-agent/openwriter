@@ -650,6 +650,11 @@ The old names `setup_custom_domain`, `check_domain_status` and `resend_domain_ve
 |------|-----------|-------------|
 | `list_subscribers` | `limit?`, `offset?`, `status?`, `tier?`, `search?`, `section?`, `tag?`, `joined_after?`, `joined_before?`, `opened_within_days?`, `not_opened_days?`, `segment?` | List subscribers with IDs, emails, names and tags; `section` lists who gets that section's emails; `segment` uses a saved segment instead of the filters |
 | `add_subscriber` | `email`, `name?`, `send_welcome?` | Add a single subscriber; `send_welcome` also sends the welcome email (once per person) |
+| `get_subscriber` | `member_id?` or `email?` | One subscriber: plan, payments, activity, tags, billing country, and the support actions taken on them |
+| `refund_subscriber` | `member_id?` or `email?`, `payment_id?`, `amount_cents?` | Refund a paid subscriber's payment (default: what is left of the latest); their plan is unchanged |
+| `cancel_subscription` | `member_id?` or `email?`, `when` (`now` or `period_end`) | Cancel a paid subscriber's plan now or at the end of the period |
+| `set_auto_renew` | `member_id?` or `email?`, `auto_renew` | Turn a paid subscriber's renewal off (it ends at the period end) or back on |
+| `set_founding` | `member_id?` or `email?`, `founding` | Mark or unmark a paying subscriber as a founding member |
 | `import_subscribers` | `file?`, `csv_text?` | Bulk import from CSV (auto-detects ConvertKit, Mailchimp, Substack, Beehiiv formats) |
 | `list_newsletter_issues` | `limit?` | List past sends with open/click stats — returns issue IDs |
 | `get_newsletter_analytics` | `issue_id` | Detailed drill-down: delivery stats, per-subscriber events, recipient list |
