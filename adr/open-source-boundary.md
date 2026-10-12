@@ -90,3 +90,11 @@ stale after every deploy. Generic: any plugin with a `clientModule` gets it, loc
 Tool calls carry document ids, so a plugin that shows a writer what a tool is doing (an activity
 line, a confirm prompt) could only print the id. Generic: any plugin reporting on documents needs
 the same lookup, and it reads nothing the writer cannot already see.
+
+### 2026-10-12 — Selection panels show over pending text too
+
+A context-menu panel with `needsSelection` was hidden when the selection touched a pending change,
+so a writer could not rewrite text an agent had just proposed until they accepted it. The server
+already handles that write: a rewrite over a pending change keeps the change's original (an insert
+stays an insert), so reject still restores what was there. Panels now need only a selection.
+Comment keeps its own rule and still skips pending text.

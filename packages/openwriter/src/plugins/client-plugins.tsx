@@ -65,7 +65,7 @@ export interface PluginMenuPanel {
   id: string;
   /** The context-menu item; choosing it replaces the menu's body with the panel. */
   label: string;
-  /** Offer it only for a text selection that overlaps no pending change. */
+  /** Offer it only for a text selection, pending changes included. */
   needsSelection?: boolean;
   mount(el: HTMLElement, ctx: MenuPanelContext): MountedView<MenuPanelContext>;
 }

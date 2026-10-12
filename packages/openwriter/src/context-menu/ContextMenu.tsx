@@ -251,7 +251,8 @@ export default function ContextMenu({ editorRef, allEditors, documentId, docId }
 
     // Plugin menu panels (client plugin API)
     for (const panel of menuPanels) {
-      if (panel.needsSelection && (!hasSelection || hasPending)) continue;
+      // Pending text included: a write over a pending change keeps that change's original.
+      if (panel.needsSelection && !hasSelection) continue;
       items.push({ action: `panel:${panel.id}`, label: panel.label });
     }
 
