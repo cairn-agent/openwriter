@@ -43,7 +43,9 @@ function getPublishConfig(): { apiKey: string; apiUrl: string } {
     console.warn('[connections] publish api-url not on allowlist — pinned to default host');
   }
   return {
-    apiKey: publishConfig['api-key'] || '',
+    // The plugin declares PUBLISH_API_KEY as this setting's environment variable; a saved key wins.
+    // Read per call, so a key the embedding program sets after start-up takes effect at once.
+    apiKey: publishConfig['api-key'] || process.env.PUBLISH_API_KEY || '',
     apiUrl,
   };
 }

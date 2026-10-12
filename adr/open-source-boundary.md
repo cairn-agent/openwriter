@@ -98,3 +98,10 @@ so a writer could not rewrite text an agent had just proposed until they accepte
 already handles that write: a rewrite over a pending change keeps the change's original (an insert
 stays an insert), so reject still restores what was there. Panels now need only a selection.
 Comment keeps its own rule and still skips pending text.
+
+### 2026-10-12 — The publish key can come from its environment variable
+
+The publish plugin declares `PUBLISH_API_KEY` as the environment variable for its key, but the
+server's platform calls (`server/connections.ts`) read only the saved config, so the variable did
+nothing there. They now fall back to it when no key is saved, read on every call. A program
+embedding OpenWriter can hand its user's key over without writing OpenWriter's config file.
