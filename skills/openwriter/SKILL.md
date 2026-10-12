@@ -644,7 +644,7 @@ Requires authentication via `request_login_code` + `verify_login`. All publish t
 
 | Tool | Key Params | Description |
 |------|-----------|-------------|
-| `list_subscribers` | `limit?`, `offset?` | List newsletter subscribers with IDs, emails, names |
+| `list_subscribers` | `limit?`, `offset?`, `status?`, `tier?`, `search?`, `section?` | List subscribers with IDs, emails, names; `section` lists who gets that section's emails |
 | `add_subscriber` | `email`, `name?`, `send_welcome?` | Add a single subscriber; `send_welcome` also sends the welcome email (once per person) |
 | `import_subscribers` | `file?`, `csv_text?` | Bulk import from CSV (auto-detects ConvertKit, Mailchimp, Substack, Beehiiv formats) |
 | `list_newsletter_issues` | `limit?` | List past sends with open/click stats — returns issue IDs |
@@ -672,7 +672,10 @@ Each profile gets a free site at `<name>.openwriter.io` with posts, subscribers 
 | `update_site_settings` | `default_audience?`, `auto_wall_after_days?`, `double_opt_in?`, `welcome_page?`, `welcome_email?`, `welcome_email_paid?`, `welcome_email_founding?`, `welcome_email_imported?`, `comments_enabled?`, `mailing_address?`, `private?`, `notify_subscribe_requests?`, `author_name?` | Change publication settings. A mailing address is needed before the first email |
 | `publish_to_site` | `title?`, `subtitle?`, `slug?`, `cover_url?`, `audience?`, `web_only?`, `email_only?`, `comments_audience?`, `publish_at?`, `send_email?`, `send_free_preview?`, `section?`, `tags?`, `authors?` | Publish the active doc as a post, or update the post it was published as before |
 | `unpublish_site_post` | `post_id?` | Take the active doc's post off the site |
-| `get_site_stats` | *(none)* | Subscriber counts, site totals, revenue, and the active doc's post stats |
+| `get_site_stats` | `post_id?` | Subscriber counts, site totals, revenue, and one post's stats (any post by id or slug, else the active doc's): views, opens, clicks, unsubscribes and their rates |
+| `get_subscriber_growth` | `interval?`, `from?`, `to?` | Subscribers (free, paid, comp, total) at the end of each day or week |
+| `get_paid_retention` | `months?` | New paid, cancelled, churn rate and MRR per month, with today's MRR |
+| `get_traffic_sources` | `post_id?`, `from?`, `to?` | Where post views came from: direct, your site, search, social, webmail, other websites, utm_source |
 | `request_site_review` | `note?` | New sites email a limited number of people a day; ask OpenWriter to lift the limit (once a day, owners and admins) |
 
 - **Audience:** `everyone`, `subscribers` (free or paid), `paid`, or `founding`.

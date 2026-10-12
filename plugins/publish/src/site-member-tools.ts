@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'fs';
 import type { PluginMcpTool } from './helpers.js';
 import { publishFetch } from './helpers.js';
-import { apiError, onSite, SITE_PARAM } from './site-tools.js';
+import { apiError, onSite, resolveSection, SITE_PARAM } from './site-tools.js';
 
 /**
  * The writer's subscriber list: the site's members, the one list site posts are emailed to
@@ -102,18 +102,26 @@ export function siteMemberTools(config: Record<string, string>): PluginMcpTool[]
       name: 'list_subscribers',
       description:
         'List the site\'s subscribers (its members: the list site posts are emailed to), newest first. ' +
-        'Active members by default; filter by status, tier or source. Works before a site name is claimed too.',
+        'Active members by default; filter by status, tier, source, search or section (who gets that section\'s emails). ' +
+        'Works before a site name is claimed too.',
       inputSchema: {
         type: 'object',
         properties: {
           limit: { type: 'number', description: 'Max subscribers to return (default 100, at most 500)' },
           offset: { type: 'number', description: 'Pagination offset (default 0)' },
           ...FILTER_PARAMS,
+          section: { type: 'string', description: 'Only members subscribed to this section (its id, slug or name, from list_site_sections).' },
           ...SITE_PARAM,
         },
       },
       handler: async (params) => {
-        const query = filterQuery(params, { limit: params.limit ?? 100, offset: params.offset ?? 0 });
+        let section: string | null = null;
+        if (typeof params.section === 'string' && params.section.trim()) {
+          const found = await resolveSection(config, params.site, params.section);
+          if (found && typeof found === 'object') return found;
+          section = found;
+        }
+        const query = filterQuery(params, { limit: params.limit ?? 100, offset: params.offset ?? 0, section });
         const res = await publishFetch(config, `/sites/members${query}`, onSite(params.site));
         if (!res.ok) return apiError(res, 'Failed to list subscribers');
         const data = (await res.json()) as { members: any[]; total: number };

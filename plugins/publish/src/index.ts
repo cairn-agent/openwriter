@@ -11,6 +11,7 @@ import { siteTools } from './site-tools.js';
 import { sitePostsTools } from './site-posts-tools.js';
 import { siteModerationTools } from './site-moderation-tools.js';
 import { siteReviewTools } from './site-review-tools.js';
+import { siteInsightsTools } from './site-insights-tools.js';
 import { readFileSync, existsSync } from 'fs';
 import { join, extname } from 'path';
 import type { Request, Response } from 'express';
@@ -183,6 +184,7 @@ const plugin: OpenWriterPlugin = {
       ...sitePostsTools(config),
       ...siteModerationTools(config),
       ...siteReviewTools(config),
+      ...siteInsightsTools(config),
 
       // Paid plan tools (Stripe connect, plans, comps, offers)
       ...siteMoneyTools(config),

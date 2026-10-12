@@ -90,7 +90,8 @@ export function siteStructureTools(config: Record<string, string>): PluginMcpToo
       name: 'list_site_sections',
       description:
         'The site\'s sections, in navigation order. A section is a separate stream of posts with its own page (/s/<slug>) that readers can switch on or off in their email settings. ' +
-        'Posts with no section are in the main publication.',
+        'Posts with no section are in the main publication. Each section\'s subscribers is how many active members get its emails; ' +
+        'list_subscribers with section lists who they are.',
       inputSchema: { type: 'object', properties: { ...SITE_PARAM } },
       handler: async (params) => {
         const res = await publishFetch(config, '/sites/sections', onSite(params.site));

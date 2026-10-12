@@ -54,7 +54,7 @@ function postUrl(siteSlug: string | null | undefined, postSlug: string): string 
 }
 
 /** A section given by id, slug or name: its id, null for the main publication (empty string), or an error. */
-async function resolveSection(config: Record<string, string>, site: unknown, section: string): Promise<string | null | { error: string }> {
+export async function resolveSection(config: Record<string, string>, site: unknown, section: string): Promise<string | null | { error: string }> {
   if (!section.trim()) return null;
   const res = await publishFetch(config, '/sites/sections', onSite(site));
   if (!res.ok) return apiError(res, 'Could not load sections');
@@ -359,27 +359,41 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
     {
       name: 'get_site_stats',
       description:
-        'Site numbers: subscriber counts by type and status, site totals, revenue, and stats (views, recipients, opens, clicks, subscribers gained) for the active document\'s post if it has one. ' +
+        'Site numbers: subscriber counts by type and status, site totals, revenue, and stats for one post: post_id (any post, ' +
+        'by id or slug), else the active document\'s post if it has one. A post\'s stats are views, subscribers gained after it ' +
+        'was published and, once emailed, recipients, opens, clicks and unsubscribes with open_rate, click_rate and ' +
+        'unsubscribe_rate (percent of recipients). ' +
         'Revenue (site.revenue) gives paid members by plan, how many are in a free trial, comps, monthly recurring revenue, ' +
         'OpenWriter\'s 5% fee and what the writer keeps, in cents of the plans\' currency.',
-      inputSchema: { type: 'object', properties: { ...SITE_PARAM } },
+      inputSchema: {
+        type: 'object',
+        properties: {
+          post_id: { type: 'string', description: 'A post\'s id or slug (from list_site_posts). Leave out for the active document\'s post.' },
+          ...SITE_PARAM,
+        },
+      },
       handler: async (params) => {
         const server = await getServerModules();
         const docPost = server.getMetadata()?.[POST_KEY];
+        const asked = typeof params.post_id === 'string' && params.post_id.trim() ? params.post_id.trim() : undefined;
         // The doc's post counts only when it lives on the site asked about.
-        const postId = (docPost?.site ?? '') === ((params.site as string | undefined) ?? '') ? (docPost?.id as string | undefined) : undefined;
+        const postId = asked ?? ((docPost?.site ?? '') === ((params.site as string | undefined) ?? '') ? (docPost?.id as string | undefined) : undefined);
         const [stats, counts, post] = await Promise.all([
           publishFetch(config, '/sites/stats', onSite(params.site)),
           publishFetch(config, '/sites/members/counts', onSite(params.site)),
-          postId ? publishFetch(config, `/sites/posts/${postId}/stats`, onSite(params.site)) : Promise.resolve(null),
+          postId ? publishFetch(config, `/sites/posts/${encodeURIComponent(postId)}/stats`, onSite(params.site)) : Promise.resolve(null),
         ]);
         if (!stats.ok) return apiError(stats, 'Could not load site stats');
         if (!counts.ok) return apiError(counts, 'Could not load member counts');
+        if (asked && !post?.ok) return post?.status === 404 ? { error: `No post "${asked}" on this site.` } : apiError(post!, 'Could not load the post\'s stats');
         const out: Record<string, unknown> = {
           site: ((await stats.json()) as { stats: unknown }).stats,
           members: ((await counts.json()) as { counts: unknown }).counts,
         };
-        if (post?.ok) out.post = { post_id: postId, ...((await post.json()) as { stats: object }).stats };
+        if (post?.ok) {
+          const { post: p, stats: s } = (await post.json()) as { post: { id: string; title: string; slug: string; status: string; published_at: string | null }; stats: object };
+          out.post = { post_id: p.id, title: p.title, slug: p.slug, status: p.status, published_at: p.published_at, ...s };
+        }
         return out;
       },
     },
