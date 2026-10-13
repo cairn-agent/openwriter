@@ -73,9 +73,11 @@ export function docCover(meta: Record<string, any>): string | undefined {
 export function dropTitleLine(html: string, title: string): string {
   const first = /^\s*<(h[1-6]|p)>([\s\S]*?)<\/\1>\s*/.exec(html);
   if (!first) return html;
-  const text = first[2].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim();
-  return text && text === title.replace(/\s+/g, ' ').trim() ? html.slice(first[0].length) : html;
+  // Compared by words only: the line often ends with a period the title does not have.
+  const words = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  const text = words(first[2].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
+  return text && text === words(title) ? html.slice(first[0].length) : html;
 }
 
 /** A site's id, for comparing two ways of naming a site (an id, a name, or none for the profile's own). */
