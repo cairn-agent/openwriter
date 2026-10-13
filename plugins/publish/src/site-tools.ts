@@ -354,7 +354,10 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
             type: 'boolean',
             description: 'Save the post on the site without publishing it, to preview it (preview_site_post), send a test email (send_test_email) or share it by secret link (get_post_share_link). Readers see nothing until it is published.',
           },
-          send_email: { type: 'boolean', description: 'Also email the post to subscribers when it publishes. Each audience gets its own version.' },
+          send_email: {
+            type: 'boolean',
+            description: 'Also email the post to subscribers when it publishes. Each audience gets its own version. Subscribers who turned emails off are skipped (they still read it on the site).',
+          },
           send_free_preview: {
             type: 'boolean',
             description: 'With send_email on a paid or founding post: also email free subscribers the preview above the paywall.',

@@ -648,9 +648,10 @@ The old names `setup_custom_domain`, `check_domain_status` and `resend_domain_ve
 
 | Tool | Key Params | Description |
 |------|-----------|-------------|
-| `list_subscribers` | `limit?`, `offset?`, `status?`, `tier?`, `search?`, `section?`, `tag?`, `joined_after?`, `joined_before?`, `opened_within_days?`, `not_opened_days?`, `segment?` | List subscribers with IDs, emails, names and tags; `section` lists who gets that section's emails; `segment` uses a saved segment instead of the filters |
+| `list_subscribers` | `limit?`, `offset?`, `status?`, `tier?`, `email_off?`, `search?`, `section?`, `tag?`, `joined_after?`, `joined_before?`, `opened_within_days?`, `not_opened_days?`, `segment?` | List subscribers with IDs, emails, names, tags and `email_off` (turned emails off, still subscribed); `section` lists who gets that section's emails; `segment` uses a saved segment instead of the filters |
 | `add_subscriber` | `email`, `name?`, `send_welcome?` | Add a single subscriber; `send_welcome` also sends the welcome email (once per person) |
-| `get_subscriber` | `member_id?` or `email?` | One subscriber: plan, payments, activity, tags, billing country, and the support actions taken on them |
+| `get_subscriber` | `member_id?` or `email?` | One subscriber: plan, payments, activity, tags, billing country, whether emails are off, and the support actions taken on them |
+| `set_subscriber_emails` | `member_id?` or `email?`, `email_off` | Turn a subscriber's emails off (they stay subscribed with all their access; paid access and billing unchanged) or back on |
 | `refund_subscriber` | `member_id?` or `email?`, `payment_id?`, `amount_cents?` | Refund a paid subscriber's payment (default: what is left of the latest); their plan is unchanged |
 | `cancel_subscription` | `member_id?` or `email?`, `when` (`now` or `period_end`) | Cancel a paid subscriber's plan now or at the end of the period |
 | `set_auto_renew` | `member_id?` or `email?`, `auto_renew` | Turn a paid subscriber's renewal off (it ends at the period end) or back on |
@@ -696,7 +697,7 @@ Each profile gets a free site at `<name>.openwriter.io` with posts, subscribers 
 | `get_survey_results` | `survey_id` | Responses count; per question counts and percents, or the text answers |
 | `list_survey_responses` | `survey_id`, `limit?`, `offset?` | Each response with the reader's email when they were signed in, answers in words |
 | `export_survey_responses` | `survey_id`, `file?` | Every response as CSV, saved to `file` or returned |
-| `email_subscribers` | `subject`, `body`, `email?`, `member_id?`, `tier?`, `section?`, `search?`, `segment?`, `dry_run?` | Email one subscriber, a group or a saved segment a message that is not a post (never on the site); `dry_run` counts who would get it |
+| `email_subscribers` | `subject`, `body`, `email?`, `member_id?`, `tier?`, `section?`, `search?`, `segment?`, `dry_run?` | Email one subscriber, a group or a saved segment a message that is not a post (never on the site), skipping subscribers who turned emails off; `dry_run` counts who would get it |
 | `list_sent_messages` | `limit?`, `offset?` | Past messages: subject, who it went to, who sent it, when, delivered and opens |
 | `resend_post_to_unopened` | `post_id`, `subject?`, `dry_run?` | Resend an emailed post once to who did not open it, from 24 hours after it was sent; `dry_run` counts first |
 
@@ -766,7 +767,7 @@ Every site tool takes an optional `site` (a site's name or id from `list_my_site
 | `approve_site_comment` / `delete_site_comment` / `pin_site_comment` | `comment_id`; `pinned` to pin | Approve clears a reported comment's reports and keeps it up; delete takes it down for good |
 | `ban_readers` / `unban_reader` / `list_banned_readers` | `emails`, `reason?`, `delete_comments?`; `email` | Ban emails from commenting and subscribing; free subscriptions end, paid access is kept and listed in `paid_access_kept` to refund or cancel in Stripe |
 | `tag_subscribers` / `list_subscriber_tags` | `emails?` or `member_ids?`, `add?`, `remove?` | Put tags on subscribers or take them off (many at once; also from an import's `tags` column); list tags with how many have each |
-| `save_segment` / `list_segments` / `delete_segment` | `name`, `tier?`, `status?`, `source?`, `search?`, `section?`, `tag?`, `joined_after?`, `joined_before?`, `opened_within_days?`, `not_opened_days?` | Named saved filters with live counts; `list_subscribers`, `export_subscribers`, `get_subscriber_counts` and `email_subscribers` take `segment` |
+| `save_segment` / `list_segments` / `delete_segment` | `name`, `tier?`, `status?`, `email_off?`, `source?`, `search?`, `section?`, `tag?`, `joined_after?`, `joined_before?`, `opened_within_days?`, `not_opened_days?` | Named saved filters with live counts; `list_subscribers`, `export_subscribers`, `get_subscriber_counts` and `email_subscribers` take `segment` |
 | `get_paid_by_country` | *(none)* | Paid subscribers per billing country (from Stripe), plus how many have none yet |
 | `find_inactive_subscribers` / `ask_inactive_subscribers` | `days?` (180), `min_sent?` (5); ask: `subject?`, `body?`, `dry_run?` | Free subscribers who opened nothing in `days` though emailed `min_sent` times, and why pruning helps delivery; ask emails them "still want this?" first |
 | `prune_inactive_subscribers` / `list_pruned_subscribers` | `days?`, `min_sent?`, `dry_run` | Unsubscribe them (never paid, comp or founding); `dry_run: true` first. Waits 7 days after an ask; the list shows who went and why |

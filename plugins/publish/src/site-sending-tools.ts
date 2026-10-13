@@ -29,7 +29,7 @@ export function siteSendingTools(config: Record<string, string>): PluginMcpTool[
       description:
         'Email one subscriber, or a group of subscribers, a message that is not a post: it is never shown on the site. ' +
         'Give email or member_id for one person, any of tier, section and search for a group, or a saved segment; with none of them it goes to every active subscriber. ' +
-        'Only active subscribers are emailed. It carries the site\'s mailing address and an unsubscribe link, counts against the daily limit ' +
+        'Only active subscribers are emailed, never those who turned emails off (dry_run counts without them; one reader with emails off is refused). It carries the site\'s mailing address and an unsubscribe link, counts against the daily limit ' +
         'while the site is in review, and is listed by list_sent_messages. Run with dry_run first: it returns how many would get it and sends nothing.',
       inputSchema: {
         type: 'object',
@@ -87,7 +87,7 @@ export function siteSendingTools(config: Record<string, string>): PluginMcpTool[
     {
       name: 'resend_post_to_unopened',
       description:
-        'Email an emailed post again to the people who got it and did not open it, still subscribed and still in its audience. ' +
+        'Email an emailed post again to the people who got it and did not open it, still subscribed with emails on and still in its audience. ' +
         'A post is resent once, and only from 24 hours after it was emailed (a refusal says when). A new subject is optional. ' +
         'Run with dry_run first: it returns how many would get it and sends nothing.',
       inputSchema: {

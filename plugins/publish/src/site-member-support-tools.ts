@@ -43,7 +43,8 @@ export function siteMemberSupportTools(config: Record<string, string>): PluginMc
     {
       name: 'get_subscriber',
       description:
-        'One subscriber in detail: tier, status, source, when they joined, their tags, the country they are billed in ' +
+        'One subscriber in detail: tier, status, whether they turned emails off (email_off, and since when: email_off_at), ' +
+        'source, when they joined, their tags, the country they are billed in ' +
         '(billing_country and billing_country_name, for paying readers), founding, comp; their paid plan as Stripe has it ' +
         '(amount in cents, interval, renewal date, whether it renews, trial end); their last 24 payments with refunds and invoice ' +
         'links; their activity (site emails received, emails opened and clicked, comments, likes, last seen); and the support ' +

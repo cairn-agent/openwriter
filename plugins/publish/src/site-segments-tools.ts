@@ -82,6 +82,7 @@ export function siteSegmentsTools(config: Record<string, string>): PluginMcpTool
           name: { type: 'string', description: 'The segment\'s name, e.g. "Engaged paid readers".' },
           tier: { type: 'string', enum: TIERS, description: 'Only this kind of subscriber.' },
           status: { type: 'string', enum: STATUSES, description: 'Default active; "all" for every status.' },
+          email_off: { type: 'boolean', description: 'true: only subscribers who turned emails off. false: only those who get emails.' },
           source: { type: 'string', description: 'Only subscribers who came from this source (import, manual, site, embed...).' },
           search: { type: 'string', description: 'Only subscribers whose email or name contains this.' },
           section: { type: 'string', description: 'Only subscribers who get this section, by name, slug or id (list_site_sections).' },
@@ -96,7 +97,7 @@ export function siteSegmentsTools(config: Record<string, string>): PluginMcpTool
       },
       handler: async (params) => {
         const body: Record<string, unknown> = {};
-        for (const k of ['name', 'tier', 'status', 'source', 'search', 'tag', 'opened_within_days', 'not_opened_days']) {
+        for (const k of ['name', 'tier', 'status', 'email_off', 'source', 'search', 'tag', 'opened_within_days', 'not_opened_days']) {
           if (params[k] !== undefined && params[k] !== null && params[k] !== '') body[k] = params[k];
         }
         if (params.joined_after) body.from = params.joined_after;
@@ -165,7 +166,8 @@ export function siteSegmentsTools(config: Record<string, string>): PluginMcpTool
         'Find free subscribers who opened and clicked nothing from the site in `days` days (default 180) although it ' +
         'emailed them at least `min_sent` times (default 5): who prune_inactive_subscribers would remove. Returns the ' +
         'count, the first 50 (with emails sent and their last open), when you last asked them, and why pruning helps ' +
-        'your emails reach the inbox. Paid, complimentary and founding subscribers are never included. Changes nothing.',
+        'your emails reach the inbox. Paid, complimentary and founding subscribers, and subscribers who turned emails off, ' +
+        'are never included. Changes nothing.',
       inputSchema: { type: 'object', properties: { ...RULE, ...SITE_PARAM } },
       handler: async (params) => {
         const q = new URLSearchParams(Object.entries(rule(params)).map(([k, v]) => [k, String(v)]));
@@ -207,7 +209,8 @@ export function siteSegmentsTools(config: Record<string, string>): PluginMcpTool
       description:
         'Unsubscribe free subscribers who opened and clicked nothing in `days` days (default 180) although emailed at ' +
         'least `min_sent` times (default 5). REMOVES READERS: run with dry_run true first and tell the writer the count, ' +
-        'then run with dry_run false only when they agree. Paid, complimentary and founding subscribers are never removed; ' +
+        'then run with dry_run false only when they agree. Paid, complimentary and founding subscribers, and subscribers ' +
+        'who turned emails off, are never removed; ' +
         'removed readers can subscribe again, and list_pruned_subscribers shows who went. Refused for 7 days after ' +
         'ask_inactive_subscribers so they can answer.',
       inputSchema: {

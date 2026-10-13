@@ -132,7 +132,8 @@ export function siteBillingTools(config: Record<string, string>): PluginMcpTool[
       name: 'email_pledgers',
       description:
         'Once paid plans are open, email the readers who pledged a link to subscribe. Each pledger gets it once; run it again later ' +
-        'only for new pledgers. Subject and message are optional (a thank-you is used); the link is added. Run with dry_run first: ' +
+        'only for new pledgers. Pledgers who turned emails off get it too: they asked to be told. ' +
+        'Subject and message are optional (a thank-you is used); the link is added. Run with dry_run first: ' +
         'it returns how many would get it and sends nothing.',
       inputSchema: {
         type: 'object',
@@ -156,7 +157,7 @@ export function siteBillingTools(config: Record<string, string>): PluginMcpTool[
       description:
         'Email an offer\'s link (from list_offers) with the writer\'s message to a group of subscribers: free subscribers unless tier ' +
         'says otherwise, narrowed by section and search. The offer\'s terms and a "Claim this offer" link are added below the message. ' +
-        'Only a live offer can be sent. Run with dry_run first: it returns how many would get it and sends nothing.',
+        'Only a live offer can be sent. Subscribers who turned emails off are skipped. Run with dry_run first: it returns how many would get it and sends nothing.',
       inputSchema: {
         type: 'object',
         properties: {

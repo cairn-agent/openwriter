@@ -96,7 +96,7 @@ export function siteExtrasTools(config: Record<string, string>): PluginMcpTool[]
           from_site: { type: 'string', description: 'The other site\'s name (the part before .openwriter.io), with slug instead of url.' },
           slug: { type: 'string', description: 'The post\'s slug on that site, with from_site.' },
           note: { type: 'string', description: 'The writer\'s note shown above the post, and the email\'s text with send_email. Up to 2000 characters.' },
-          send_email: { type: 'boolean', description: 'Also email the note and a link to every subscriber, as a message (default false).' },
+          send_email: { type: 'boolean', description: 'Also email the note and a link to every subscriber who gets emails, as a message (default false).' },
           ...SITE_PARAM,
         },
       },

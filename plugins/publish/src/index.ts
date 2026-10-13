@@ -6,6 +6,7 @@ import { siteGrowthExtrasTools } from './site-growth-extras-tools.js';
 import { siteMemberTools } from './site-member-tools.js';
 import { siteMemberSupportTools } from './site-member-support-tools.js';
 import { siteSegmentsTools } from './site-segments-tools.js';
+import { siteEmailOffTools } from './site-email-off-tools.js';
 import { siteMoneyTools } from './site-money-tools.js';
 import { siteBillingTools } from './site-billing-tools.js';
 import { siteSenderTools } from './site-sender-tools.js';
@@ -195,6 +196,7 @@ const plugin: OpenWriterPlugin = {
       ...siteMemberTools(config),
       ...siteMemberSupportTools(config),
       ...siteSegmentsTools(config),
+      ...siteEmailOffTools(config),
 
       // Site tools (<name>.openwriter.io: claim, settings, publish posts, stats)
       ...siteTools(config),

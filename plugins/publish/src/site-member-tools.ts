@@ -15,6 +15,7 @@ const STATUSES = ['active', 'pending', 'unsubscribed', 'bounced', 'all'];
 const FILTER_PARAMS = {
   status: { type: 'string', enum: STATUSES, description: 'Only members in this status (default active; "all" for every status).' },
   tier: { type: 'string', enum: TIERS, description: 'Only members on this tier.' },
+  email_off: { type: 'boolean', description: 'true: only members who turned emails off (still subscribed, never emailed). false: only members who get emails.' },
   source: { type: 'string', description: 'Only members who came from this source (e.g. import, manual, site, embed).' },
   search: { type: 'string', description: 'Only members whose email or name contains this, any case (e.g. "ann@" or "smith").' },
   tag: { type: 'string', description: 'Only members with this tag (tag_subscribers, list_subscriber_tags).' },
@@ -33,7 +34,7 @@ function filterQuery(params: Record<string, unknown>, extra: Record<string, unkn
     ? { segment }
     : {
         status: typeof params.status === 'string' ? params.status : 'active',
-        tier: params.tier, source: params.source, search: params.search, tag: params.tag,
+        tier: params.tier, email_off: params.email_off, source: params.source, search: params.search, tag: params.tag,
         from: params.joined_after, to: params.joined_before,
         opened_within_days: params.opened_within_days, not_opened_days: params.not_opened_days,
       };
@@ -117,8 +118,9 @@ export function siteMemberTools(config: Record<string, string>): PluginMcpTool[]
       name: 'list_subscribers',
       description:
         'List the site\'s subscribers (its members: the list site posts are emailed to), newest first, with their tags. ' +
-        'Active members by default; filter by status, tier, source, search, section (who gets that section\'s emails), tag, ' +
+        'Active members by default; filter by status, tier, email_off, source, search, section (who gets that section\'s emails), tag, ' +
         'when they joined, and whether they opened an email lately; or give a saved segment instead. ' +
+        'Each subscriber has email_off: true when they turned emails off (still subscribed with all their access, never emailed). ' +
         'Works before a site name is claimed too.',
       inputSchema: {
         type: 'object',
@@ -144,7 +146,7 @@ export function siteMemberTools(config: Record<string, string>): PluginMcpTool[]
         return {
           count: data.total,
           subscribers: data.members.map((m) => ({
-            id: m.id, email: m.email, name: m.name, tier: m.tier, status: m.status, source: m.source,
+            id: m.id, email: m.email, name: m.name, tier: m.tier, status: m.status, email_off: m.email_off ?? false, source: m.source,
             subscribedAt: m.subscribed_at, tags: m.tags ?? [],
           })),
         };
@@ -154,7 +156,9 @@ export function siteMemberTools(config: Record<string, string>): PluginMcpTool[]
     {
       name: 'get_subscriber_counts',
       description:
-        'How many subscribers the site has: active members by tier (free, paid, founding, comp) and every member by status. ' +
+        'How many subscribers the site has: active members by tier (active_by_tier: free, paid, founding, comp, emails on or off) and every member by status. ' +
+        'emailed_by_tier counts only the active members who get emails, by tier: use it for how many people a post or message would reach. ' +
+        'email_off is how many active members turned emails off (still subscribed, never emailed). ' +
         'With segment, the same counts for that saved segment.',
       inputSchema: { type: 'object', properties: { segment: FILTER_PARAMS.segment, ...SITE_PARAM } },
       handler: async (params) => {
@@ -206,7 +210,8 @@ export function siteMemberTools(config: Record<string, string>): PluginMcpTool[]
       name: 'remove_subscriber',
       description:
         'Unsubscribe a subscriber from the site by their id (from list_subscribers). They get no more email; ' +
-        'they stay in the list as unsubscribed, and only they can subscribe again.',
+        'they stay in the list as unsubscribed, and only they can subscribe again. To stop their emails but keep them ' +
+        'subscribed, use set_subscriber_emails instead.',
       inputSchema: {
         type: 'object',
         properties: { id: { type: 'string', description: 'The subscriber id from list_subscribers' }, ...SITE_PARAM },
@@ -290,7 +295,7 @@ export function siteMemberTools(config: Record<string, string>): PluginMcpTool[]
     {
       name: 'export_subscribers',
       description:
-        'Export the site\'s subscribers as CSV (email, name, tier, status, source, subscribed_at, tags, billing_country). ' +
+        'Export the site\'s subscribers as CSV (email, name, tier, status, email_off, source, subscribed_at, tags, billing_country). ' +
         'Active members by default; takes the same filters as list_subscribers, or a saved segment. ' +
         'Saves to file when given, otherwise returns the CSV text.',
       inputSchema: {
