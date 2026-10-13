@@ -17,6 +17,7 @@ import SchedulePostModal from './SchedulePostModal';
 import PostToBlogModal from './PostToBlogModal';
 import { TAB_HEADER } from '../ws/client';
 import NewsletterAnalyticsModal from '../newsletter/NewsletterAnalyticsModal';
+import { showToast } from '../utils/toast';
 
 export interface DocMenuTarget {
   x: number;
@@ -119,7 +120,14 @@ export default function DocContextMenu({ menu, onClose, docs, workspaces, action
       setFocusModal({ action, label: item.label, filename, title });
       return;
     }
-    fetch('/api/plugins/sidebar-action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, filename, title, instructions: instructions || '', label: item.label }) }).catch(() => {});
+    // A plugin that answers with `message` (or `error`) tells the writer how it went.
+    fetch('/api/plugins/sidebar-action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, filename, title, instructions: instructions || '', label: item.label }) })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null);
+        if (!res.ok && typeof data?.error === 'string') showToast(data.error, 'error', 8000);
+        else if (res.ok && typeof data?.message === 'string') showToast(data.message, 'info', 6000);
+      })
+      .catch(() => {});
   }, [docs]);
 
   return (
