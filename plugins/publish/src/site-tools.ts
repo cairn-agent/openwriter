@@ -65,6 +65,25 @@ export function docCover(meta: Record<string, any>): string | undefined {
   return typeof cover === 'string' && cover ? cover : undefined;
 }
 
+/**
+ * The post page and the email already show the title above the body, so a document whose first
+ * line is its title (how a new document gets its name) would show it twice. Drop that first block
+ * when its text is the title.
+ */
+export function dropTitleLine(html: string, title: string): string {
+  const first = /^\s*<(h[1-6]|p)>([\s\S]*?)<\/\1>\s*/.exec(html);
+  if (!first) return html;
+  const text = first[2].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim();
+  return text && text === title.replace(/\s+/g, ' ').trim() ? html.slice(first[0].length) : html;
+}
+
+/** A site's id, for comparing two ways of naming a site (an id, a name, or none for the profile's own). */
+async function siteIdOf(config: Record<string, string>, site: unknown): Promise<string | null> {
+  const res = await publishFetch(config, '/sites', onSite(site));
+  return res.ok ? (((await res.json()) as { site: { id: string } }).site.id ?? null) : null;
+}
+
 function postUrl(siteSlug: string | null | undefined, postSlug: string): string | null {
   return siteSlug ? `https://${siteSlug}.openwriter.io/p/${postSlug}` : null;
 }
@@ -374,8 +393,23 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
         const server = await getServerModules();
         const meta = server.getMetadata() || {};
         const site = (params.site as string | undefined) ?? meta[POST_KEY]?.site;
-        const { html, subject } = await documentToEmail();
+        const { html: docHtml, subject } = await documentToEmail();
+        const html = dropTitleLine(docHtml, subject);
         if (!html.trim()) return { error: 'The document is empty.' };
+
+        // One document is one post on one site. Naming another site would make a second post there
+        // (the recorded one is not found on it) and leave this document pointing at the new one.
+        const recorded = meta[POST_KEY];
+        if (recorded?.id && params.site !== undefined && params.site !== recorded.site) {
+          const [asked, own] = await Promise.all([siteIdOf(config, params.site), siteIdOf(config, recorded.site)]);
+          if (asked && own && asked !== own) {
+            const there = await publishFetch(config, `/sites/posts/${recorded.id}`, onSite(recorded.site));
+            if (there.ok) {
+              return { error: `This document is already a post on ${recorded.url ? new URL(recorded.url).host : 'another site'}. Switch to that site to update it, or copy the document to publish it on this one.` };
+            }
+          }
+        }
+
         const wall = placeWall(html);
         if (!wall.ok) return { error: wall.error };
         // No cover passed: use the document's own cover. An empty string still clears it.
