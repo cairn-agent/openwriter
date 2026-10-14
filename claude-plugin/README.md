@@ -42,8 +42,10 @@ account and sends no telemetry. It contacts the network only for these:
 - web pages and Google Docs you ask it to read or import;
 - publish.openwriter.io, only if you connect a publishing account to schedule
   newsletter or social posts;
-- the X API, Google's image API, or authors-voice.com, only if you enable the
-  matching OpenWriter add-on in its settings and give it your own key.
+- the X API or Google's image API, only if you enable the matching OpenWriter
+  add-on in its settings and give it your own key;
+- Anthropic's API, only when you run a writing action, on your own Claude key
+  (or through publish.openwriter.io on your OpenWriter balance, if you have no key).
 
 ## Already using OpenWriter?
 

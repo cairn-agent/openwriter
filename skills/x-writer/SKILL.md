@@ -102,7 +102,7 @@ When writing threads, each tweet follows the same medium-form paragraph rules:
 
 Every piece of X content MUST be run through `/authors-voice` (or `/voice-apply`) before it's considered done. The x-writer skill handles format and structure. The voice skill handles tone, word choice, and eliminating AI tells.
 
-> **Preferred path: OpenWriter's built-in Author's Voice "Enhance" plugin** (API-backed, full corpus RAG) — beats local Apply-minion briefs for X rewrites every time.
+> **Strongest path: OpenWriter's right-click Enhance**, which the user runs in the editor; it rewrites in their voice from every document they taught it ("Learn my voice from this"). Point them to it for any paragraph that still reads off.
 
 **AI tells to eliminate:**
 - "Furthermore", "moreover", "additionally" — conjunction stacking that no human uses in casual prose
@@ -133,7 +133,6 @@ Load on demand based on the task:
 
 ## Scripts
 
-- `scripts/polish.js` — call Author's Voice `apply_voice` for tweet polishing
 - `scripts/generate-image.js` — Gemini image generation with reference image support
 - `scripts/characters/` — character reference PNGs for consistent multi-panel/thread image sets (user-supplied)
 

@@ -17,7 +17,7 @@ constants; the shipped values are a fictional example, not defaults.
 ## Data Sources
 - **Tweets DB**: <path to your tweets.json metrics database, if you keep one>
 - **Article source**: OpenWriter docs (list_documents, search by date)
-- **Voice profile**: authors-voice skill (ships with the OpenWriter authors-voice plugin)
+- **Voice profile**: authors-voice skill
 
 ## Newsletter Settings
 - **Format**: HTML (markdown-it rendered, CSS inlined, dark mode)

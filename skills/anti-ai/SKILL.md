@@ -95,7 +95,7 @@ If anything fails, rewrite that section. Don't patch — rewrite using the sampl
 
 When invoked on a piece of text:
 1. Run all Tier 1 checks unconditionally. Fix every match.
-2. If a voice profile was used to write the text (e.g. via the authors-voice plugin skill, if installed), the Tier 2 decisions are already pre-resolved — verify they hold. Otherwise, default-resolve Tier 2 toward plain language.
+2. If a voice profile was used to write the text (e.g. via the authors-voice skill, if installed), the Tier 2 decisions are already pre-resolved — verify they hold. Otherwise, default-resolve Tier 2 toward plain language.
 3. Re-read the full output against the Final Check list before declaring done.
 
 Pairs naturally with the authors-voice skill if installed (it applies anti-AI passes internally; run this skill on its output as a manual verification).

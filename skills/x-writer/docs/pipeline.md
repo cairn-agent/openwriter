@@ -2,7 +2,7 @@
 
 Brainstorm with user → polish in their voice → compose/schedule via OpenWriter.
 
-**Prerequisites:** OpenWriter MCP server connected, `/authors-voice` voice profile configured (or `AV_API_KEY` env var for the CLI polish path).
+**Prerequisites:** OpenWriter MCP server connected, `/authors-voice` voice profile configured.
 
 ## Tweet Formats
 
@@ -53,16 +53,7 @@ Discuss the topic, angle, and hook. Draft raw tweets together. Don't worry about
 
 ### Step 2: Polish in your voice
 
-Two paths:
-
-**Conversational (default):** invoke `/authors-voice` to rewrite each draft via MCP. Canonical voice path.
-
-**CLI (batch / scripting):** for batch polishing outside a Claude turn:
-```bash
-node ~/.claude/skills/x-writer/scripts/polish.js "Raw draft tweet text here"
-```
-
-Calls `apply_voice` with category `x`, mode `rewrite`, intensity `moderate`. Multi-input batch: `polish.js "tweet 1" "tweet 2" "tweet 3"`. Options: `--intensity light|moderate|full`, `--json`.
+Invoke `/authors-voice` to rewrite each draft in the user's voice. Once a draft is in OpenWriter, the user can also right-click a paragraph > Enhance to bring it closer to their voice.
 
 ### Step 3: Review with user
 
@@ -83,15 +74,6 @@ Scheduling and posting are OpenWriter-native — no separate CLI scheduler:
 
 OpenWriter owns the X integration, time math, retries, and queue persistence.
 
-## [!POLISH-ONLY]
-
-To polish without composing/scheduling (just get the voice rewrite):
-```bash
-node ~/.claude/skills/x-writer/scripts/polish.js "Your raw tweet text"
-```
-
-Prints the polished version. Use `--json` for structured output.
-
 ## [!FREE-TWEET-READING]
 
 Read ANY tweet for free by swapping `x.com` → `api.fxtwitter.com` in the URL:
@@ -110,4 +92,3 @@ Use `WebFetch` on the fxtwitter URL. Returns: full text, author, metrics (likes,
 
 - **Medium form is the default** — 3-4 paragraphs, not one-liners
 - **One core concept per tweet** — develop it across paragraphs, don't pack multiple ideas
-- **Author's Voice category is `x`** — the voice API uses the user's Twitter writing samples for voice matching

@@ -38,7 +38,7 @@ This newsletter is **behind the scenes**, not a content recap. Readers can go re
 
 ## Critical Rules
 
-1. **ALWAYS use the authors-voice protocol.** Load the voice profile/anchor, pull writing samples from the corpus, write with the profile as behavioral constraints, run anti-AI detection. Never skip this. The authors-voice skill ships with the OpenWriter authors-voice plugin.
+1. **ALWAYS use the authors-voice protocol.** Load the voice profile/anchor, pull writing samples from the corpus, write with the profile as behavioral constraints, run anti-AI detection. Never skip this. Install the authors-voice skill with `claude install github:travsteward/authors-voice`.
 2. **NEVER write the author's position for them.** You gather data and present structure. You ASK the author what they think. They tell you. You synthesize their input in their voice. The author's original thinking is the product — you are the editor, not the writer.
 3. **Source article content from OpenWriter docs FIRST.** X Articles may not be readable via fxtwitter. The drafts live in OpenWriter. Search `list_documents` before trying external APIs.
 4. **Every section headline is specific to that week's content.** No generic recurring labels like "This Week on X" or "The Author's Position." Each section gets a unique, attention-grabbing headline based on the actual topic. Example: "Why the 8-Hour Rule Is Wrong for Shift Workers" not "The Author's Position." "The Tweet That Got 1.75M Views About Sleep Debt" not "This Week on X." Specificity is what grabs attention.
@@ -307,7 +307,7 @@ Now you write. Using the author's answers as raw material, enriched with researc
 - **No seed content from the author** → Draft in the companion doc first. Apply authors-voice, get approval, THEN commit to the newsletter. Never write unvetted AI text directly into a blank newsletter section — early AI prose poisons the direction of all subsequent rewrites.
 
 ### Load Voice Profile
-Use the authors-voice skill (ships with the OpenWriter authors-voice plugin). Load the author's anchor + NEVER rules + fingerprint per its Apply Protocol. If the author hasn't set up authors-voice yet, run its setup first — voice-matched drafting is non-negotiable for this pipeline.
+Use the authors-voice skill (Critical Rule 1). Load the author's anchor + NEVER rules + fingerprint per its Apply Protocol. If the author hasn't set up authors-voice yet, run its setup first — voice-matched drafting is non-negotiable for this pipeline.
 
 ### Pull Writing Samples
 Pull 2-3 sets of the author's writing samples matching each section's topic (from the authors-voice corpus, or recent posts/articles if no corpus exists yet). These samples are ground truth for how the author phrases things.

@@ -11,7 +11,7 @@ description: |
   Use when user says: "open writer", "openwriter", "write in openwriter",
   "edit my document", "review my writing", "check the pad", "write me a doc",
   "compose tweet", "reply to tweet", "quote tweet", "author's voice",
-  "authors voice", "voice plugin".
+  "authors voice", "learn my voice".
 
   Requires: OpenWriter MCP server configured. Browser UI at localhost:5050.
 metadata:
@@ -433,9 +433,7 @@ npx skills add https://github.com/travsteward/openwriter --skill polish
 npx skills add https://github.com/travsteward/openwriter --skill anti-ai
 ```
 
-The Author's Voice skill (voice matching, minion dispatch — used by the writers above) installs on its own: `claude install github:travsteward/authors-voice`.
-
-For an AI-detection pass without full authors-voice setup, the bundled **anti-ai** skill stands alone.
+The Author's Voice skill (voice matching, minion dispatch — used by the writers above) installs on its own: `claude install github:travsteward/authors-voice`. For an AI-detection pass without it, the bundled **anti-ai** skill stands alone.
 
 ## Workflow
 
@@ -570,7 +568,7 @@ When importing or organizing book-length projects, read the source material firs
 
 ## X Content (Tweets, Threads, Articles)
 
-For composing X content in OpenWriter — `tweetContext` and `articleContext` metadata, `content_type` (`tweet` / `reply` / `quote` / `article`), thread HR rules, image handling, paragraph spacing, parent-tweet workflow — see the `/x-writer` skill.
+X documents (tweet, reply, quote, article, threads) carry their format rules: OpenWriter sends them with the document. Voice and strategy: `/x-writer`.
 
 ## Review Etiquette
 
@@ -782,7 +780,9 @@ Every site tool takes an optional `site` (a site's name or id from `list_my_site
 
 ## Writing in the user's voice
 
-The editor's right-click actions (Enhance, Modify, Shrink, Expand, Insert, Fill paragraph, Fill sentence) and the sidebar's transforms (Vary, Shrinkify, Expandify, Threadify, Storify, Emailify, Postify) are the user's, run from the browser on their own Claude API key (Settings > Claude). The user teaches it their voice by right-clicking documents > "Learn my voice from this". There are no agent tools for these; point the user to them when they ask.
+The editor's right-click actions (Enhance, Modify, Shrink, Expand, Insert, Fill paragraph, Fill sentence) and the sidebar's transforms (Vary, Shrinkify, Expandify, Threadify, Storify, Emailify, Postify) are the user's, run from the browser on their own Claude key or their OpenWriter balance (Settings > Claude). The user teaches it their voice by right-clicking documents > "Learn my voice from this". There are no agent tools for these; point the user to them when they ask.
+
+When you draft in the user's voice yourself, use the Author's Voice skill (see the writer skills above). Afterwards the user can right-click any paragraph > Enhance to bring it closer to their voice.
 
 ## Updating
 
