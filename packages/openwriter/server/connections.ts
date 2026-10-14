@@ -50,6 +50,12 @@ function getPublishConfig(): { apiKey: string; apiUrl: string } {
   };
 }
 
+/** The OpenWriter account this app is signed in to (its key and the pinned server), or null. */
+export function publishAccount(): { apiKey: string; apiUrl: string } | null {
+  const account = getPublishConfig();
+  return account.apiKey ? account : null;
+}
+
 /** Authenticated fetch to the platform API */
 export async function platformFetch(path: string, options: RequestInit = {}): Promise<Response> {
   const { apiKey, apiUrl } = getPublishConfig();

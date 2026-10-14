@@ -8,7 +8,7 @@
 
 import { createHash } from 'crypto';
 import Anthropic from '@anthropic-ai/sdk';
-import { claude, dataDir, tools, VoiceError, type MessagesClient } from '../host.js';
+import { claude, dataDir, tools, VoiceError, type MessagesClient, explainApiError } from '../host.js';
 import { createMessage, modelFor } from '../models.js';
 import { recordUsage, tokenCounts } from '../usage-log.js';
 import { voiceIndex, type Authenticity, type VoiceChunk } from './voice-index.js';
@@ -136,6 +136,9 @@ async function haiku(client: MessagesClient, prompt: string, maxTokens: number, 
 
 const running = new Map<string, Promise<VoiceRunResult>>();
 
+/** How many documents are being added now. */
+export const voiceAddsRunning = () => running.size;
+
 /** Add (or refresh) one document. A second call while one runs for the same doc joins it. */
 export function addToVoice(docId: string): Promise<VoiceRunResult> {
   const live = running.get(docId);
@@ -146,7 +149,7 @@ export function addToVoice(docId: string): Promise<VoiceRunResult> {
 }
 
 async function doAdd(docId: string): Promise<VoiceRunResult> {
-  const client = claude();
+  const client = claude({ job: 'learn' });
   const { title, chunks } = await readParagraphs(docId);
   if (!chunks.length) throw new VoiceError(400, 'empty', `"${title}" has no paragraphs to learn your voice from yet.`);
   const authors = await authenticityOf(docId);
@@ -159,21 +162,25 @@ async function doAdd(docId: string): Promise<VoiceRunResult> {
 
   let failed = 0;
   let keyRejected = false;
+  let stopReason: VoiceError | null = null;
   const queue = [...todo];
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
     for (let c = queue.shift(); c && !keyRejected; c = queue.shift()) {
       try {
-        const parsed = parseChunkEnrichment(await haiku(client, buildChunkPrompt(c.text), 800, docId));
+        // Each paragraph names its words: Learn my voice is free for the first 10,000 on the balance.
+        const parsed = parseChunkEnrichment(await haiku(claude({ job: 'learn', words: words(c.text) }), buildChunkPrompt(c.text), 800, docId));
         if (!parsed) throw new Error('unparseable enrichment');
         idx.setChunkEnrichment(docId, c.nodeId, CHUNK_PROMPT_VERSION, parsed);
       } catch (err: any) {
         failed++;
-        if (err instanceof Anthropic.AuthenticationError) keyRejected = true;
+        // A rejected key, or an empty OpenWriter balance, stops the run: every paragraph would fail the same way.
+        if (err instanceof Anthropic.AuthenticationError || explainApiError(err).status === 402) { keyRejected = true; stopReason = explainApiError(err); }
         idx.setChunkFailed(docId, c.nodeId, String(err?.message || err));
       }
     }
   }));
-  if (keyRejected) throw new VoiceError(401, 'key_rejected', "Anthropic did not accept your API key. Check it in Settings, under Claude.");
+  const stop = stopReason as VoiceError | null; // set inside the workers above
+  if (keyRejected) throw stop && stop.code !== 'key_rejected' ? stop : new VoiceError(401, 'key_rejected', "Anthropic did not accept your API key. Check it in Settings, under Claude.");
 
   // The document's own vocabulary, redone when any paragraph changed.
   const docHash = hash(chunks.map((c) => c.hash).join('|'));

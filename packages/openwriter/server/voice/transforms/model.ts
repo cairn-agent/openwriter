@@ -75,7 +75,7 @@ export class ModelService {
     temperature: number = 0.7,
     maxTokens: number = 4096,
   ): Promise<ModelResult> {
-    const client = claude();
+    const client = claude({ job: 'transform' });
     const live = await resolveModel(env, mode);
     const model = live.id;
 

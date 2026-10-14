@@ -56,10 +56,12 @@ const calls = [];
 const text = (t) => ({ content: [{ type: 'text', text: t }], stop_reason: 'end_turn', usage: { input_tokens: 300, output_tokens: 60 } });
 
 // Stand-in for Anthropic, answering each prompt the way its parser expects.
-const fakeClient = (apiKey) => ({
+let balanceRefusal = null;
+const fakeClient = (apiKey, balance) => ({
   messages: {
     create: async (params) => {
-      calls.push({ apiKey, params });
+      calls.push({ apiKey, balance, params });
+      if (balance && balanceRefusal) throw balanceRefusal;
       if (rejectKey) throw new Anthropic.AuthenticationError(401, { type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } }, 'invalid x-api-key', new Headers());
       const prompt = String(params.messages[0].content);
       if (prompt.includes('vocabulary field')) return text(JSON.stringify({ synonyms: ['cookery'], concepts: ['weeknight cooking'], themes: ['kitchen confidence'] }));
@@ -241,6 +243,55 @@ console.log('\nThe newest model of each line, from Anthropic\'s list:');
   resetModels();
   assert(JSON.parse(readFileSync(join(ROOT_DIR, 'ai', 'models.json'), 'utf-8')).models.sonnet.id === 'claude-sonnet-6' && (await modelFor('sonnet')).id === 'claude-sonnet-6',
     'the choice survives a restart');
+}
+
+console.log('\nNo key, signed in to OpenWriter: Claude on the OpenWriter balance:');
+{
+  const { resetModels } = await import('../dist/server/voice/models.js');
+  resetModels();
+  const ACCOUNT = 'ow_live_' + '0123456789abcdef'.repeat(2);
+  process.env.PUBLISH_API_KEY = ACCOUNT;
+  key = null;
+  setEmbedOptions({ aiKey: () => key, aiClient: fakeClient });
+  r = await api('GET', '/api/voice/settings');
+  assert(r.json.balance === true && r.json.signedIn === true && !r.json.saved, 'Settings says Claude runs on the balance');
+  calls.length = 0;
+  // Vary left its new document open; rewrite a paragraph of whichever document is open.
+  const openPara = () => getDocument().content.find((n) => n.type === 'paragraph');
+  const rewriteOpen = () => api('POST', '/api/voice/apply-editor', {
+    nodes: [openPara()], action: 'rewrite', nodeIds: [openPara().attrs.id], contextBefore: [], contextAfter: [], documentId: filenameByDocId(getDocId()), docId: getDocId(),
+  });
+  r = await rewriteOpen();
+  const onBalance = calls.find((c) => c.params.system);
+  assert(r.status === 200 && onBalance?.apiKey === ACCOUNT && onBalance.balance?.baseURL === 'https://publish.openwriter.io/ai',
+    'the rewrite goes to OpenWriter\'s server on the writer\'s account');
+  assert(onBalance?.balance?.headers['x-openwriter-job'] === 'rewrite' && onBalance.params.model.startsWith('claude-haiku-'),
+    'it is named a rewrite and runs on Haiku, the free tier, by default');
+
+  // Two documents learned at once rebuild the voice profile once.
+  createDocumentFromRequest({ title: 'Second', content: `# Second\n\n${long}\n\nA second paragraph about broth and bones.` });
+  const second = getDocId();
+  save();
+  calls.length = 0;
+  const both = await Promise.all([
+    api('POST', '/api/voice/sidebar-action', { action: 'add-to-corpus', title: 'Second', content: readFileSync(resolveDocPath(filenameByDocId(second)), 'utf-8') }),
+    sidebar('add-to-corpus', filename, title),
+  ]);
+  assert(both.every((x) => x.status === 200), 'both documents are learned');
+  const enrich = calls.filter((c) => String(c.params.messages[0].content).startsWith('This passage will be indexed for search.'));
+  assert(enrich.length > 0 && enrich.every((c) => c.balance.headers['x-openwriter-job'] === 'learn' && Number(c.balance.headers['x-openwriter-words']) > 0),
+    'each paragraph is named Learn my voice, with its words');
+  for (let i = 0; i < 60 && !calls.some((c) => String(c.params.messages[0].content).startsWith('You are a linguistic analyst.')); i++) await new Promise((ok) => setTimeout(ok, 100));
+  await new Promise((ok) => setTimeout(ok, 500));
+  assert(calls.filter((c) => String(c.params.messages[0].content).startsWith('You are a linguistic analyst.')).length === 1, 'the profile is rebuilt once for the batch');
+
+  balanceRefusal = new Anthropic.APIError(402, { type: 'error', error: { type: 'openwriter_balance_empty', message: 'Your OpenWriter balance is too low for this.' } }, 'balance', new Headers());
+  r = await sidebar('vary', filename, title);
+  assert(r.status === 402 && r.json.code === 'balance_empty' && r.json.error === 'Your OpenWriter balance is too low for this.', 'an empty balance is reported in OpenWriter\'s own words');
+  balanceRefusal = null;
+  delete process.env.PUBLISH_API_KEY;
+  r = await rewriteOpen();
+  assert(r.status === 409 && /sign in to OpenWriter/.test(r.json.error), 'no key and not signed in: the answer offers both');
 }
 
 cancelDebouncedSave();

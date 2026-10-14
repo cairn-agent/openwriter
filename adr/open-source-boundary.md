@@ -131,3 +131,8 @@ the rail. Generic: any plugin with its own screens needs a way in that does not 
 - **2026-10-13 — The Claude key is an extension point.** Writing in the writer's voice is now part
   of OpenWriter itself, so an embedder hands over the key with `aiKey` instead of passing the
   Author's Voice plugin in-process; `runEditor` is exported for an embedder's own Rewrite UI.
+- **2026-10-14 — No new hook for the balance client.** Claude on the OpenWriter balance reuses what
+  core already holds for the publish account (`server/connections.ts`: the pinned
+  `*.openwriter.io` server and the account key) rather than a plugin hook. It is not web-only:
+  a local writer signed in to OpenWriter uses it the same way, and nothing changes for a writer
+  with their own key.

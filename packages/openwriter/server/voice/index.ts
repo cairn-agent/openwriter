@@ -7,7 +7,9 @@
  *  - Sidebar, on a document: Learn my voice from this (also on a folder: every document in it),
  *    and the transforms Vary, Shrinkify, Expandify, Threadify, Storify, Emailify, Postify.
  *    OpenWriter forwards `voice:` actions to POST /api/voice/sidebar-action.
- *  - Settings > Claude: the key and the writing model (GET/PUT /api/voice/settings).
+ *  - Settings > Claude: the key and the writing model (GET/PUT /api/voice/settings), and with no
+ *    key the OpenWriter balance (GET /api/voice/balance and its top-up, settings and card routes,
+ *    passed to OpenWriter's server on the writer's account).
  *
  * The voice is the writer's own documents: enriched with the search engine's prompts into a
  * local index, searched for examples on every rewrite, and analysed into a voice profile.
@@ -18,7 +20,8 @@ import type { Express, Request, Response } from 'express';
 import { describeSettings, explainApiError, isPlausibleKey, keyManagedElsewhere, saveSettings, VoiceError, dataDir } from './host.js';
 import { runEditor } from './editor/apply.js';
 import { markdownToNodes } from './editor/markdown-to-nodes.js';
-import { addToVoice, docIdFromMarkdown, voiceMessage } from './voice/voice-enrich.js';
+import { addToVoice, docIdFromMarkdown, voiceAddsRunning, voiceMessage } from './voice/voice-enrich.js';
+import { platformFetch } from '../connections.js';
 import { voiceIndex } from './voice/voice-index.js';
 import { buildProfile, readProfile } from './profile/build.js';
 import { isTransformAction, runTransform } from './transforms/run.js';
@@ -32,9 +35,34 @@ function sendError(res: Response, err: unknown): void {
   res.status(e.status).json({ error: e.message, message: e.message, code: e.code });
 }
 
-/** Rebuild the voice profile after the voice changed; a failure is retried on the next add. */
+/** How long after the last add finishes before the profile is rebuilt. */
+const PROFILE_SETTLE_MS = 3000;
+let profileTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Rebuild the voice profile after the voice changed, once per batch: a folder sends every document
+ * at once, so the rebuild waits until no add is running (each rebuild is a paid Sonnet call on the
+ * balance). A failure is retried on the next add.
+ */
 function refreshProfile(): void {
-  buildProfile().catch((err) => console.warn('[voice] profile build failed:', err?.message || err));
+  if (profileTimer) clearTimeout(profileTimer);
+  profileTimer = setTimeout(() => {
+    profileTimer = null;
+    if (voiceAddsRunning() > 0) return; // the last add to finish schedules it again
+    buildProfile().catch((err) => console.warn('[voice] profile build failed:', err?.message || err));
+  }, PROFILE_SETTLE_MS);
+}
+
+/** One of the balance routes on OpenWriter's server, on the writer's account. */
+function balanceRoute(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string) {
+  return async (req: Request, res: Response) => {
+    try {
+      const r = await platformFetch(`/ai${path}`, { method, ...(method === 'GET' ? {} : { body: JSON.stringify(req.body ?? {}) }) });
+      res.status(r.status).json(await r.json().catch(() => ({})));
+    } catch {
+      res.status(409).json({ error: 'not_signed_in', message: 'Sign in to OpenWriter to use the balance.' });
+    }
+  };
 }
 
 /** The choices with the model behind each now, e.g. Opus is Claude Opus 5.5. */
@@ -82,7 +110,7 @@ export function registerVoiceRoutes(app: Express): void {
       const docId = docIdFromMarkdown(String(content ?? ''));
       if (!docId) { res.status(400).json({ error: `"${name}" could not be read.` }); return; }
       const run = addToVoice(docId);
-      run.then(refreshProfile, () => { /* reported to the writer below */ });
+      run.then(refreshProfile, refreshProfile); // a failure is reported to the writer below
       const waited = await Promise.race([
         run.then((r) => ({ r }), (err) => ({ err })),
         new Promise<null>((ok) => setTimeout(() => ok(null), VOICE_WAIT_MS)),
@@ -119,6 +147,12 @@ export function registerVoiceRoutes(app: Express): void {
   app.get('/api/voice/settings', async (_req: Request, res: Response) => {
     res.json(await settingsAnswer());
   });
+
+  // The OpenWriter balance, for writers without a key (Settings > Claude).
+  app.get('/api/voice/balance', balanceRoute('GET', '/balance'));
+  app.post('/api/voice/balance/topup', balanceRoute('POST', '/topup'));
+  app.put('/api/voice/balance/settings', balanceRoute('PUT', '/settings'));
+  app.delete('/api/voice/balance/card', balanceRoute('DELETE', '/card'));
 
   app.put('/api/voice/settings', async (req: Request, res: Response) => {
     const { key, model } = req.body ?? {};

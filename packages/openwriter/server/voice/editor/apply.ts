@@ -10,7 +10,7 @@
 import { statSync } from 'fs';
 import { join } from 'path';
 import Anthropic from '@anthropic-ai/sdk';
-import { claude, dataDir, explainApiError, modelSetting, VoiceError } from '../host.js';
+import { claude, dataDir, explainApiError, modelSetting, VoiceError, usingBalance } from '../host.js';
 import { DEFAULT_REWRITE_MODEL, modelFor, resolveChoice, type ModelChoice } from '../models.js';
 import { recordUsage, tokenCounts } from '../usage-log.js';
 import {
@@ -129,14 +129,15 @@ async function systemPromptFor(docId: string, fullDocumentIn: string | undefined
 /** Rewrite the selection in the writer's voice. Returns Markdown, selection markers removed. */
 export async function runEditor(req: EditorRequest): Promise<{ markdown: string; model: ModelChoice; action: EditorAction }> {
   validate(req);
-  const client = claude();
+  const client = claude({ job: 'rewrite' });
 
   const words = selectionWordCount(req.nodes);
   if (words > MAX_SELECTION_WORDS) {
     throw new VoiceError(413, 'too_large', `Selection too large: ${words.toLocaleString()} words (max ${MAX_SELECTION_WORDS.toLocaleString()}). Select a smaller section.`);
   }
 
-  const choice = resolveChoice(req.model ?? modelSetting(), DEFAULT_REWRITE_MODEL);
+  // On the OpenWriter balance the default is Haiku, the free tier; a writer can pick another.
+  const choice = resolveChoice(req.model ?? modelSetting(), usingBalance() ? 'haiku' : DEFAULT_REWRITE_MODEL);
   const model = await modelFor(choice);
   const { action, budget, instruction } = editorAction(req, req.instruction?.trim() || undefined);
 

@@ -106,3 +106,16 @@ The prompts are the refined part and are copied, never paraphrased:
   and a hand-kept table per model (the edit this removes). Measured on the live models: the
   thinking Sonnet costs about the same as Sonnet 4.5 for six transforms, but Postify thinks
   about 5,500 tokens even at low effort (≈ 7¢ against 1.3¢).
+- **2026-10-14 — Without a key, on the OpenWriter balance.** A writer with no Claude key who is
+  signed in to OpenWriter (the publish account the scheduler and sites already use) gets Claude
+  through OpenWriter's server: `claude({ job, words })` points the same client at
+  `<publish server>/ai` with the account key as a Bearer token and names the job
+  (`x-openwriter-job`: rewrite, learn, transform; `x-openwriter-words` per enriched paragraph)
+  so the server can price it (repo:openwriter-publish/adr/ai-balance.md: free Haiku rewrites, 30
+  a day; Learn my voice free for 10,000 words; the rest at twice the cost from a prepaid
+  balance). On the balance the default rewrite model is Haiku, the free tier. The server's own
+  refusals (`openwriter_*` error types) reach the writer in its words. Settings > Claude shows
+  the balance, top-ups, auto top-up and recent charges (`ClaudeBalance.tsx`, routes
+  `/api/voice/balance*` passed to the server). Learn my voice now rebuilds the profile once per
+  batch, after the last running add, instead of once per document: each rebuild is a paid Sonnet
+  call on the balance.

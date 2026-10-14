@@ -41,3 +41,57 @@
   font-size: 11px;
   color: #dc2626;
 }
+
+/* Settings > Claude: the OpenWriter balance (ClaudeBalance.tsx). */
+.claude-balance {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.claude-balance-amount {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.claude-balance-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink-dark);
+}
+.claude-balance-topups {
+  display: flex;
+  gap: 6px;
+}
+.claude-balance-btn {
+  flex: 1;
+  padding: 5px 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+.claude-balance-btn:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.claude-balance-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--ink-light);
+}
+.claude-balance-recent {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  color: var(--ink-light);
+  white-space: pre;
+}

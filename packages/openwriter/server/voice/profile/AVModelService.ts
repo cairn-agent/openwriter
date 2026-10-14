@@ -26,7 +26,7 @@ export class AVModelService {
   ): Promise<{ content: string; usage: { inputTokens: number; outputTokens: number; estimatedCost: number; cacheCreation: number; cacheRead: number } }> {
     const live = await modelFor(mode === 'fast' ? 'haiku' : 'sonnet');
     const model = live.id;
-    const client = claude();
+    const client = claude({ job: 'learn' });
     let lastError: Error | null = null;
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
