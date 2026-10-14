@@ -570,7 +570,7 @@ When importing or organizing book-length projects, read the source material firs
 
 ## X Content (Tweets, Threads, Articles)
 
-For composing X content in OpenWriter — `tweetContext` and `articleContext` metadata, `content_type` (`tweet` / `reply` / `quote` / `article`), thread HR rules, image handling, paragraph spacing, parent-tweet workflow — see the `/x-writer` skill.
+X documents (tweet, reply, quote, article, threads) carry their format rules: OpenWriter sends them with the document. Voice and strategy: `/x-writer`.
 
 ## Review Etiquette
 

@@ -61,38 +61,11 @@ node ~/.claude/skills/x-writer/scripts/generate-image.js \
 
 ### Phase 5: Insert into Thread
 
-Two approaches for attaching images to tweets:
+Two ways to attach images to posts. Where an image goes and how it is inserted is in the document's format contract, which OpenWriter sends with the document.
 
-**Option A: `insert_image` (recommended for threads)**
-Use the OpenWriter MCP tool directly — it generates via Gemini AND inserts atomically:
-1. `read_pad` to get node IDs for each tweet paragraph (`[p:nodeId]`)
-2. Call `insert_image` with `afterNodeId` set to the target tweet's paragraph node
-3. All images can be inserted **in parallel** (no dependencies between them)
+**Option A: `insert_image`** generates via Gemini and inserts in one step, all posts in parallel. It takes no reference images, so character consistency relies on the prompt alone. Best for quick sets with no character reference.
 
-```
-insert_image(docId, prompt, afterNodeId, alt, aspect_ratio)
-```
-
-- `afterNodeId` = the `[p:...]` ID of the tweet paragraph the image belongs to
-- Uses Gemini internally — no way to pass pre-generated files
-- Character consistency relies on prompt description only (no reference images)
-- Best for: quick insertion, no character reference needed
-
-**Option B: CLI generate → manual insert**
-Use `generate-image.js` with character references for better consistency, then insert:
-1. Generate images with `-r` reference images (Phase 3)
-2. **CRITICAL:** Copy images to `~/.openwriter/profiles/Default/_images/` (NOT `~/.openwriter/_images/`)
-   ```bash
-   cp /c/tmp/panel-*.png ~/.openwriter/profiles/Default/_images/
-   ```
-   The server serves `/_images/*` from the active profile's data dir. Wrong path = broken images.
-3. Insert via `write_to_pad` with TipTap image nodes:
-   ```
-   { operation: "insert", afterNodeId: "<tweet-node-id>",
-     content: { type: "image", attrs: { src: "/_images/panel-1.png", alt: "..." } } }
-   ```
-
-- Best for: maximum character consistency via reference images
+**Option B: CLI generate, then insert the files.** Generate with `-r` reference images (Phase 3), then insert the files. Best for maximum character consistency.
 
 **Trade-off:** Option A is faster and seamless but has no reference image support. Option B gives better character consistency but requires manual file handling.
 
@@ -124,10 +97,3 @@ Append a consistent style suffix across ALL images in a set to maintain visual c
 | Character sheets | 1:1 | Best for reference images |
 | Vertical | 9:16 | Mobile-optimized |
 | Square | 1:1 | Equal weight |
-
-## Thread Document Format
-
-Thread documents MUST use TipTap JSON with `{ type: 'horizontalRule' }` nodes between tweets.
-- Use `create_document` → `populate_document` with explicit TipTap JSON
-- Markdown `---` does NOT create proper horizontalRule nodes
-- Each tweet is a paragraph node; `read_pad` shows `[p:nodeId]` and `[hr:nodeId]` tags

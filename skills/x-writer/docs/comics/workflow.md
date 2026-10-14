@@ -61,40 +61,7 @@ node ~/.claude/skills/x-writer/scripts/generate-image.js \
 
 ### Phase 5: Insert into Thread
 
-Two approaches for attaching panels to tweets:
-
-**Option A: `insert_image` (recommended for threads)**
-Use the OpenWriter MCP tool directly — it generates via Gemini AND inserts atomically:
-1. `read_pad` to get node IDs for each tweet paragraph (`[p:nodeId]`)
-2. Call `insert_image` with `afterNodeId` set to the target tweet's paragraph node
-3. All panels can be inserted **in parallel** (no dependencies between them)
-
-```
-insert_image(docId, prompt, afterNodeId, alt, aspect_ratio)
-```
-
-- `afterNodeId` = the `[p:...]` ID of the tweet paragraph the image belongs to
-- Uses Gemini internally — no way to pass pre-generated files
-- Character consistency relies on prompt description only (no reference images)
-- Best for: quick insertion, no character reference needed
-
-**Option B: CLI generate → manual insert**
-Use `generate-image.js` with character references for better consistency, then insert:
-1. Generate panels with `-r` reference images (Phase 3)
-2. **CRITICAL:** Copy panels to `~/.openwriter/profiles/Default/_images/` (NOT `~/.openwriter/_images/`)
-   ```bash
-   cp /c/tmp/panel-*.png ~/.openwriter/profiles/Default/_images/
-   ```
-   The server serves `/_images/*` from the active profile's data dir. Wrong path = broken images.
-3. Insert via `write_to_pad` with TipTap image nodes:
-   ```
-   { operation: "insert", afterNodeId: "<tweet-node-id>",
-     content: { type: "image", attrs: { src: "/_images/panel-1.png", alt: "..." } } }
-   ```
-
-- Best for: maximum character consistency via reference images
-
-**Trade-off:** Option A is faster and seamless but has no reference image support. Option B gives better character consistency but requires manual file handling.
+Panels go in exactly like thread images: Phase 5 of [the image workflow](../images/workflow.md) (`insert_image`, or CLI files with reference images).
 
 ## Prompt Construction
 
@@ -124,12 +91,6 @@ Append a consistent style suffix across ALL panels to maintain visual coherence:
 | Vertical panels | 9:16 | Mobile-optimized |
 | Square panels | 1:1 | Equal weight |
 
-## Thread Document Format
-
-Thread documents MUST use TipTap JSON with `{ type: 'horizontalRule' }` nodes between tweets.
-- Use `create_document` → `populate_document` with explicit TipTap JSON
-- Markdown `---` does NOT create proper horizontalRule nodes
-- Each tweet is a paragraph node; `read_pad` shows `[p:nodeId]` and `[hr:nodeId]` tags
 
 ## Proven Prompting Patterns
 

@@ -1,0 +1,78 @@
+/**
+ * Format contracts arrive with the document: the first touch of an X document in an agent session
+ * carries its contract in full, later touches a one-line reminder; each type gets its own
+ * contracts; plain documents and OpenWriter's own (unwrapped) calls get nothing.
+ * adr: adr/in-system-guidance.md
+ *
+ * Isolated home in the temp dir, never ~/.openwriter.
+ * Run: `node scripts/test-doc-guidance.mjs` (after `npm run build`)
+ */
+
+import assert from 'node:assert/strict';
+import os from 'node:os';
+import { syncBuiltinESMExports } from 'node:module';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+
+const temporaryRoot = mkdtempSync(join(os.tmpdir(), 'ow-doc-guidance-test-'));
+os.homedir = () => temporaryRoot;
+syncBuiltinESMExports();
+process.on('exit', () => { try { rmSync(temporaryRoot, { recursive: true, force: true }); } catch { /* best-effort */ } });
+
+const helpers = await import('../dist/server/helpers.js');
+helpers.ensureDataDir();
+const { TOOL_REGISTRY, appendDocGuidance } = await import('../dist/server/mcp.js');
+
+const tool = (name) => TOOL_REGISTRY.find((t) => t.name === name);
+/** An agent's call: the tool's result passed through the guidance for that session. */
+const agent = async (session, name, args) => appendDocGuidance(session, args, await tool(name).handler(args));
+const extra = (result) => result.content.slice(1).map((c) => c.text).join('\n');
+const idOf = (result) => /\[([0-9a-f]{8})\]/.exec(result.content[0].text)[1];
+
+// Creating a quote announces the new doc: its first touch carries quote, x-post and thread in full.
+const created = await agent('a', 'create_document', { title: 'QT', content_type: 'quote', url: 'https://x.com/someone/status/123', empty: true });
+const quote = idOf(created);
+let g = extra(created);
+assert.match(g, /format contract for [0-9a-f]{8}, an X quote: quote v\d+, x-post v\d+, thread v\d+/);
+assert.match(g, /## X quote post/);
+assert.match(g, /## X post body/);
+assert.match(g, /## X thread/);
+assert.equal(created.content[0].text.startsWith('Created "QT"'), true, 'the tool result itself is unchanged');
+
+// The next touch of the same doc in the same session: one line naming the contract and versions.
+g = extra(await agent('a', 'read_pad', { docId: quote }));
+assert.match(g, /^\[OpenWriter: [0-9a-f]{8} is an X quote\. Its format contract \(quote v\d+, x-post v\d+, thread v\d+\) arrived earlier/);
+assert.equal(g.split('\n').length, 1, 'reminder is one line');
+g = extra(await agent('a', 'get_metadata', { docId: quote }));
+assert.match(g, /arrived earlier/);
+
+// A tweet in the same session: only its own contract arrives; the shared ones are named as sent.
+const tweet = idOf(await tool('create_document').handler({ title: 'Thread', content_type: 'tweet', empty: true }));
+g = extra(await agent('a', 'peek_doc', { docId: tweet, target: { start: 0, after: 3 } }));
+assert.match(g, /## X post \(tweet\)/);
+assert.doesNotMatch(g, /## X post body/);
+assert.match(g, /Sent earlier in this session: x-post v\d+, thread v\d+/);
+
+// An article gets the article contract only.
+const article = idOf(await tool('create_document').handler({ title: 'Long read', content_type: 'article', empty: true }));
+g = extra(await agent('a', 'read_pad', { docId: article }));
+assert.match(g, /an X article: article v\d+\.\]/);
+assert.match(g, /## X Article/);
+assert.doesNotMatch(g, /## X thread/);
+
+// Another agent session gets its own full delivery.
+g = extra(await agent('b', 'read_pad', { docId: quote }));
+assert.match(g, /## X quote post/);
+
+// A plain document gets nothing; neither does a list tool or an error.
+const plain = idOf(await tool('create_document').handler({ title: 'Notes', content_type: 'document', empty: true }));
+assert.equal(extra(await agent('c', 'read_pad', { docId: plain })), '');
+assert.equal(extra(await agent('c', 'list_documents', {})), '');
+assert.equal(extra(await agent('c', 'read_pad', { docId: 'ffffffff' }).catch(() => ({ content: [{ text: 'Error' }] }))), '');
+
+// OpenWriter's own call path (no agent session) is untouched and does not use up a delivery.
+assert.equal((await tool('read_pad').handler({ docId: quote })).content.length, 1);
+g = extra(await agent('c', 'read_pad', { docId: quote }));
+assert.match(g, /## X quote post/, 'session c still gets the full contract');
+
+console.log('test-doc-guidance: all passed');

@@ -83,3 +83,9 @@ process name a pid that is now unrelated. Details: `adr/open-source-boundary.md`
 ### 2026-10-13 — retired key flags
 `bin/pad.ts` no longer reads `--api-key`, `--av-url` or `AV_API_KEY` (the retired Author's Voice
 service's key; nothing used it). Port ownership is unchanged.
+
+### 2026-10-14 — the client names its agent session
+The client-mode proxy sends a per-process `X-OpenWriter-Session` id with every `/api/mcp-call`
+and carries the format-contract notice in its MCP instructions, so the server can deliver each
+document format contract to that agent once (`adr/in-system-guidance.md`). It imports
+`doc-guidance.js`, which uses Node built-ins only. Port ownership is unchanged.

@@ -41,6 +41,10 @@ them stay in the public history; that cannot be undone and they hold no secrets.
   - **Claude key**: `aiKey()` hands OpenWriter the writer's Claude key from the embedding
     program, which then keeps it (Settings > Claude shows no key field); `aiClient` stands in
     for Anthropic in tests. See `adr/authors-voice.md`.
+  - **Format contracts for an embedder's agent**: `appendDocGuidance(session, args, result)` and
+    `GUIDANCE_NOTICE` (package export `openwriter/server`) give an embedder's own agent the same
+    per-session document format contracts the stdio and client-mode servers deliver
+    (`adr/in-system-guidance.md`).
   - **Plugin host**: `PluginHost` (`server/plugin-types.ts`) gives a plugin `saveConfig`,
     `createDocument`, `tools()` (the live tool list, to run OpenWriter's own tools in-process),
     `pendingDocs()`, `documentTitle(docId)` and `rootDir`. A plugin never calls its own server over HTTP.
@@ -136,3 +140,7 @@ the rail. Generic: any plugin with its own screens needs a way in that does not 
   `*.openwriter.io` server and the account key) rather than a plugin hook. It is not web-only:
   a local writer signed in to OpenWriter uses it the same way, and nothing changes for a writer
   with their own key.
+- **2026-10-14 — Format contracts reach an embedder's agent.** Document format contracts are
+  delivered where an agent's call enters, so a program running OpenWriter's tools for its own
+  agent passes each result through `appendDocGuidance` with that agent's session. Generic: any
+  embedder with an agent needs it, and it changes nothing for one without.

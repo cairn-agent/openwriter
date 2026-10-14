@@ -10,7 +10,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { existsSync, readFileSync } from 'fs';
 import { setupWebSocket, broadcastAgentStatus, broadcastDocumentSwitched, broadcastDocumentsChanged, broadcastWorkspacesChanged, broadcastMetadataChanged, broadcastPendingDocsChanged, broadcastSyncStatus, broadcastWritingStarted, broadcastWritingFinished, broadcastCommentsChanged, broadcastActivityLogSeed, refreshLiveDocViewers } from './ws.js';
-import { TOOL_REGISTRY } from './mcp.js';
+import { TOOL_REGISTRY, appendDocGuidance } from './mcp.js';
 import { z } from 'zod';
 import { save, cancelDebouncedSave, load, getDocument, getTitle, getFilePath, getDocId, getMetadata, getStatus, updateDocument, setMetadata, applyTextEdits, isAgentLocked, getPendingDocInfo, getDocTagsByFilename, addDocTag, removeDocTag, updatePendingCacheForActiveDoc, removePendingCacheEntry, clearAllCaches, stripPendingAttrs, stripPendingAttrsFromFile, setAutoAcceptOnFile, setSortRequestOnFile, clearSortRequestOnFile, bumpDocVersion, extractText } from './state.js';
 import { syncPostHistory } from './post-sync.js';
@@ -128,7 +128,10 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
         }
         logger.debug('mcp', 'tool-call-http', tool.name, { tool: tool.name });
         const result = await tool.handler(parsed.data);
-        res.json(result);
+        // A client-mode proxy names its agent session; the editor's own calls name none and get
+        // no format contracts. adr: adr/in-system-guidance.md
+        const session = req.get('x-openwriter-session');
+        res.json(session ? appendDocGuidance(session, parsed.data, result) : result);
       } catch (err: any) {
         logger.error('mcp', 'tool-error-http', `${toolName}: ${err.message}`, { tool: toolName }, err);
         res.status(500).json({ content: [{ type: 'text', text: `Error: ${err.message}` }] });

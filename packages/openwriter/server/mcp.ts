@@ -63,6 +63,7 @@ import { readBlame, summarizeBlame } from './attribution.js';
 import { outline, peek, searchInDoc, truncateRead, type PeekTarget } from './peek-outline.js';
 import { createEnrichmentTools } from './enrichment-tools.js';
 import { deriveContentType, resolveTypeMeta } from './content-type-meta.js';
+import { guidanceFor, GUIDANCE_NOTICE } from './doc-guidance.js';
 import { listDocuments, switchDocument, createDocument, createDocumentFile, deleteDocument, openFile, getActiveFilename, updateDocumentTitle, promoteTempFile, archiveDocument, unarchiveDocument, resolveDocId, filenameByDocId, searchDocuments, listDirtyDocs, crawlDocs, enrichmentFooter, buildEnrichmentInstructions, listPendingSorts, sortFooter, buildSortInstructions, stagePendingTitle } from './documents.js';
 import { extractForwardLinks, readFrontmatter, writeFrontmatter, computeBacklinksFor, rebuildAllReferences, invalidateBacklinksCache } from './backlinks.js';
 import { logger, generateRequestId, withRequestId } from './logger.js';
@@ -162,6 +163,30 @@ function resolveDocTarget(docId: string): DocTarget {
 }
 
 export type ToolResult = { content: { type: 'text'; text: string }[] };
+
+/**
+ * Append a document's format contract to an agent's tool result (once per session in full, then a
+ * reminder). The document is the one the call names by docId, or the one create_document or
+ * open_file announces. Applied where an agent's call enters (stdio server, client-mode HTTP proxy,
+ * an embedder's own agent), never inside the tools: OpenWriter's own callers such as voice
+ * indexing read documents too and must not use up an agent's delivery. adr: adr/in-system-guidance.md
+ */
+export function appendDocGuidance(session: string, args: unknown, result: ToolResult): ToolResult {
+  const first = result?.content?.[0]?.text ?? '';
+  if (/^Error/.test(first)) return result;
+  const named = (args as { docId?: unknown } | null)?.docId;
+  const docId = typeof named === 'string' ? named : /^(?:Created|Opened) .*? \[([0-9a-f]{8})\]/.exec(first)?.[1];
+  if (!docId) return result;
+  let metadata: Record<string, any> | undefined;
+  try {
+    const filename = resolveDocId(docId);
+    metadata = filename === getActiveFilename()
+      ? getMetadata()
+      : getCachedDocument(resolveDocPath(filename))?.metadata ?? readFrontmatter(filename)?.data;
+  } catch { return result; }
+  const guidance = metadata ? guidanceFor(session, docId, deriveContentType(metadata)) : null;
+  return guidance ? { ...result, content: [...result.content, { type: 'text', text: guidance }] } : result;
+}
 
 export interface ToolDef {
   name: string;
@@ -2284,12 +2309,12 @@ export async function startMcpServer(): Promise<void> {
   // Stack notices in the MCP instructions field. Both notices stand on their
   // own — agents can read and dispatch them independently. Empty when neither
   // system has pending work.
-  const combinedNotice = [enrichmentNotice, sortNotice].filter(Boolean).join('\n');
+  const combinedNotice = [GUIDANCE_NOTICE, enrichmentNotice, sortNotice].filter(Boolean).join('\n');
 
   const server = new McpServer({
     name: 'openwriter',
     version: '0.2.0',
-  }, combinedNotice ? { instructions: combinedNotice } : undefined);
+  }, { instructions: combinedNotice });
 
   // Wrap each tool handler in withRequestId so every event logged during
   // the tool's execution inherits the same request ID. Trace one MCP call
@@ -2301,8 +2326,8 @@ export async function startMcpServer(): Promise<void> {
       return await withRequestId(reqId, async () => {
         logger.debug('mcp', 'tool-call', tool.name, { tool: tool.name });
         try {
-          const result = await tool.handler(args);
-          return result;
+          // One stdio process serves one agent session.
+          return appendDocGuidance('stdio', args, await tool.handler(args));
         } catch (err: any) {
           logger.error('mcp', 'tool-error', `${tool.name}: ${err.message}`, { tool: tool.name }, err);
           throw err;

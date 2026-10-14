@@ -56,20 +56,7 @@ node ~/.claude/skills/x-writer/scripts/generate-image.js [options]
 
 ## Inserting Pre-Generated Images into OpenWriter
 
-When using the **consistent path** (CLI-generated panels with reference images), you must copy them to OpenWriter's image directory and insert via `write_to_pad`:
-
-```bash
-# 1. Copy panels to the PROFILE images dir (NOT ~/.openwriter/_images/)
-cp /c/tmp/panel-*.png ~/.openwriter/profiles/Default/_images/
-
-# 2. Insert via write_to_pad with TipTap image nodes
-write_to_pad(docId, changes: [
-  { operation: "insert", afterNodeId: "<tweet-node-id>",
-    content: { type: "image", attrs: { src: "/_images/panel-1.png", alt: "..." } } }
-])
-```
-
-**CRITICAL:** Images MUST go in `~/.openwriter/profiles/Default/_images/` (or the active profile). The server serves `/_images/*` from `getDataDir()/_images/`, which resolves to the profile directory. Copying to `~/.openwriter/_images/` will result in broken images.
+The **consistent path** leaves panel files on disk. Insert them per the image rules in the document's format contract, which OpenWriter sends with the document.
 
 ## Prompt Rules
 

@@ -32,7 +32,8 @@
     "./server": "./dist/server/embed.js"
   },
   "scripts": {
-    "build": "vite build && tsc -p tsconfig.server.json && npm run build:plugins",
+    "build": "vite build && tsc -p tsconfig.server.json && npm run build:guidance && npm run build:plugins",
+    "build:guidance": "node -e \"require('fs').cpSync('server/guidance', 'dist/server/guidance', { recursive: true })\"",
     "build:plugins": "node scripts/build-plugins.cjs",
     "prepublishOnly": "node scripts/prepublish.cjs",
     "preview": "node dist/bin/pad.js",

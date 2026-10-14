@@ -125,7 +125,7 @@ Every piece of X content MUST be run through `/authors-voice` (or `/voice-apply`
 
 Load on demand based on the task:
 
-- **OpenWriter mechanics** — `tweetContext` / `articleContext` metadata, `content_type` (`tweet` / `reply` / `quote` / `article`), thread HRs, image handling, paragraph spacing, parent-tweet workflow → [`docs/openwriter-mechanics.md`](docs/openwriter-mechanics.md)
+- **OpenWriter format** — how tweet, reply, quote, thread and article documents are stored and written (metadata, thread rules, paragraphs, images, the parent post) arrives from OpenWriter with the document when you open or create one; this skill does not repeat it.
 - **Article format** — evaluate (7-dimension score) or optimize X Articles. 10 rules for scroll-stop engagement → [`docs/article-format.md`](docs/article-format.md)
 - **Images** — generate covers + thread images. 5 styles (Dark Editorial, Cinematic Realism, Abstract/Conceptual, Raw/Documentary, Dark Infographic), decision tree, character references → [`docs/images.md`](docs/images.md) + [`docs/images/`](docs/images/) (styles, characters, workflow)
 - **Comics** — character-consistent comic strip panels for threads. 4 comic-specific styles, full pipeline → [`docs/comics.md`](docs/comics.md) + [`docs/comics/`](docs/comics/) (styles, characters, workflow)

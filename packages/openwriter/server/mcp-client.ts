@@ -1,12 +1,15 @@
 /**
  * Client-mode MCP server: lightweight proxy to the running primary server.
- * Zero local imports — fetches tool metadata via HTTP, proxies calls via HTTP.
+ * Fetches tool metadata via HTTP, proxies calls via HTTP. Its one local import,
+ * doc-guidance.js, uses Node built-ins only.
  * Used when another terminal already owns the port.
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { randomUUID } from 'crypto';
+import { GUIDANCE_NOTICE } from './doc-guidance.js';
 
 export async function startMcpClientServer(port: number): Promise<void> {
   const baseUrl = `http://localhost:${port}`;
@@ -30,8 +33,11 @@ export async function startMcpClientServer(port: number): Promise<void> {
 
   const server = new Server(
     { name: 'openwriter-client', version: '0.2.0' },
-    { capabilities: { tools: {} } },
+    { capabilities: { tools: {} }, instructions: GUIDANCE_NOTICE },
   );
+  // This process serves one agent session; the server delivers each format contract to it
+  // once in full. adr: adr/in-system-guidance.md
+  const session = randomUUID();
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: await fetchTools() }));
 
@@ -39,7 +45,7 @@ export async function startMcpClientServer(port: number): Promise<void> {
     try {
       const callRes = await fetch(`${baseUrl}/api/mcp-call`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-OpenWriter-Session': session },
         body: JSON.stringify({ tool: request.params.name, arguments: request.params.arguments }),
       });
       if (!callRes.ok) {

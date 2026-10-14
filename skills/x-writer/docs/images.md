@@ -26,7 +26,7 @@ node ~/.claude/skills/x-writer/scripts/generate-image.js \
   -a "16:9"
 ```
 
-Then copy to `~/.openwriter/profiles/Default/_images/` and insert via `write_to_pad`.
+Then insert the files per the image rules in the document's format contract, which OpenWriter sends with the document.
 
 ## Styles
 

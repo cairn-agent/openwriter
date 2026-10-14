@@ -19,6 +19,10 @@ import { startHttpServer } from './index.js';
 
 export type { EmbedOptions, GateRefusal } from './embed-options.js';
 export type { OpenWriterPlugin, PluginHost, PluginRouteContext, PluginMcpTool, PluginConfigField } from './plugin-types.js';
+// For an embedder running OpenWriter's tools for its own agent: pass each result through with
+// that agent's session so it gets the documents' format contracts. adr: adr/in-system-guidance.md
+export { appendDocGuidance } from './mcp.js';
+export { GUIDANCE_NOTICE } from './doc-guidance.js';
 // Writing in the writer's voice, for an embedder with its own Rewrite UI. adr: adr/authors-voice.md
 export {
   runEditor, type EditorRequest, LENGTH_HINTS, type LengthHint, MAX_SELECTION_WORDS, VoiceError, explainApiError, redactKey, type ClientFactory, usingBalance,

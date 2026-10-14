@@ -70,7 +70,7 @@ Present original vs polished side by side. The user picks the version they prefe
 
 ### Step 4: Compose in OpenWriter
 
-Approved drafts go into OpenWriter as the composition surface. Use OpenWriter mechanics for `tweetContext` / `articleContext` metadata, `content_type` (`tweet` / `reply` / `quote` / `article`), thread HRs, images, previews — see [`openwriter-mechanics.md`](openwriter-mechanics.md).
+Approved drafts go into OpenWriter as the composition surface, in a document of the matching `content_type` (`tweet` / `reply` / `quote` / `article`). OpenWriter sends that document's format contract with it.
 
 ### Step 5: Schedule via OpenWriter native
 
@@ -110,6 +110,4 @@ Use `WebFetch` on the fxtwitter URL. Returns: full text, author, metrics (likes,
 
 - **Medium form is the default** — 3-4 paragraphs, not one-liners
 - **One core concept per tweet** — develop it across paragraphs, don't pack multiple ideas
-- **Threads:** compose as a single OpenWriter doc with HR breaks between tweets; schedule the whole thread as one unit
-- **Quote tweets:** use OpenWriter's `tweetContext` with `content_type: "quote"` and the source `tweet_id`
 - **Author's Voice category is `x`** — the voice API uses the user's Twitter writing samples for voice matching

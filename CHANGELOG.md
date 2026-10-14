@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### Added
+- X documents explain themselves to your agent. The first time an agent opens or creates a tweet, reply, quote post, thread or X Article in a session, OpenWriter tells it how that document is written: where thread posts split, how paragraphs and line breaks work, where images go, where the post being replied to lives. Later touches carry a one-line reminder. No skill needs to be loaded for the agent to get the format right.
 - Sites with more than 2,500 subscribers pay $1 a month per 1,000 above that for email, from the OpenWriter balance, charged with the first email of the month. If the balance cannot cover it, emails to the list pause until you top up; welcome emails keep going. Settings > Claude lists it as Newsletter sending.
 - Claude without your own key: signed in to OpenWriter, the writing actions, Learn my voice and the transforms run through OpenWriter. Haiku rewrites are free (30 a day) and so are the first 10,000 words of Learn my voice; anything else is paid from a prepaid OpenWriter balance at twice what it costs OpenWriter. Settings > Claude shows the balance, tops it up ($5, $10 or $20), emails you when it runs low, and can top it up by itself from a saved card. Your own key still works as before and never touches the balance.
 - Learn my voice on a folder rebuilds your voice profile once, after the last document, instead of once per document.
