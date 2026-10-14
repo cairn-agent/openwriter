@@ -21,7 +21,7 @@ export type { EmbedOptions, GateRefusal } from './embed-options.js';
 export type { OpenWriterPlugin, PluginHost, PluginRouteContext, PluginMcpTool, PluginConfigField } from './plugin-types.js';
 // Writing in the writer's voice, for an embedder with its own Rewrite UI. adr: adr/authors-voice.md
 export {
-  runEditor, type EditorRequest, LENGTH_HINTS, type LengthHint, MAX_SELECTION_WORDS, VoiceError, explainApiError, redactKey, type ClientFactory,
+  runEditor, type EditorRequest, LENGTH_HINTS, type LengthHint, MAX_SELECTION_WORDS, VoiceError, explainApiError, redactKey, type ClientFactory, usingBalance,
   MODELS, DEFAULT_REWRITE_MODEL, DEFAULT_CHAT_MODEL, modelFor, resolveChoice, type ModelChoice, type LiveModel,
 } from './voice/index.js';
 
