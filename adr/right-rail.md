@@ -348,3 +348,8 @@ They stay put whether the rail is open or closed, like the other document contro
 Settings gains a Claude section first (`ClaudeSettings.tsx`): the writer's Claude key (saved on
 the server, shown only by its last four characters) and the writing model. The Plugins section
 lost the Author's Voice credits panel with the plugin. See `adr/authors-voice.md`.
+
+### 2026-10-14 — Plan panel removed from the Plugins tab
+The publish server retired its plans (openwriter-publish `docs/one-money-model.md`, phase 1), so the
+`BillingSection` under the Publish plugin (plan badge, Upgrade and Manage Billing buttons) and the
+`/api/billing` proxy behind it are gone. The rich-panel slot stays for the GitHub plugin's settings.

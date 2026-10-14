@@ -224,7 +224,6 @@ function goalMetaParts(goal: Goal): string[] {
   const parts: string[] = [];
   if (goal.rule) {
     parts.push(`${goal.rule.threshold}+ ${goal.rule.metric}`);
-    parts.push(goal.rule.mode.charAt(0).toUpperCase() + goal.rule.mode.slice(1));
     if (goal.rule.delay_minutes > 0) {
       parts.push(`${goal.rule.delay_minutes}m delay`);
     }
@@ -242,7 +241,6 @@ function AddGoalForm({ onCreated }: { onCreated: (goal: Goal) => void }) {
   const [metric, setMetric] = useState('likes');
   const [threshold, setThreshold] = useState(50);
   const [delay, setDelay] = useState(30);
-  const [mode, setMode] = useState('static');
   const [saving, setSaving] = useState(false);
 
   const handleCreate = async () => {
@@ -260,7 +258,7 @@ function AddGoalForm({ onCreated }: { onCreated: (goal: Goal) => void }) {
       await fetch('/api/scheduler/autoplugs/rules', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ goal_id: goal.id, metric, threshold, delay_minutes: delay, mode }),
+        body: JSON.stringify({ goal_id: goal.id, metric, threshold, delay_minutes: delay }),
       });
 
       const refreshRes = await fetch('/api/scheduler/autoplugs/goals');
@@ -269,7 +267,7 @@ function AddGoalForm({ onCreated }: { onCreated: (goal: Goal) => void }) {
         const created = (data.goals || []).find((g: Goal) => g.id === goal.id);
         if (created) { onCreated(created); return; }
       }
-      onCreated({ ...goal, rule_count: 1, pool_count: 0, rule: { metric, threshold, delay_minutes: delay, mode, id: '' } });
+      onCreated({ ...goal, rule_count: 1, pool_count: 0, rule: { metric, threshold, delay_minutes: delay, mode: 'static', id: '' } });
     } finally {
       setSaving(false);
     }
@@ -286,7 +284,7 @@ function AddGoalForm({ onCreated }: { onCreated: (goal: Goal) => void }) {
         <input value={link} onChange={e => setLink(e.target.value)} placeholder="https://..." />
       </label>
       <label>
-        Description (context for LLM)
+        Description
         <textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="Weekly engineering insights..." rows={2} />
       </label>
       <div className="autoplug-editor-row">
@@ -299,13 +297,6 @@ function AddGoalForm({ onCreated }: { onCreated: (goal: Goal) => void }) {
         <span className="autoplug-editor-row-label">wait</span>
         <input type="number" value={delay} onChange={e => setDelay(Number(e.target.value))} min={0} className="autoplug-delay-input" />
         <span className="autoplug-editor-row-label">min</span>
-      </div>
-      <div className="autoplug-mode-toggle">
-        {(['static', 'llm', 'hybrid'] as const).map(m => (
-          <button key={m} className={mode === m ? 'active' : ''} onClick={() => setMode(m)}>
-            {m === 'llm' ? 'LLM' : m.charAt(0).toUpperCase() + m.slice(1)}
-          </button>
-        ))}
       </div>
       <button
         className="sidebar-schedule-btn sidebar-schedule-btn--active autoplug-create-btn"
@@ -332,7 +323,6 @@ function GoalEditor({ goal, onSaved, onDeleted, onRefresh }: {
   const [metric, setMetric] = useState(goal.rule?.metric || 'likes');
   const [threshold, setThreshold] = useState(goal.rule?.threshold || 50);
   const [delay, setDelay] = useState(goal.rule?.delay_minutes || 30);
-  const [mode, setMode] = useState(goal.rule?.mode || 'static');
   const [pool, setPool] = useState<PoolMessage[]>([]);
   const [newMsg, setNewMsg] = useState('');
   const [saving, setSaving] = useState(false);
@@ -357,13 +347,13 @@ function GoalEditor({ goal, onSaved, onDeleted, onRefresh }: {
         await fetch(`/api/scheduler/autoplugs/rules/${goal.rule.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ metric, threshold, delay_minutes: delay, mode }),
+          body: JSON.stringify({ metric, threshold, delay_minutes: delay }),
         });
       } else {
         await fetch('/api/scheduler/autoplugs/rules', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ goal_id: goal.id, metric, threshold, delay_minutes: delay, mode }),
+          body: JSON.stringify({ goal_id: goal.id, metric, threshold, delay_minutes: delay }),
         });
       }
 
@@ -421,16 +411,9 @@ function GoalEditor({ goal, onSaved, onDeleted, onRefresh }: {
         <input type="number" value={delay} onChange={e => setDelay(Number(e.target.value))} min={0} className="autoplug-delay-input" />
         <span className="autoplug-editor-row-label">min</span>
       </div>
-      <div className="autoplug-mode-toggle">
-        {(['static', 'llm', 'hybrid'] as const).map(m => (
-          <button key={m} className={mode === m ? 'active' : ''} onClick={() => setMode(m)}>
-            {m === 'llm' ? 'LLM' : m.charAt(0).toUpperCase() + m.slice(1)}
-          </button>
-        ))}
-      </div>
 
       <div className="autoplug-pool-section">
-        <div className="autoplug-editor-section-label">Static Pool</div>
+        <div className="autoplug-editor-section-label">Replies</div>
         {pool.map(msg => (
           <div key={msg.id} className="autoplug-pool-item">
             <span>{msg.content}</span>
@@ -447,12 +430,6 @@ function GoalEditor({ goal, onSaved, onDeleted, onRefresh }: {
           <button onClick={handleAddMsg}>+</button>
         </div>
       </div>
-
-      {(mode === 'llm' || mode === 'hybrid') && (
-        <div className="autoplug-llm-hint">
-          LLM mode uses Author's Voice to generate contextual replies referencing the original tweet.
-        </div>
-      )}
 
       <div className="autoplug-editor-actions">
         <button

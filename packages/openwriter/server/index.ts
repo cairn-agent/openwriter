@@ -38,7 +38,6 @@ import { buildInfo } from './build-info.js';
 import { createManuscriptRouter } from './manuscript-routes.js';
 import { createConnectionRouter } from './connection-routes.js';
 import { createSchedulerRouter } from './scheduler-routes.js';
-import { createBillingRouter } from './billing-routes.js';
 import { createTaskRouter } from './task-routes.js';
 import { platformFetch, isAuthenticated } from './connections.js';
 import { PluginManager } from './plugin-manager.js';
@@ -174,8 +173,6 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
   // Mount scheduler proxy routes
   app.use(createSchedulerRouter());
 
-  // Mount billing proxy routes
-  app.use(createBillingRouter());
 
   // Mount task CRUD routes
   app.use(createTaskRouter());

@@ -43,6 +43,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Writing in your voice is part of OpenWriter, on your own Claude API key. Add the key in Settings, under Claude. Right-click text for Enhance, Modify, Shrink, Expand, Insert and Fill; right-click a document (or a folder) and choose "Learn my voice from this" so rewrites sound like you; the Transform submenu has Vary, Shrinkify, Expandify, Threadify, Storify, Emailify and Postify. The Author's Voice plugin, its credits and the publish server's transforms are retired.
 
 ### Removed
+- The Publish and Publish+Email plans. Publishing, scheduling, connections and sending domains are free to every signed-in writer; OpenWriter takes 5% of what readers pay on your site. Gone with them: the `get_billing`, `upgrade_plan` and `manage_billing` tools and the plan panel under the Publish plugin. Generating pictures now needs your own Gemini image key (the Image Gen plugin's setting) until usage billing arrives.
+- Autoplugs reply only from the replies you write for each goal. The LLM and Hybrid modes, which used the retired Author's Voice service, are gone, along with `manage_autoplugs`'s `sync_av_key`; goals set to them now use their replies.
 - The `--api-key` and `--av-url` options and the `AV_API_KEY` setting, which only the retired Author's Voice service used.
 - The old newsletter send is gone: the `send_newsletter` and `resend_to_unopened` tools, the newsletter view's Send button and the resend panel in newsletter analytics. They mailed an old subscriber list nobody joins any more. To email your readers, publish to your site (`publish_to_site` with `send_email`); site posts are emailed to the site's members. Past issues and their analytics stay.
 

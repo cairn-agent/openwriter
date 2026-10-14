@@ -575,7 +575,7 @@ const plugin: OpenWriterPlugin = {
           properties: {
             action: {
               type: 'string',
-              enum: ['list_goals', 'create_goal', 'update_goal', 'delete_goal', 'list_pool', 'add_pool_message', 'delete_pool_message', 'create_rule', 'update_rule', 'delete_rule', 'sync_av_key'],
+              enum: ['list_goals', 'create_goal', 'update_goal', 'delete_goal', 'list_pool', 'add_pool_message', 'delete_pool_message', 'create_rule', 'update_rule', 'delete_rule'],
               description: 'Action to perform',
             },
             goal_id: { type: 'string', description: 'Goal ID (for pool/rule operations, update_goal, delete_goal)' },
@@ -583,14 +583,12 @@ const plugin: OpenWriterPlugin = {
             message_id: { type: 'string', description: 'Pool message ID (for delete_pool_message)' },
             name: { type: 'string', description: 'Goal name (for create_goal, update_goal)' },
             link: { type: 'string', description: 'Promo link (for create_goal, update_goal)' },
-            description: { type: 'string', description: 'Goal description for LLM context (for create_goal, update_goal)' },
+            description: { type: 'string', description: 'Goal description (for create_goal, update_goal)' },
             enabled: { type: 'boolean', description: 'Enable/disable (for update_goal, update_rule)' },
             content: { type: 'string', description: 'Pool message text (for add_pool_message). Use {{link}} as placeholder.' },
             metric: { type: 'string', enum: ['likes', 'retweets', 'views'], description: 'Trigger metric (for create_rule, update_rule)' },
             threshold: { type: 'number', description: 'Trigger threshold (for create_rule, update_rule)' },
             delay_minutes: { type: 'number', description: 'Delay after threshold met (for create_rule, update_rule)' },
-            mode: { type: 'string', enum: ['static', 'llm', 'hybrid'], description: 'Reply mode (for create_rule, update_rule)' },
-            av_api_key: { type: 'string', description: 'Author\'s Voice API key (for sync_av_key)' },
           },
           required: ['action'],
         },
@@ -678,7 +676,6 @@ const plugin: OpenWriterPlugin = {
                 metric: params.metric,
                 threshold: params.threshold,
                 delay_minutes: params.delay_minutes ?? 30,
-                mode: params.mode || 'static',
               }),
             });
             const data = await res.json();
@@ -692,7 +689,6 @@ const plugin: OpenWriterPlugin = {
             if (params.metric !== undefined) changes.metric = params.metric;
             if (params.threshold !== undefined) changes.threshold = params.threshold;
             if (params.delay_minutes !== undefined) changes.delay_minutes = params.delay_minutes;
-            if (params.mode !== undefined) changes.mode = params.mode;
             if (params.enabled !== undefined) changes.enabled = params.enabled;
             const res = await publishFetch(config, `/scheduler/autoplugs/rules/${params.rule_id}`, {
               method: 'PATCH',
@@ -709,17 +705,6 @@ const plugin: OpenWriterPlugin = {
             const data = await res.json();
             if (!res.ok) return { error: `Failed: ${(data as any).error || res.statusText}` };
             return { success: true, message: 'Rule deleted' };
-          }
-
-          if (action === 'sync_av_key') {
-            if (!params.av_api_key) return { error: 'av_api_key is required' };
-            const res = await publishFetch(config, '/scheduler/autoplugs/av-key', {
-              method: 'POST',
-              body: JSON.stringify({ av_api_key: params.av_api_key }),
-            });
-            const data = await res.json();
-            if (!res.ok) return { error: `Failed: ${(data as any).error || res.statusText}` };
-            return { success: true, message: 'AV API key synced to platform for LLM autoplugs' };
           }
 
           return { error: `Unknown action: ${action}` };
@@ -855,75 +840,6 @@ const plugin: OpenWriterPlugin = {
             created,
             summary: `Naturalized ${deleted} multi-day slots into ${created} per-day slots`,
             details: results,
-          };
-        },
-      },
-
-      // --- Billing tools ---
-
-      {
-        name: 'get_billing',
-        description: 'Get current subscription plan, capabilities, and billing status. Shows the plan tier (Publish or Publish+Email), which publishing channels are enabled, and whether payment is active.',
-        inputSchema: { type: 'object', properties: {} },
-        handler: async () => {
-          const res = await publishFetch(config, '/billing');
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            return { error: `Failed to fetch billing: ${(err as any).error || res.statusText}` };
-          }
-          return await res.json();
-        },
-      },
-
-      {
-        name: 'upgrade_plan',
-        description: 'Get a Stripe Checkout URL to subscribe or upgrade. Opens in browser for payment. Plans (wire value = label): "creator" = Publish ($19/mo, $190/yr) — the scheduler + publishing to X and LinkedIn, plus autoplugs on X (blog publishing via the GitHub plugin is free on every plan); "growth" = Publish+Email ($49/mo, $490/yr) — everything in Publish plus newsletter/email. Period: monthly or annual (2 months free).',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            plan: { type: 'string', enum: ['creator', 'growth'], description: 'Plan to subscribe to: "creator" = Publish ($19/mo), "growth" = Publish+Email ($49/mo)' },
-            period: { type: 'string', enum: ['monthly', 'annual'], description: 'Billing period (default: monthly). Annual saves 2 months.' },
-          },
-          required: ['plan'],
-        },
-        handler: async (params) => {
-          const res = await publishFetch(config, '/billing/checkout', {
-            method: 'POST',
-            body: JSON.stringify({
-              plan: params.plan,
-              period: params.period || 'monthly',
-            }),
-          });
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            return { error: `Checkout failed: ${(err as any).error || res.statusText}` };
-          }
-          const data = await res.json() as { url: string };
-          const planLabel = params.plan === 'growth' ? 'Publish+Email' : 'Publish';
-          return {
-            url: data.url,
-            message: `Open this URL to complete your ${planLabel} subscription: ${data.url}`,
-          };
-        },
-      },
-
-      {
-        name: 'manage_billing',
-        description: 'Get a Stripe Customer Portal URL to manage subscription — update payment method, view invoices, change plan, or cancel.',
-        inputSchema: { type: 'object', properties: {} },
-        handler: async () => {
-          const res = await publishFetch(config, '/billing/portal', {
-            method: 'POST',
-            body: JSON.stringify({}),
-          });
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            return { error: `Portal failed: ${(err as any).error || res.statusText}` };
-          }
-          const data = await res.json() as { url: string };
-          return {
-            url: data.url,
-            message: `Open this URL to manage your billing: ${data.url}`,
           };
         },
       },

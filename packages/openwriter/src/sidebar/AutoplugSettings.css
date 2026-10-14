@@ -104,32 +104,6 @@
   letter-spacing: 0.3px;
 }
 
-/* Mode toggle — reuses sidebar-schedule-btn pattern */
-.autoplug-mode-toggle {
-  display: flex;
-  gap: 2px;
-}
-
-.autoplug-mode-toggle button {
-  background: none;
-  border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  color: var(--ink-light);
-  cursor: pointer;
-}
-
-.autoplug-mode-toggle button:hover {
-  background: var(--bg-hover);
-  color: var(--ink-dark);
-}
-
-.autoplug-mode-toggle button.active {
-  background: var(--bg-hover);
-  color: var(--ink-dark);
-}
-
 /* Pool messages */
 .autoplug-pool-section {
   margin-top: 4px;
@@ -245,13 +219,6 @@
 .autoplug-tracking-skip:hover {
   opacity: 1;
   color: #ef4444;
-}
-
-/* LLM mode hint */
-.autoplug-llm-hint {
-  font-size: 11px;
-  color: var(--ink-light);
-  padding: 4px 0;
 }
 
 /* Full-width button in add form */

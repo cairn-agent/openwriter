@@ -253,11 +253,6 @@ export function createSchedulerRouter(): Router {
     }
   });
 
-  // AV Key
-  router.post('/api/scheduler/autoplugs/av-key', proxy('/scheduler/autoplugs/av-key', 'POST'));
-  router.delete('/api/scheduler/autoplugs/av-key', proxy('/scheduler/autoplugs/av-key', 'DELETE'));
-  router.get('/api/scheduler/autoplugs/av-key/status', proxy('/scheduler/autoplugs/av-key/status'));
-
   // Tracking
   router.get('/api/scheduler/autoplugs/tracking', proxy('/scheduler/autoplugs/tracking'));
   router.patch('/api/scheduler/autoplugs/tracking/:id', async (req, res) => {
