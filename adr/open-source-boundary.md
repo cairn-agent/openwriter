@@ -117,3 +117,11 @@ the rail. Generic: any plugin with its own screens needs a way in that does not 
   whenever its size changes, not only when it opens: a plugin's menu panel replaces the menu body
   after the first fit and is usually taller, so one opened low on the page ran off the bottom.
   When it does not fit below, it now moves up just enough instead of flipping above the click.
+
+- **2026-10-13 — Author's Voice is a local feature.** The Author's Voice plugin now does all its
+  work here, on the writer's own Claude key (rewrite, its voice index, its profile, the document
+  transforms that were on the publish server); see `adr/authors-voice.md`. It is local behaviour
+  a writer runs on their own computer, so it belongs in this repository. The web version runs the
+  same plugin in-process through a generic option, `createAuthorsVoicePlugin({ loadKey })`, for
+  an embedder that keeps the key itself. The editor's right-click actions now send the
+  document's `docId` beside its file name, so the plugin can search the voice by document.

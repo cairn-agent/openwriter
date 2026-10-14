@@ -1,16 +1,24 @@
 {
   "name": "@openwriter/plugin-authors-voice",
-  "version": "0.4.0",
-  "description": "Rewrite text in your voice using Author's Voice",
+  "version": "1.0.0",
+  "description": "Rewrite, fill and transform text in your voice, on your own Claude API key",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch"
   },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
+    "markdown-it": "^14.1.0"
+  },
   "devDependencies": {
     "@types/express": "^5.0.0",
+    "@types/markdown-it": "^14.1.2",
     "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=22.5.0"
   },
   "openwriter": {
     "displayName": "Author's Voice",

@@ -1,286 +1,202 @@
 /**
- * Author's Voice plugin for OpenWriter.
- * Proxies /api/voice/* to the AV backend and adds editor context-menu items
- * for sub-paragraph text actions (Enhance / Modify / Shrink / Expand / Insert / Fill).
+ * Author's Voice for OpenWriter: right-click actions that run on the writer's own Claude key.
  *
- * Sidebar document transforms (Vary / Shrinkify / Threadify / etc.) live in
- * @openwriter/plugin-publish — they go through the metered platform path.
+ *  - Editor, on selected text: Enhance, Modify..., Shrink, Expand; on an empty line: Insert,
+ *    Fill paragraph, Fill sentence. POST /api/voice/apply-editor keeps Author's Voice's request
+ *    and response shape, so the editor's menu works as it always has.
+ *  - Sidebar, on a document: Add to Author's Voice (also on a folder: every document in it),
+ *    and the transforms Vary, Shrinkify, Expandify, Threadify, Storify, Emailify, Postify.
+ *
+ * The voice is the writer's own documents: enriched with the search engine's prompts into a local index,
+ * searched for examples on every rewrite, and analysed into a voice profile.
+ * adr: adr/authors-voice.md
  */
 
-import type { Express, Request, Response } from 'express';
-import { readFileSync } from 'fs';
+import type { Request, Response, Router } from 'express';
+import { bindHost, explainApiError, setClientFactory, setKeyLoader, VoiceError, PLUGIN_NAME, type ClientFactory, type ToolDef } from './host.js';
+import { runEditor } from './editor/apply.js';
+import { markdownToNodes } from './editor/markdown-to-nodes.js';
+import { addToVoice, docIdFromMarkdown, voiceMessage } from './voice/voice-enrich.js';
+import { voiceIndex } from './voice/voice-index.js';
+import { buildProfile, readProfile } from './profile/build.js';
+import { isTransformAction, runTransform } from './transforms/run.js';
+import { dataDir } from './host.js';
 
-const PLUGIN_NAME = '@openwriter/plugin-authors-voice';
+export { runEditor, type EditorRequest, LENGTH_HINTS, type LengthHint, MAX_SELECTION_WORDS } from './editor/apply.js';
+export { addToVoice, voiceMessage, VoiceError } from './voice/voice-enrich.js';
+export { MODELS, resolveModel, DEFAULT_REWRITE_MODEL, DEFAULT_CHAT_MODEL, type ModelChoice } from './models.js';
+export { recordUsage, readUsage, tokenCounts, type UsageEntry } from './usage-log.js';
+export { explainApiError, redactKey } from './host.js';
 
-/**
- * Live-read the model tier from OpenWriter's config.json per request.
- * The host passes plugin config ONCE at registerRoutes and never reloads it on save, so the
- * dropdown's value would otherwise require a server restart. Reading the file per request
- * makes a model-picker change take effect on the very next Enhance. Falls back to the
- * load-time value on any error.
- */
-function liveModelTier(configFile: string, fallback: string): string {
-  try {
-    const cfg = JSON.parse(readFileSync(configFile, 'utf8'));
-    const v = cfg?.plugins?.[PLUGIN_NAME]?.config?.model;
-    return typeof v === 'string' ? v : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-/** Strip a leading YAML frontmatter block so it never lands in the voice corpus. */
-function stripFrontmatter(md: string): string {
-  return md.replace(/^﻿?---\r?\n[\s\S]*?\r?\n---\r?\n?/, '').trim();
-}
-
-/** Pull OpenWriter's stable doc id out of the on-disk markdown (frontmatter carries
- *  `"docId":"..."`). Returns null when absent so the caller can fall back to the filename. */
-function extractOwDocId(md: string): string | null {
-  const m = typeof md === 'string' ? md.match(/"docId"\s*:\s*"([^"]+)"/) : null;
-  return m ? m[1] : null;
-}
-
-interface PluginConfigField {
-  type: 'string' | 'number' | 'boolean' | 'select';
-  required?: boolean;
-  env?: string;
-  description?: string;
-  options?: Array<{ value: string; label: string }>;
-}
+/** How long the sidebar's Add waits before answering that the run continues in the background. */
+const VOICE_WAIT_MS = 45_000;
 
 interface PluginRouteContext {
-  app: Express;
+  app: Router;
   config: Record<string, string>;
+  readonly dataDir: string;
   configFile: string;
+  host: {
+    tools(): ReadonlyArray<ToolDef>;
+    createDocument(body: Record<string, any>, tab?: string): { filename: string; title: string };
+    rootDir: string;
+  };
 }
 
-interface PluginContextMenuItem {
-  label: string;
-  shortcut?: string;
-  action: string;
-  condition?: 'has-selection' | 'empty-node' | 'always';
-  promptForInput?: boolean;
+export interface AuthorsVoiceOptions {
+  /** Keep the writer's key outside OpenWriter's settings (an embedder that encrypts it). */
+  loadKey?: () => string | null;
+  /** Stand in for Anthropic (tests). */
+  clientFactory?: ClientFactory;
 }
 
-interface PluginSidebarMenuItem {
-  label: string;
-  action: string;
-  promptForFocus?: boolean;
-  // When true, OpenWriter also offers this item on workspace/container right-click,
-  // applying it to every doc in the folder. Used for ingestion (add to corpus).
-  folderCapable?: boolean;
+function sendError(res: Response, err: unknown): void {
+  const e = err instanceof VoiceError ? err : explainApiError(err);
+  res.status(e.status).json({ error: e.message, message: e.message, code: e.code });
 }
 
-interface OpenWriterPlugin {
-  name: string;
-  version: string;
-  description?: string;
-  category?: 'writing' | 'social-media' | 'image-generation';
-  configSchema?: Record<string, PluginConfigField>;
-  registerRoutes?(ctx: PluginRouteContext): void | Promise<void>;
-  contextMenuItems?(): PluginContextMenuItem[];
-  sidebarMenuItems?(): PluginSidebarMenuItem[];
+/** Rebuild the voice profile after the voice changed; a failure is retried on the next add. */
+function refreshProfile(): void {
+  buildProfile().catch((err) => console.warn("[Author's Voice] profile build failed:", err?.message || err));
 }
 
-const plugin: OpenWriterPlugin = {
-  name: '@openwriter/plugin-authors-voice',
-  version: '0.4.0',
-  description: "Rewrite text in your voice using Author's Voice",
-  category: 'writing',
+export function createAuthorsVoicePlugin(options: AuthorsVoiceOptions = {}) {
+  return {
+    name: PLUGIN_NAME,
+    version: '1.0.0',
+    displayName: "Author's Voice",
+    description: 'Rewrite, fill and transform text in your voice, on your own Claude API key',
+    category: 'writing' as const,
 
-  configSchema: {
-    'api-key': {
-      type: 'string',
-      required: true,
-      env: 'AV_API_KEY',
-      description: 'Author\'s Voice API key',
+    configSchema: options.loadKey ? {} : {
+      'anthropic-api-key': {
+        type: 'string' as const,
+        required: true,
+        description: 'Your Claude API key (sk-ant-...), from console.anthropic.com',
+      },
+      'model': {
+        type: 'select' as const,
+        description: 'Writing model',
+        options: [
+          { value: '', label: 'Default (Opus)' },
+          { value: 'opus', label: 'Opus (best quality)' },
+          { value: 'sonnet', label: 'Sonnet' },
+          { value: 'haiku', label: 'Haiku (fastest, cheapest)' },
+        ],
+      },
     },
-    'backend-url': {
-      type: 'string',
-      env: 'AV_BACKEND_URL',
-      description: 'AV backend URL',
-    },
-    // Model tier for rewrites. Sent as `modelTier` on /api/voice/* (the AV API owns the
-    // tier→model map + default — this is a pure pass-through of the user's pick). Blank =
-    // API default (strongest). Labels mirror the API's TIER_PICKER_OPTIONS.
-    'model': {
-      type: 'select',
-      env: 'AV_MODEL_TIER',
-      description: 'Writing model',
-      options: [
-        { value: '', label: 'Default (Strongest)' },
-        { value: 'strongest', label: 'Strongest — Claude Opus (best quality, $$$)' },
-        { value: 'fast-plus', label: 'Fast+ — Gemini 3.8 Flash (rapid, no cooldowns, $)' },
-        { value: 'fast', label: 'Fast — Gemini 3.8 Flash (free, slower, cooldowns)' },
-      ],
-    },
-  },
 
-  registerRoutes(ctx: PluginRouteContext) {
-    const backendUrl = ctx.config['backend-url'] || process.env.AV_BACKEND_URL || 'https://authors-voice.com';
-    const apiKey = ctx.config['api-key'] || process.env.AV_API_KEY || '';
-    const debugEnabled = process.env.AV_DEBUG === '1' || process.env.AV_DEBUG === 'true';
-    const modelTier = ctx.config['model'] || process.env.AV_MODEL_TIER || '';
+    registerRoutes(ctx: PluginRouteContext) {
+      bindHost({
+        dataDir: () => ctx.dataDir,
+        rootDir: () => ctx.host.rootDir,
+        tools: () => ctx.host.tools(),
+        createDocument: (body) => ctx.host.createDocument(body),
+        configFile: ctx.configFile,
+        config: ctx.config,
+      });
+      if (options.loadKey) setKeyLoader(options.loadKey);
+      if (options.clientFactory) setClientFactory(options.clientFactory);
 
-    const authHeaders = (): Record<string, string> => {
-      const h: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (apiKey) h['Authorization'] = `Bearer ${apiKey}`;
-      return h;
-    };
-
-    const withDebug = (body: unknown): unknown => {
-      if (!debugEnabled || !body || typeof body !== 'object') return body;
-      return { ...(body as Record<string, unknown>), debug: true };
-    };
-
-    // Inject the user's model-tier pick, read LIVE per request (dropdown changes take effect
-    // immediately, no restart). Pure pass-through: the AV API validates the slug and falls
-    // back to its own default if absent/unknown. Blank → nothing injected.
-    const withModel = (body: unknown): unknown => {
-      const tier = liveModelTier(ctx.configFile, modelTier);
-      if (!tier || !body || typeof body !== 'object') return body;
-      return { ...(body as Record<string, unknown>), modelTier: tier };
-    };
-
-    // Sidebar ingestion: right-click a doc (or a whole workspace/container) → "Add to
-    // Author's Voice". OpenWriter pre-fetches the doc's on-disk markdown and hands it here
-    // as `content`, so no file-upload primitive is needed — the doc IS the sample. We strip
-    // frontmatter, key the corpus docId off the OW doc's stable id (idempotent re-sync:
-    // re-running replaces that doc's chunks), and post to the AV corpus endpoint. Registered
-    // BEFORE the /api/voice/* wildcard so it isn't proxied straight through to the backend.
-    ctx.app.post('/api/voice/sidebar-action', async (req: Request, res: Response) => {
-      try {
-        const { filename, title, content } = req.body || {};
-        const body = stripFrontmatter(typeof content === 'string' ? content : '');
-        if (!body.trim()) {
-          res.status(400).json({ error: 'Document is empty — nothing to add to your voice.' });
-          return;
+      // The editor's right-click actions, in Author's Voice's request and response shape.
+      ctx.app.post('/api/voice/apply-editor', async (req: Request, res: Response) => {
+        try {
+          const b = req.body ?? {};
+          const { markdown, action, model } = await runEditor({
+            docId: String(b.docId || b.documentId || ''),
+            nodeIds: b.nodeIds,
+            nodes: b.nodes,
+            contextBefore: b.contextBefore,
+            contextAfter: b.contextAfter,
+            instruction: b.instruction,
+            action: b.action,
+            fullDocument: typeof b.fullDocument === 'string' ? b.fullDocument : undefined,
+          });
+          res.json({ success: true, nodes: markdownToNodes(markdown), metadata: { action, model } });
+        } catch (err) {
+          sendError(res, err);
         }
-        // Stable, namespaced corpus id so re-adding the same doc replaces its prior chunks.
-        const owId = extractOwDocId(content) || String(filename || '').replace(/\.[^.]+$/, '');
-        const docId = `ow-${owId}`;
+      });
 
-        const upstream = await fetch(`${backendUrl}/api/voice/content`, {
-          method: 'POST',
-          headers: authHeaders(),
-          body: JSON.stringify({ docId, content: body, categories: ['openwriter'], authenticity: 'Human' }),
-        });
+      // The sidebar's right-click actions on a document.
+      ctx.app.post('/api/voice/sidebar-action', async (req: Request, res: Response) => {
+        const { action, title, instructions, content } = req.body ?? {};
+        const name = String(title || 'This document');
+        try {
+          if (isTransformAction(action)) {
+            res.json(await runTransform({ action, content: String(content ?? ''), title: name, instructions }));
+            return;
+          }
+          if (action !== 'add-to-corpus') {
+            res.status(404).json({ error: `Unknown action "${action}".` });
+            return;
+          }
+          const docId = docIdFromMarkdown(String(content ?? ''));
+          if (!docId) { res.status(400).json({ error: `"${name}" could not be read.` }); return; }
+          const run = addToVoice(docId);
+          run.then(refreshProfile, () => { /* reported to the writer below */ });
+          const waited = await Promise.race([
+            run.then((r) => ({ r }), (err) => ({ err })),
+            new Promise<null>((ok) => setTimeout(() => ok(null), VOICE_WAIT_MS)),
+          ]);
+          if (!waited) {
+            res.json({ success: true, running: true, message: `Adding "${name}" to your voice. Long documents finish in the background.` });
+          } else if ('r' in waited) {
+            res.json({ success: true, ...waited.r, message: voiceMessage(waited.r) });
+          } else {
+            sendError(res, waited.err);
+          }
+        } catch (err) {
+          sendError(res, err);
+        }
+      });
 
-        const text = await upstream.text();
-        let data: any;
-        try { data = JSON.parse(text); } catch {
-          console.error('[AV Plugin] Non-JSON response (sidebar-action):', text.substring(0, 500));
-          res.status(502).json({ error: 'AV backend returned non-JSON response' });
-          return;
-        }
-        if (!upstream.ok) {
-          res.status(upstream.status).json(data);
-          return;
-        }
+      // What is in the voice: the documents added, and the profile built from them.
+      ctx.app.get('/api/voice/status', (_req: Request, res: Response) => {
+        const p = readProfile();
+        const g = p?.guidelines?.author_voice_guidelines;
         res.json({
-          success: true,
-          action: 'add-to-corpus',
-          title: title || docId,
-          docId,
-          chunksCreated: data?.chunksCreated ?? 0,
+          documents: voiceIndex(dataDir()).status(),
+          profile: p ? {
+            analyzedAt: p.analyzedAt,
+            analyzedWords: p.analyzedWords,
+            confidence: g?.confidence ?? null,
+            summary: g?.user_friendly_summary ?? null,
+            anchorBlend: p.anchorBlend,
+          } : null,
         });
-      } catch (err: any) {
-        console.error('[AV Plugin] sidebar-action error:', err?.message || err);
-        res.status(502).json({ error: 'AV backend unreachable' });
-      }
-    });
+      });
+    },
 
-    // Wildcard proxy for /api/voice/* routes. Pure pass-through: the AV API owns the
-    // engine choice (v1/v2) via its own AV_DEFAULT_ENGINE setting, so the plugin injects
-    // nothing but the optional owner-only dev debug flag.
-    ctx.app.post('/api/voice/*', async (req: Request, res: Response) => {
-      try {
-        const subPath = (req.params as any)[0] || '';
-        const targetUrl = `${backendUrl}/api/voice/${subPath}`;
-        const body = withModel(withDebug(req.body));
-        console.log(`[AV Plugin] ${req.method} ${req.path} → ${targetUrl}`);
+    contextMenuItems() {
+      return [
+        // Selection actions (require highlighted text)
+        { label: 'Enhance', shortcut: 'R', action: 'av:rewrite', condition: 'has-selection' as const },
+        { label: 'Modify...', action: 'av:custom', condition: 'has-selection' as const, promptForInput: true },
+        { label: 'Shrink', shortcut: 'S', action: 'av:shrink', condition: 'has-selection' as const },
+        { label: 'Expand', shortcut: 'E', action: 'av:expand', condition: 'has-selection' as const },
+        // Empty node actions (cursor on empty line)
+        { label: 'Insert', shortcut: 'I', action: 'av:insert', condition: 'empty-node' as const, promptForInput: true },
+        { label: 'Fill paragraph', shortcut: 'F', action: 'av:fill', condition: 'empty-node' as const },
+        { label: 'Fill sentence', action: 'av:fill-sentence', condition: 'empty-node' as const },
+      ];
+    },
 
-        const upstream = await fetch(targetUrl, {
-          method: 'POST',
-          headers: authHeaders(),
-          body: JSON.stringify(body),
-        });
+    // Sidebar (file tree) right-click. `voice:` routes to POST /api/voice/sidebar-action.
+    // folderCapable: also on a workspace or container, applied to every document in it.
+    sidebarMenuItems() {
+      return [
+        { label: "Add to Author's Voice", action: 'voice:add-to-corpus', folderCapable: true },
+        { label: 'Vary', action: 'voice:vary', promptForFocus: true },
+        { label: 'Shrinkify', action: 'voice:shrinkify', promptForFocus: true },
+        { label: 'Expandify', action: 'voice:expandify', promptForFocus: true },
+        { label: 'Threadify', action: 'voice:threadify', promptForFocus: true },
+        { label: 'Storify', action: 'voice:storify', promptForFocus: true },
+        { label: 'Emailify', action: 'voice:emailify', promptForFocus: true },
+        { label: 'Postify', action: 'voice:postify', promptForFocus: true },
+      ];
+    },
+  };
+}
 
-        res.status(upstream.status);
-        const forwardHeaders = ['x-usage-rewrite-count', 'x-usage-rewrite-limit', 'x-usage-resets-at'];
-        for (const h of forwardHeaders) {
-          const val = upstream.headers.get(h);
-          if (val) res.setHeader(h, val);
-        }
-
-        const responseText = await upstream.text();
-        try {
-          const data = JSON.parse(responseText);
-          res.json(data);
-        } catch {
-          console.error('[AV Plugin] Non-JSON response:', responseText.substring(0, 500));
-          res.status(502).json({ error: 'AV backend returned non-JSON response' });
-        }
-      } catch (err: any) {
-        console.error('[AV Plugin] Backend error:', err?.message || err);
-        res.status(502).json({ error: 'AV backend unreachable' });
-      }
-    });
-
-    // Wildcard GET proxy for /api/voice/* — same key-injection + base-URL pattern as the POST
-    // proxy above, no body. Covers the wallet/top-up reads (GET /api/voice/billing and
-    // /api/voice/billing/topup-options); the matching POST /api/voice/billing/topup rides the
-    // POST wildcard. Query string is forwarded so any future paginated read just works.
-    ctx.app.get('/api/voice/*', async (req: Request, res: Response) => {
-      try {
-        const subPath = (req.params as any)[0] || '';
-        const qs = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
-        const targetUrl = `${backendUrl}/api/voice/${subPath}${qs}`;
-        console.log(`[AV Plugin] ${req.method} ${req.path} → ${targetUrl}`);
-
-        const upstream = await fetch(targetUrl, {
-          method: 'GET',
-          headers: authHeaders(),
-        });
-
-        res.status(upstream.status);
-        const responseText = await upstream.text();
-        try {
-          res.json(JSON.parse(responseText));
-        } catch {
-          console.error('[AV Plugin] Non-JSON response:', responseText.substring(0, 500));
-          res.status(502).json({ error: 'AV backend returned non-JSON response' });
-        }
-      } catch (err: any) {
-        console.error('[AV Plugin] Backend error:', err?.message || err);
-        res.status(502).json({ error: 'AV backend unreachable' });
-      }
-    });
-  },
-
-  contextMenuItems() {
-    return [
-      // Selection actions (require highlighted text)
-      { label: 'Enhance', shortcut: 'R', action: 'av:rewrite', condition: 'has-selection' as const },
-      { label: 'Modify...', action: 'av:custom', condition: 'has-selection' as const, promptForInput: true },
-      { label: 'Shrink', shortcut: 'S', action: 'av:shrink', condition: 'has-selection' as const },
-      { label: 'Expand', shortcut: 'E', action: 'av:expand', condition: 'has-selection' as const },
-      // Empty node actions (cursor on empty line)
-      { label: 'Insert', shortcut: 'I', action: 'av:insert', condition: 'empty-node' as const, promptForInput: true },
-      { label: 'Fill paragraph', shortcut: 'F', action: 'av:fill', condition: 'empty-node' as const },
-      { label: 'Fill sentence', action: 'av:fill-sentence', condition: 'empty-node' as const },
-    ];
-  },
-
-  // Sidebar (file tree) right-click. `voice:` prefix routes the dispatch to this plugin's
-  // POST /api/voice/sidebar-action. folderCapable → also offered on workspaces/containers,
-  // where OpenWriter applies it to every doc in the folder.
-  sidebarMenuItems() {
-    return [
-      { label: "Add to Author's Voice", action: 'voice:add-to-corpus', folderCapable: true },
-    ];
-  },
-};
-
-export default plugin;
+export default createAuthorsVoicePlugin();

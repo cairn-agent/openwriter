@@ -31,3 +31,7 @@ pending-docs seed no longer bumps the refresh key: the sidebar's own first read
 already reflects it, and the bump made latest-wins discard that read. Workspaces
 load in one request (`/api/workspaces?full=1`) instead of one per workspace;
 ReviewTab shares the same loader.
+
+- **2026-10-13 — The transforms moved to Author's Voice.** Vary, Shrinkify, Expandify, Threadify,
+  Storify, Emailify and Postify are `voice:` actions now (`plugins/authors-voice`), run on the
+  writer's Claude key; the publish plugin no longer registers a sidebar handler.

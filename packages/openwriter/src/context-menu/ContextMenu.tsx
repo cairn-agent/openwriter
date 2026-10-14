@@ -540,6 +540,7 @@ export default function ContextMenu({ editorRef, allEditors, documentId, docId }
         contextAfter: nodesAfter.slice(0, 3),
         fullDocument: fullDocText,
         documentId,
+        docId,
         debug: true,
       };
       if (isSubParagraph) body.hasSelectionMarkers = true;
@@ -665,7 +666,7 @@ export default function ContextMenu({ editorRef, allEditors, documentId, docId }
       }
       setLoading(false);
     }
-  }, [editorRef]);
+  }, [editorRef, documentId, docId]);
 
   const handleImageGenAction = useCallback(async (instruction: string) => {
     const editor = activeEditorRef.current || editorRef.current;
