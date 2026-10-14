@@ -122,3 +122,8 @@ The prompts are the refined part and are copied, never paraphrased:
 - **2026-10-14 — The balance shows sending charges.** Lists above 2,500 subscribers pay for sending
   from the same balance (repo:openwriter-publish/adr/paid-sending.md); Settings > Claude labels those
   charges "Newsletter sending".
+- **2026-10-14 — One rule for the default rewrite model.** `defaultEditorModel()` (`editor/apply.ts`) is
+  the model a rewrite uses when the request names none: the writer's Settings > Claude choice, else
+  Haiku on the balance or Opus on their own key. `runEditor` uses it, and an embedder with its own
+  Rewrite UI reads it to show and send the same default instead of choosing its own (an embedder
+  defaulting to Opus charged balance writers for Opus).

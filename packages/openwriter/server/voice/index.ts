@@ -173,6 +173,6 @@ export function registerVoiceRoutes(app: Express): void {
   });
 }
 
-export { runEditor, type EditorRequest, LENGTH_HINTS, type LengthHint, MAX_SELECTION_WORDS } from './editor/apply.js';
+export { runEditor, defaultEditorModel, type EditorRequest, LENGTH_HINTS, type LengthHint, MAX_SELECTION_WORDS } from './editor/apply.js';
 export { VoiceError, explainApiError, redactKey, usingBalance, type ClientFactory } from './host.js';
 export { MODELS, DEFAULT_REWRITE_MODEL, DEFAULT_CHAT_MODEL, modelFor, resolveChoice, type ModelChoice, type LiveModel } from './models.js';

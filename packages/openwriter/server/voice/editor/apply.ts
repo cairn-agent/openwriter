@@ -126,6 +126,14 @@ async function systemPromptFor(docId: string, fullDocumentIn: string | undefined
   return out;
 }
 
+/**
+ * The model a rewrite uses when the request names none: the writer's choice in Settings > Claude,
+ * else Haiku on the OpenWriter balance (the free tier) or Opus on their own key.
+ */
+export function defaultEditorModel(): ModelChoice {
+  return resolveChoice(modelSetting(), usingBalance() ? 'haiku' : DEFAULT_REWRITE_MODEL);
+}
+
 /** Rewrite the selection in the writer's voice. Returns Markdown, selection markers removed. */
 export async function runEditor(req: EditorRequest): Promise<{ markdown: string; model: ModelChoice; action: EditorAction }> {
   validate(req);
@@ -136,8 +144,7 @@ export async function runEditor(req: EditorRequest): Promise<{ markdown: string;
     throw new VoiceError(413, 'too_large', `Selection too large: ${words.toLocaleString()} words (max ${MAX_SELECTION_WORDS.toLocaleString()}). Select a smaller section.`);
   }
 
-  // On the OpenWriter balance the default is Haiku, the free tier; a writer can pick another.
-  const choice = resolveChoice(req.model ?? modelSetting(), usingBalance() ? 'haiku' : DEFAULT_REWRITE_MODEL);
+  const choice = resolveChoice(req.model, defaultEditorModel());
   const model = await modelFor(choice);
   const { action, budget, instruction } = editorAction(req, req.instruction?.trim() || undefined);
 

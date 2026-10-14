@@ -144,3 +144,5 @@ the rail. Generic: any plugin with its own screens needs a way in that does not 
   delivered where an agent's call enters, so a program running OpenWriter's tools for its own
   agent passes each result through `appendDocGuidance` with that agent's session. Generic: any
   embedder with an agent needs it, and it changes nothing for one without.
+- **2026-10-14 — `defaultEditorModel` is exported.** An embedder with its own Rewrite UI needs the
+  same default the built-in actions use; it is a read of the existing rule, not new behaviour.
