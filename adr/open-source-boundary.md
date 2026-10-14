@@ -146,3 +146,7 @@ the rail. Generic: any plugin with its own screens needs a way in that does not 
   embedder with an agent needs it, and it changes nothing for one without.
 - **2026-10-14 — `defaultEditorModel` is exported.** An embedder with its own Rewrite UI needs the
   same default the built-in actions use; it is a read of the existing rule, not new behaviour.
+- **2026-10-14 — A plugin's server-side right-click item is not run as a voice action.** The editor
+  sent every plugin item to `/api/voice/apply-editor`, so a third-party item would have run a voice
+  rewrite. Only `voice:` actions go there now; a plugin adds its own editor actions as a client menu
+  panel (`registerMenuPanel`), which already has its own handler.

@@ -3,14 +3,12 @@
  * Copied from the publish server's transforms module (itself adapted from AV's
  * AVModelService); the call now runs on the writer's own key.
  *
- * Model: the newest Sonnet (../models.ts); AV_FAST_MODEL / AV_PREMIUM_MODEL still pin one by id.
+ * Model: the newest Sonnet (../models.ts).
  */
 
 import { claude } from '../host.js';
 import { createMessage, modelFor, type LiveModel } from '../models.js';
 import { recordUsage, tokenCounts } from '../usage-log.js';
-
-export type ProviderMode = 'fast' | 'premium';
 
 export interface ModelResult {
   content: string;
@@ -23,34 +21,23 @@ export interface ModelResult {
   };
 }
 
-export interface ModelEnv {
-  AV_FAST_MODEL?: string;
-  AV_PREMIUM_MODEL?: string;
-}
-
-// Published Anthropic pricing (per million tokens)
-const PRICING: Record<string, { input: number; output: number; cacheWrite: number; cacheRead: number }> = {
-  'claude-haiku-4-5-20251001':   { input: 0.80,  output: 4.00,  cacheWrite: 1.00,  cacheRead: 0.08 },
-  'claude-sonnet-4-5-20250929':  { input: 3.00,  output: 15.00, cacheWrite: 3.75,  cacheRead: 0.30 },
-  'claude-sonnet-4-6':           { input: 3.00,  output: 15.00, cacheWrite: 3.75,  cacheRead: 0.30 },
-  'claude-opus-4-6':             { input: 15.00, output: 75.00, cacheWrite: 18.75, cacheRead: 1.50 },
+// Anthropic's prices per million tokens for each line's newest model (5.5), so a newer id of the
+// same line is still estimated, not priced as Opus.
+const PRICING: Record<'opus' | 'sonnet' | 'haiku', { input: number; output: number; cacheWrite: number; cacheRead: number }> = {
+  opus:   { input: 4.00, output: 20.00, cacheWrite: 5.00,  cacheRead: 0.40 },
+  sonnet: { input: 2.00, output: 10.00, cacheWrite: 2.50,  cacheRead: 0.20 },
+  haiku:  { input: 0.10, output: 0.50,  cacheWrite: 0.125, cacheRead: 0.01 },
 };
-const DEFAULT_PRICING = { input: 15.00, output: 75.00, cacheWrite: 18.75, cacheRead: 1.50 };
 
 const MAX_RETRIES = 3;
 const RETRYABLE_STATUSES = [429, 503, 529];
-
-async function resolveModel(env: ModelEnv, mode: ProviderMode): Promise<LiveModel> {
-  const latest = await modelFor('sonnet');
-  const pinned = mode === 'fast' ? env.AV_FAST_MODEL : env.AV_PREMIUM_MODEL;
-  return pinned ? { ...latest, id: pinned, name: pinned } : latest;
-}
 
 function estimateCost(
   model: string, inputTokens: number, outputTokens: number,
   cacheCreationTokens = 0, cacheReadTokens = 0,
 ): number {
-  const pricing = PRICING[model] || DEFAULT_PRICING;
+  const line = /^claude-(opus|sonnet|haiku)-/.exec(model)?.[1] as keyof typeof PRICING | undefined;
+  const pricing = PRICING[line ?? 'opus'];
   return (
     inputTokens * pricing.input +
     outputTokens * pricing.output +
@@ -68,15 +55,13 @@ export class ModelService {
    * Call the Anthropic API with exponential backoff retry for transient errors.
    */
   static async call(
-    env: ModelEnv,
     prompt: string,
     systemPrompt?: string,
-    mode: ProviderMode = 'fast',
     temperature: number = 0.7,
     maxTokens: number = 4096,
   ): Promise<ModelResult> {
     const client = claude({ job: 'transform' });
-    const live = await resolveModel(env, mode);
+    const live: LiveModel = await modelFor('sonnet');
     const model = live.id;
 
     let lastError: Error | null = null;

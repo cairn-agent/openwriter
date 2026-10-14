@@ -67,7 +67,7 @@ export async function runTransform(params: { action: TransformAction; content: s
     throw new VoiceError(413, 'too_large', `Document too large to transform: ${transformWords.toLocaleString()} words (max ${MAX_TRANSFORM_WORDS.toLocaleString()}).`);
   }
 
-  const transformResult = await TransformService.transform({ action, content, title, instructions, env: {} });
+  const transformResult = await TransformService.transform({ action, content, title, instructions });
 
   // Convert HTML output to markdown for document creation
   const markdownContent = htmlToMarkdown(transformResult.html);

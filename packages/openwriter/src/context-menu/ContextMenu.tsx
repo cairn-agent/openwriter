@@ -12,7 +12,7 @@ import { showToast } from '../utils/toast';
 import { useBookmarks, getBookmarks, addBookmark, editBookmark, removeBookmark } from '../bookmarks/bookmarks-store';
 import { PluginMount, useClientPlugins, type MenuPanelContext, type PluginMenuPanel } from '../plugins/client-plugins';
 
-/** Client-side selection cap — mirrors the AV API's apply-editor guard. Toast + cancel
+/** Client-side selection cap — mirrors the server's apply-editor guard. Toast + cancel
  *  before the request so the user gets instant feedback (not a 413 round-trip). */
 const MAX_SELECTION_WORDS = 5000;
 
@@ -465,6 +465,12 @@ export default function ContextMenu({ editorRef, allEditors, documentId, docId }
   }, [findEditorForTarget]);
 
   const callPluginAction = useCallback(async (action: string, instruction?: string) => {
+    // Only the voice actions have a route (/api/voice/apply-editor). A plugin's own menu item
+    // needs a client menu panel (registerMenuPanel); sending it here would run a voice rewrite.
+    if (!action.startsWith('voice:')) {
+      console.warn('[ContextMenu] No handler for plugin action:', action);
+      return;
+    }
     const editor = activeEditorRef.current || editorRef.current;
     if (!editor) return;
 

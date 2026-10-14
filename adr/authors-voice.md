@@ -127,3 +127,8 @@ The prompts are the refined part and are copied, never paraphrased:
   Haiku on the balance or Opus on their own key. `runEditor` uses it, and an embedder with its own
   Rewrite UI reads it to show and send the same default instead of choosing its own (an embedder
   defaulting to Opus charged balance writers for Opus).
+- **2026-10-14 — Leftovers of the plugin removed.** The transforms no longer read `AV_FAST_MODEL` /
+  `AV_PREMIUM_MODEL` (nothing passed them since the move) and price their cost estimate by line at
+  the 5.5 rates instead of falling back to Opus 4.6 rates. The prompt-debug inspector works again:
+  `runEditor` returns the prompts it sent and `/api/voice/apply-editor` includes them as `debug`
+  only while `OW_PROMPT_DEBUG` is on, which the editor already saves as a `_prompt-*` doc.

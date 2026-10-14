@@ -19,6 +19,7 @@
 import type { Express, Request, Response } from 'express';
 import { describeSettings, explainApiError, isPlausibleKey, keyManagedElsewhere, saveSettings, VoiceError, dataDir } from './host.js';
 import { runEditor } from './editor/apply.js';
+import { isPromptDebugEnabled } from '../prompt-debug.js';
 import { markdownToNodes } from './editor/markdown-to-nodes.js';
 import { addToVoice, docIdFromMarkdown, voiceAddsRunning, voiceMessage } from './voice/voice-enrich.js';
 import { platformFetch } from '../connections.js';
@@ -78,7 +79,7 @@ export function registerVoiceRoutes(app: Express): void {
   app.post('/api/voice/apply-editor', async (req: Request, res: Response) => {
     try {
       const b = req.body ?? {};
-      const { markdown, action, model } = await runEditor({
+      const { markdown, action, model, prompts } = await runEditor({
         docId: String(b.docId || b.documentId || ''),
         nodeIds: b.nodeIds,
         nodes: b.nodes,
@@ -88,7 +89,11 @@ export function registerVoiceRoutes(app: Express): void {
         action: b.action,
         fullDocument: typeof b.fullDocument === 'string' ? b.fullDocument : undefined,
       });
-      res.json({ success: true, nodes: markdownToNodes(markdown), metadata: { action, model } });
+      // With OW_PROMPT_DEBUG on, the editor saves these prompts as a sidebar doc (/api/prompt-debug).
+      res.json({
+        success: true, nodes: markdownToNodes(markdown), metadata: { action, model },
+        ...(isPromptDebugEnabled() ? { debug: prompts } : {}),
+      });
     } catch (err) {
       sendError(res, err);
     }

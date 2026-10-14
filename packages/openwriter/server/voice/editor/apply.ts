@@ -134,8 +134,13 @@ export function defaultEditorModel(): ModelChoice {
   return resolveChoice(modelSetting(), usingBalance() ? 'haiku' : DEFAULT_REWRITE_MODEL);
 }
 
-/** Rewrite the selection in the writer's voice. Returns Markdown, selection markers removed. */
-export async function runEditor(req: EditorRequest): Promise<{ markdown: string; model: ModelChoice; action: EditorAction }> {
+/**
+ * Rewrite the selection in the writer's voice. Returns Markdown, selection markers removed, and
+ * the prompts sent (for the prompt-debug inspector, docs/prompt-debug.md).
+ */
+export async function runEditor(req: EditorRequest): Promise<{
+  markdown: string; model: ModelChoice; action: EditorAction; prompts: { systemPrompt: string; userPrompt: string };
+}> {
   validate(req);
   const client = claude({ job: 'rewrite' });
 
@@ -187,5 +192,5 @@ export async function runEditor(req: EditorRequest): Promise<{ markdown: string;
     response.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('\n\n'),
   ).trim();
   if (!markdown) throw new VoiceError(422, 'empty', 'Claude returned no text.');
-  return { markdown, model: choice, action };
+  return { markdown, model: choice, action, prompts: { systemPrompt: system.prompt, userPrompt: user } };
 }

@@ -1,6 +1,6 @@
 /**
  * File: prompt-debug.ts
- * Purpose: Write AV prompt debug data to timestamped .md files for inspection.
+ * Purpose: Write the editor's rewrite prompts to timestamped .md files for inspection.
  *   Each enhance creates a new `_prompt-<action>-<ts>.md` doc in the data dir,
  *   visible in the OpenWriter sidebar — so the exact system+user prompt that was
  *   sent to the AI can be reviewed by hand.

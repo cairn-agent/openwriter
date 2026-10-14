@@ -5,7 +5,7 @@
  * Actions: vary, shrinkify, expandify, threadify, storify, emailify, postify
  */
 
-import { ModelService, type ModelEnv } from './model.js';
+import { ModelService } from './model.js';
 import { buildSystemPrompt, buildUserPrompt, type TransformAction } from './transform-prompts.js';
 import type { ThreadResult } from './thread-types.js';
 import { parseThreadResponse, threadToHtml } from './thread-parser.js';
@@ -21,7 +21,6 @@ export interface TransformParams {
   content: string;
   title: string;
   instructions?: string;
-  env: ModelEnv;
 }
 
 export interface TransformResult {
@@ -60,7 +59,7 @@ const ACTION_CONFIGS: Record<TransformAction, ActionConfig> = {
 export class TransformService {
   static async transform(params: TransformParams): Promise<TransformResult> {
     const startTime = Date.now();
-    const { action, content, title, instructions, env } = params;
+    const { action, content, title, instructions } = params;
     const config = ACTION_CONFIGS[action];
 
     // Build prompts (no voice profile, no RAG)
@@ -69,7 +68,7 @@ export class TransformService {
 
     // Call Claude
     const { content: rawResponse, usage } = await ModelService.call(
-      env, userPrompt, systemPrompt, 'fast', config.temperature, config.maxTokens,
+      userPrompt, systemPrompt, config.temperature, config.maxTokens,
     );
 
     const newTitle = `${title} ${config.titleSuffix}`;
