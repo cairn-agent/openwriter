@@ -61,3 +61,5 @@ The prompts are the refined part and are copied, never paraphrased:
   its billing routes are removed. Author's Voice kept every document in one store with
   per-document positions, so its adjacency rules crossed documents by accident; here they count
   within a document. The paragraphs being rewritten are never their own examples.
+- **2026-10-13 — A host that supplies the key gets no settings.** With `loadKey`, the plugin
+  declares no settings at all (it declared an empty list, which did not type-check as a plugin).

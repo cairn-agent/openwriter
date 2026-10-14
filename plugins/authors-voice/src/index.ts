@@ -68,7 +68,7 @@ export function createAuthorsVoicePlugin(options: AuthorsVoiceOptions = {}) {
     description: 'Rewrite, fill and transform text in your voice, on your own Claude API key',
     category: 'writing' as const,
 
-    configSchema: options.loadKey ? {} : {
+    configSchema: options.loadKey ? undefined : {
       'anthropic-api-key': {
         type: 'string' as const,
         required: true,
