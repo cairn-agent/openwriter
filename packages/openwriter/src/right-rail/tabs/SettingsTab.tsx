@@ -1,15 +1,17 @@
 /**
- * Settings tab — Connections and Plugins in one panel, so the strip keeps one
- * slot for setup screens. Each section is the former tab's body, unchanged.
+ * Settings tab — Claude (the writer's key and model), Connections and Plugins in one panel, so
+ * the strip keeps one slot for setup screens.
  * Appearance lives beside what it changes (format bar, left rail, top bar).
  * adr: adr/right-rail.md
  */
 import type { RightRailTabProps } from '../types';
 import './SettingsTab.css';
+import ClaudeSettings from './ClaudeSettings';
 import ConnectionsTab from './ConnectionsTab';
 import PluginsTab from './PluginsTab';
 
 const SECTIONS = [
+  { id: 'claude', title: 'Claude', Body: ClaudeSettings },
   { id: 'connections', title: 'Connections', Body: ConnectionsTab },
   { id: 'plugins', title: 'Plugins', Body: PluginsTab },
 ];

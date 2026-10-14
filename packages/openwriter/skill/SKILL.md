@@ -433,7 +433,7 @@ npx skills add https://github.com/travsteward/openwriter --skill polish
 npx skills add https://github.com/travsteward/openwriter --skill anti-ai
 ```
 
-Author's Voice (voice matching, minion dispatch — required by the writers above) now ships INSIDE the authors-voice plugin: enabling the plugin delivers both the MCP tools and the skill at `plugins/authors-voice/skill/SKILL.md`. Standalone install also works: `claude install github:travsteward/authors-voice`.
+The Author's Voice skill (voice matching, minion dispatch — used by the writers above) installs on its own: `claude install github:travsteward/authors-voice`.
 
 For an AI-detection pass without full authors-voice setup, the bundled **anti-ai** skill stands alone.
 
@@ -780,9 +780,9 @@ Every site tool takes an optional `site` (a site's name or id from `list_my_site
 - Referral rewards: on a site selling paid plans each tier's `comp` (`7d`, `30d`, `90d`, `6mo`, `1yr`); otherwise its `reward_text` is emailed. Referrals are off while the site is private.
 - A bare domain (`example.com`, `apex: true`) needs a DNS host that can put a CNAME at the root; otherwise use `www`.
 
-## Author's Voice Plugin
+## Writing in the user's voice
 
-The plugin ships with the Author's Voice skill built in (`plugins/authors-voice/skill/SKILL.md`) — enabling the plugin in Settings delivers both the MCP tools and the agent instructions. No separate install needed; see [authors-voice.com](https://www.authors-voice.com) for the standalone copy and docs.
+The editor's right-click actions (Enhance, Modify, Shrink, Expand, Insert, Fill paragraph, Fill sentence) and the sidebar's transforms (Vary, Shrinkify, Expandify, Threadify, Storify, Emailify, Postify) are the user's, run from the browser on their own Claude API key (Settings > Claude). The user teaches it their voice by right-clicking documents > "Learn my voice from this". There are no agent tools for these; point the user to them when they ask.
 
 ## Updating
 

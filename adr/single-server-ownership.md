@@ -79,3 +79,7 @@ took over.
 `server.lock` and never becomes a client: the embedder owns the process and gives it its own
 data folder (`OW_DATA_DIR`). Taking the lock there would let a leftover lock from a restarted
 process name a pid that is now unrelated. Details: `adr/open-source-boundary.md`.
+
+### 2026-10-13 — retired key flags
+`bin/pad.ts` no longer reads `--api-key`, `--av-url` or `AV_API_KEY` (the retired Author's Voice
+service's key; nothing used it). Port ownership is unchanged.

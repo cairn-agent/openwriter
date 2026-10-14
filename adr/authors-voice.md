@@ -1,6 +1,9 @@
-# Author's Voice: right-click actions on the writer's own Claude key
+# Writing in the writer's voice: right-click actions on their own Claude key
 
-Referenced by every module in `plugins/authors-voice/src`.
+Referenced by every module in `packages/openwriter/server/voice/`, the menus that offer the
+actions (`src/context-menu/ContextMenu.tsx`, `src/sidebar/DocContextMenu.tsx`) and Settings >
+Claude (`src/right-rail/tabs/ClaudeSettings.tsx`). The file keeps its old name so existing
+markers resolve.
 
 ## Context
 
@@ -9,9 +12,11 @@ voice profile and writing samples and rewrote text through an API, metered by cr
 document transforms (Vary, Shrinkify, Expandify, Threadify, Storify, Emailify, Postify) ran on
 the publish server. Both are retired (2026-10-13, operator decision): Author's Voice is now only
 right-click actions inside OpenWriter, each a call to Claude on the writer's own Anthropic key.
-No API, no agent tools, no credits. Its prompts and engine are open source in this plugin, and
-the web version of OpenWriter runs the same plugin (it keeps the key encrypted itself and hands
-it over through `createAuthorsVoicePlugin({ loadKey })`).
+No API, no agent tools, no credits. Since 2026-10-13 it is plain OpenWriter, not a plugin, and
+the Author's Voice name is gone from the app: the actions keep their own names (Enhance, Shrink,
+Vary...), the sidebar item is "Learn my voice from this", and the key lives in Settings > Claude.
+The web version of OpenWriter keeps the key encrypted itself and hands it over through
+`startOpenWriter({ aiKey })`.
 
 The prompts are the refined part and are copied, never paraphrased:
 - The editor (Enhance, Modify, Shrink, Expand, Insert, Fill paragraph, Fill sentence):
@@ -28,14 +33,22 @@ The prompts are the refined part and are copied, never paraphrased:
 
 ## Current invariants
 
-- **Every model call runs on the writer's key** (`host.ts` `claude()`): the plugin setting
-  `anthropic-api-key`, or the embedder's `loadKey`. No key: a plain "add your key" answer (409
-  `no_key`). The key is never logged or shown; errors pass through `redactKey`.
+- **Every model call runs on the writer's key** (`host.ts` `claude()`): saved in Settings >
+  Claude to `<data root>/ai/claude.json` (owner-only, beside the usage log), or kept by the
+  embedding program (`aiKey`, which also hides the key field). A key saved in the old plugin's
+  settings is still read until the writer saves one here. No key: a plain "add your key" answer
+  (409 `no_key`). The key is never logged, never sent to the browser (only its last four
+  characters), and errors pass through `redactKey`.
+- **Always on.** The routes are registered by the server itself (`registerVoiceRoutes`), and the
+  menu items are built into the editor and sidebar menus, not listed by a plugin. `voice:`
+  sidebar actions reach `/api/voice/sidebar-action` through the generic sidebar-action forwarder.
+- **OpenWriter starts on any supported Node.** `node:sqlite` is loaded on first use of the voice
+  index; only learning the voice and rewriting with examples need Node 22.5 or later.
 - **Copied code keeps its text.** Changes to copied modules are limited to imports (file
   endings, the model caller) and the key. A prompt is never reworded here; to change one, change
   it at its source and copy it again.
-- **The writer's documents are the corpus.** Right-click a document (or a folder) > Add to
-  Author's Voice. Paragraphs are OpenWriter's own blocks read through `read_pad`, keyed by node
+- **The writer's documents are the corpus.** Right-click a document (or a folder) > Learn my
+  voice from this. Paragraphs are OpenWriter's own blocks read through `read_pad`, keyed by node
   id, each tagged by who wrote it from OpenWriter's attribution (human -> Human, mixed ->
   AI-Assisted, agent -> AI, text from before attribution -> Human).
 - **The index stores search terms, not the writing**: one SQLite file per profile,
@@ -50,7 +63,7 @@ The prompts are the refined part and are copied, never paraphrased:
 - **Rewrite** follows applyEditor: system examples from the whole document (cached five minutes
   per document, keyed on the voice's state), selection examples minus the system's and minus the
   paragraphs being rewritten. `POST /api/voice/apply-editor` keeps Author's Voice's request and
-  response shape, so the editor's right-click menu is unchanged.
+  response shape. Embedders with their own Rewrite UI call `runEditor` from `openwriter/server`.
 - **Transforms** create a new document beside the source (a variant), as before.
 - Usage is logged without text: `<data root>/ai/usage.jsonl`.
 
@@ -63,3 +76,10 @@ The prompts are the refined part and are copied, never paraphrased:
   within a document. The paragraphs being rewritten are never their own examples.
 - **2026-10-13 — A host that supplies the key gets no settings.** With `loadKey`, the plugin
   declares no settings at all (it declared an empty list, which did not type-check as a plugin).
+- **2026-10-13 — Plain OpenWriter, no plugin, no name.** Operator decision: a writer's own Claude
+  key and these actions are core, so the plugin is gone. The code moved unchanged from
+  `plugins/authors-voice/src` to `server/voice/`; the key moved from the plugin's settings to
+  Settings > Claude; the embedder hook moved from `createAuthorsVoicePlugin({ loadKey })` to
+  `startOpenWriter({ aiKey, aiClient })`. Also removed with it: the old Author's Voice credits
+  panel and top-up toast (their billing routes were already gone), the `--api-key` / `--av-url`
+  flags and `AV_API_KEY` (nothing read them), and the plugin's stale API skill docs.

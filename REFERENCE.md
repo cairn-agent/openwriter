@@ -94,7 +94,7 @@ Select text and right-click for AI-powered transformations:
 | Delete | `D` | Mark for deletion |
 | Link to doc | `L` | Create internal document links |
 
-Context menu actions are provided by plugins. The built-in [Author's Voice](https://authors-voice.com) plugin rewrites text in your personal writing voice.
+The writing actions (Enhance, Shrink, Expand, Modify, Insert, Fill) run on your own Claude API key, added in Settings under Claude. They write in your voice, learned from the documents you right-click and choose "Learn my voice from this". Plugins can add more actions.
 
 ---
 
@@ -226,16 +226,12 @@ openwriter [options]
 Options:
   --port <number>       Port number (default: 5050)
   --no-open             Don't auto-open browser
-  --api-key <key>       Author's Voice API key
-  --av-url <url>        Author's Voice backend URL
   --plugins <names>     Comma-separated plugin names
 
 Subcommands:
   setup                 Install the skill, wire up the MCP server, and prepare your agent
                         (alias: install-skill)
 ```
-
-Environment variables: `AV_API_KEY`, `AV_BACKEND_URL`
 
 ---
 

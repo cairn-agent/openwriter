@@ -10,7 +10,7 @@
 import { statSync } from 'fs';
 import { join } from 'path';
 import Anthropic from '@anthropic-ai/sdk';
-import { claude, dataDir, explainApiError, setting, VoiceError } from '../host.js';
+import { claude, dataDir, explainApiError, modelSetting, VoiceError } from '../host.js';
 import { DEFAULT_REWRITE_MODEL, resolveModel, type ModelChoice } from '../models.js';
 import { recordUsage, tokenCounts } from '../usage-log.js';
 import {
@@ -136,7 +136,7 @@ export async function runEditor(req: EditorRequest): Promise<{ markdown: string;
     throw new VoiceError(413, 'too_large', `Selection too large: ${words.toLocaleString()} words (max ${MAX_SELECTION_WORDS.toLocaleString()}). Select a smaller section.`);
   }
 
-  const model = resolveModel(req.model ?? setting('model'), DEFAULT_REWRITE_MODEL);
+  const model = resolveModel(req.model ?? modelSetting(), DEFAULT_REWRITE_MODEL);
   const { action, budget, instruction } = editorAction(req, req.instruction?.trim() || undefined);
 
   const system = await systemPromptFor(req.docId, req.fullDocument, instruction);

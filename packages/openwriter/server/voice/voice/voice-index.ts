@@ -12,8 +12,21 @@
 
 import { mkdirSync } from 'fs';
 import { join } from 'path';
-import { DatabaseSync } from 'node:sqlite';
+import { createRequire } from 'module';
+import type { DatabaseSync } from 'node:sqlite';
 import type { ChunkEnrichment, DocEnrichment } from './voice-prompts.js';
+
+/**
+ * node:sqlite, loaded on first use: OpenWriter itself starts on any supported Node, and only the
+ * voice actions need Node 22.5 or later.
+ */
+function openSqlite(): typeof DatabaseSync {
+  try {
+    return (createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite')).DatabaseSync;
+  } catch {
+    throw new Error(`Learning your voice needs Node 22.5 or later (this is ${process.version}).`);
+  }
+}
 
 /** Author's Voice's authenticity tags: only Human text carries voice at full weight. */
 export type Authenticity = 'Human' | 'AI-Assisted' | 'AI' | 'Untagged';
@@ -100,7 +113,7 @@ export class VoiceIndex {
   private db: DatabaseSync;
 
   constructor(file: string) {
-    this.db = new DatabaseSync(file);
+    this.db = new (openSqlite())(file);
     this.db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
     this.db.exec(SCHEMA);
     const cols = (this.db.prepare('PRAGMA table_info(voice_chunks)').all() as any[]).map((c) => c.name);

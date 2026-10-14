@@ -39,7 +39,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - Site account controls for the agent: `export_site` (everything as one zip: posts as Markdown and HTML, subscribers, comments, settings, sections, tags and plans; a download link, or saved to a path), `delete_site` (owner only, confirmed by typing the site's name; refused while readers still pay) and `transfer_site_ownership` (to an admin on the team; you stay as an admin). Team invites now link a page where the invitee signs in and joins, and `invite_to_team` returns that link.
 
+- Writing in your voice is part of OpenWriter, on your own Claude API key. Add the key in Settings, under Claude. Right-click text for Enhance, Modify, Shrink, Expand, Insert and Fill; right-click a document (or a folder) and choose "Learn my voice from this" so rewrites sound like you; the Transform submenu has Vary, Shrinkify, Expandify, Threadify, Storify, Emailify and Postify. The Author's Voice plugin, its credits and the publish server's transforms are retired.
+
 ### Removed
+- The `--api-key` and `--av-url` options and the `AV_API_KEY` setting, which only the retired Author's Voice service used.
 - The old newsletter send is gone: the `send_newsletter` and `resend_to_unopened` tools, the newsletter view's Send button and the resend panel in newsletter analytics. They mailed an old subscriber list nobody joins any more. To email your readers, publish to your site (`publish_to_site` with `send_email`); site posts are emailed to the site's members. Past issues and their analytics stay.
 
 ### Fixed

@@ -343,3 +343,8 @@ keeps Hide, Focus, light/dark and Sync.
 The title bar's right side now starts with any buttons plugins registered through
 `registerTopbarButton` (labelled, bordered, `titlebar-text-btn`), before the format toggle.
 They stay put whether the rail is open or closed, like the other document controls.
+
+### 2026-10-13 — Settings gains a Claude section
+Settings gains a Claude section first (`ClaudeSettings.tsx`): the writer's Claude key (saved on
+the server, shown only by its last four characters) and the writing model. The Plugins section
+lost the Author's Voice credits panel with the plugin. See `adr/authors-voice.md`.

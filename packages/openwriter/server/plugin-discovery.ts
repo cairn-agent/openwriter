@@ -145,7 +145,6 @@ function tryAddPlugin(pkgDir: string, fullName: string, results: DiscoveredPlugi
 
 /** Preferred display order for bundled plugins */
 const BUNDLED_ORDER = [
-  '@openwriter/plugin-authors-voice',
   '@openwriter/plugin-publish',
   '@openwriter/plugin-image-gen',
   '@openwriter/plugin-x-api',

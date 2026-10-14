@@ -9,13 +9,6 @@ import { useCallback, useEffect, useState } from 'react';
 import type { RightRailTabProps } from '../types';
 import GithubPluginSettings from './plugin-panels/GithubPluginSettings';
 import './PluginsTab.css';
-import {
-  fetchWalletBilling,
-  fetchTopupOptions,
-  openTopupCheckout,
-  formatDollars,
-  type TopupOption,
-} from '../../utils/av-billing';
 
 interface ConfigField {
   type: 'string' | 'number' | 'boolean' | 'select';
@@ -129,100 +122,6 @@ function BillingSection() {
         <button className="billing-manage-btn" onClick={handlePortal}>
           Manage Billing
         </button>
-      )}
-    </div>
-  );
-}
-
-// Relative per-model cost legend for Author's Voice. There is NO fixed per-edit price — the charge
-// scales with edit length, so hard cents read as a fixed menu and were misleading. These are
-// qualitative tiers (free → $$$), not prices.
-const AV_MODEL_COSTS: { label: string; cost: string }[] = [
-  { label: 'Fast', cost: 'free' },
-  { label: 'Fast+', cost: '$' },
-  { label: 'Sonnet', cost: '$$' },
-  { label: 'Opus', cost: '$$$' },
-];
-
-// Author's Voice wallet panel — balance in dollars, per-model cost legend, and the
-// $5/$10/$20 top-up buttons (rendered from the API catalog), each opening Stripe checkout.
-// Mounts under the AV plugin row, mirroring BillingSection's placement under publish.
-function CreditsSection() {
-  const [balanceCents, setBalanceCents] = useState<number | null>(null);
-  const [options, setOptions] = useState<TopupOption[]>([]);
-  const [loading, setLoading] = useState(true);
-  // Top-up amounts stay tucked behind a single "Add balance" button until the user wants them —
-  // three always-on $5/$10/$20 buttons read as a hard sell every time the panel is open.
-  const [topupOpen, setTopupOpen] = useState(false);
-
-  const refresh = useCallback(() => {
-    Promise.all([fetchWalletBilling(), fetchTopupOptions()])
-      .then(([billing, opts]) => {
-        if (billing?.wallet) setBalanceCents(billing.wallet.balanceCents);
-        setOptions(opts);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => { refresh(); }, [refresh]);
-
-  // Re-check the balance when the tab regains focus — the user may have just completed
-  // a Stripe checkout in the other tab.
-  useEffect(() => {
-    const handler = () => { if (document.visibilityState === 'visible') refresh(); };
-    document.addEventListener('visibilitychange', handler);
-    return () => document.removeEventListener('visibilitychange', handler);
-  }, [refresh]);
-
-  if (loading) return <div className="billing-section"><div className="billing-loading">Loading…</div></div>;
-  // Nothing to show if the proxy/key isn't wired (balance unknown AND no catalog).
-  if (balanceCents === null && options.length === 0) return null;
-
-  return (
-    <div className="billing-section">
-      <div className="billing-plan">
-        <span className="billing-plan-label">Balance</span>
-        <span className="av-credits-balance">
-          {balanceCents === null ? '—' : formatDollars(balanceCents)}
-        </span>
-      </div>
-      <div className="av-credits-legend">
-        {AV_MODEL_COSTS.map((m) => (
-          <span key={m.label} className="av-credits-legend-item">
-            <span className="av-credits-model">{m.label}</span>
-            <span className="av-credits-cost">{m.cost}</span>
-          </span>
-        ))}
-      </div>
-      {options.length > 0 && (
-        <>
-          <button
-            className="av-credits-topup-toggle"
-            onClick={() => setTopupOpen((v) => !v)}
-          >
-            <svg
-              className={`plugin-config-chevron${topupOpen ? ' plugin-config-chevron--open' : ''}`}
-              width="12" height="12" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            >
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-            Add balance
-          </button>
-          {topupOpen && (
-            <div className="billing-upgrades">
-              {options.map((o) => (
-                <button
-                  key={o.priceId}
-                  className="billing-upgrade-btn"
-                  onClick={() => openTopupCheckout(o.amountDollars as 5 | 10 | 20)}
-                >
-                  Add ${o.amountDollars}
-                </button>
-              ))}
-            </div>
-          )}
-        </>
       )}
     </div>
   );
@@ -364,12 +263,11 @@ export default function PluginsTab(_props: RightRailTabProps) {
               const collapsed = entries.filter(([, field]) => field.type !== 'select');
               const needsSetup = entries.some(([key, field]) => field.required && !p.config[key]);
 
-              // Plugin-specific rich panel (AV wallet / publish billing / github settings). Rendered
+              // Plugin-specific rich panel (publish billing / github settings). Rendered
               // BETWEEN the top-level selects and the Settings collapse so the order reads:
               // writing model → balance → settings. Selects on top is the user's primary control;
               // secrets stay last behind the collapse. No-op for plugins without a panel.
               const richPanel =
-                p.name === '@openwriter/plugin-authors-voice' ? <CreditsSection /> :
                 p.name === '@openwriter/plugin-publish' ? <BillingSection /> :
                 p.name === '@openwriter/plugin-github' ? <GithubPluginSettings /> : null;
 

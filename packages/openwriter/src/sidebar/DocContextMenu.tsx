@@ -59,9 +59,20 @@ function acceptSortProposal(filename: string, actions: SidebarActions): void {
   postSort('/api/documents/sort-accept', { filename }, actions);
 }
 
+/**
+ * Writing in the writer's voice (server/voice/, adr/authors-voice.md): OpenWriter forwards `voice:`
+ * actions to POST /api/voice/sidebar-action. The transforms share a group, so they sit in one submenu.
+ */
+const VOICE_SIDEBAR_ITEMS: SidebarMenuItem[] = [
+  { label: 'Learn my voice from this', action: 'voice:add-to-corpus', folderCapable: true },
+  ...['Vary', 'Shrinkify', 'Expandify', 'Threadify', 'Storify', 'Emailify', 'Postify'].map((label) => (
+    { label, action: `voice:${label.toLowerCase()}`, promptForFocus: true, pluginDisplayName: 'Transform' }
+  )),
+];
+
 /** Plugin items for sidebar menus, and whether the publish plugin is on. */
 export function useSidebarPlugins(): { pluginItems: SidebarMenuItem[]; hasPublishPlugin: boolean } {
-  const [pluginItems, setPluginItems] = useState<SidebarMenuItem[]>([]);
+  const [pluginItems, setPluginItems] = useState<SidebarMenuItem[]>(VOICE_SIDEBAR_ITEMS);
   // Schedule Post is wired to /api/scheduler/* (platform publish plugin). Hide
   // the menu item entirely when @openwriter/plugin-publish is disabled — the
   // endpoints will 4xx and the user has no way to know why otherwise.
@@ -71,7 +82,7 @@ export function useSidebarPlugins(): { pluginItems: SidebarMenuItem[]; hasPublis
       fetch('/api/plugins')
         .then(r => r.json())
         .then(data => {
-          const items: SidebarMenuItem[] = [];
+          const items: SidebarMenuItem[] = [...VOICE_SIDEBAR_ITEMS];
           let publishOn = false;
           for (const plugin of data.plugins || []) {
             const displayName = plugin.displayName || undefined;

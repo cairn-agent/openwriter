@@ -237,8 +237,6 @@ export interface PluginConfig {
 }
 
 export interface OpenWriterConfig {
-  avApiKey?: string;
-  avBackendUrl?: string;
   gitRemote?: string;
   gitConfigured?: boolean;
   lastSyncTime?: string;

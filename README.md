@@ -63,7 +63,8 @@ Markdown native, agent first, no lock-in.
 - **Git sync**: Push documents to GitHub straight from the editor.
 - **Export**: Markdown, HTML, Word, plain text, and PDF.
 - **Version history**: Automatic snapshots with full rollback.
-- **Plugin system**: Extend the agent with custom MCP tools, HTTP routes, and right-click actions, and the built-in Author's Voice plugin writes in your own voice.
+- **Writing in your voice**: Enhance, Shrink, Expand and the other right-click actions run on your own Claude API key and learn your voice from your documents.
+- **Plugin system**: Extend the agent with custom MCP tools, HTTP routes, and right-click actions.
 
 See the [reference](REFERENCE.md) for the full MCP tool list, the review hotkeys, the token-efficient wire format, the plugin API, and architecture.
 

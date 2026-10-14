@@ -236,7 +236,7 @@ export default function SidebarFiles({
     setCtxMenu(docMenuTarget(e, doc));
   }, [selection]);
 
-  // Folder-capable plugin action (e.g. "Add to Author's Voice" on a workspace/container):
+  // Folder-capable action (e.g. "Learn my voice from this" on a workspace/container):
   // apply the same per-doc dispatch to every doc in the folder. Each call is independent and
   // idempotent on the plugin side, so a partial failure just drops that doc.
   const handleFolderPluginAction = useCallback((action: string, item: SidebarMenuItem, nodes: WorkspaceNode[]) => {

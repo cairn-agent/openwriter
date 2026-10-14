@@ -6,6 +6,7 @@
 
 import type { IncomingMessage } from 'http';
 import type { OpenWriterPlugin } from './plugin-types.js';
+import type { ClientFactory } from './voice/host.js';
 
 /** A refusal: the status and JSON body sent back instead of running the request. */
 export interface GateRefusal {
@@ -30,6 +31,13 @@ export interface EmbedOptions {
   pluginFilter?: (plugin: { name: string; source: 'bundled' | 'user' }) => boolean;
   /** Plugin objects loaded in-process, beside the discovered ones, and enabled at start. */
   plugins?: OpenWriterPlugin[];
+  /**
+   * The writer's Claude key, kept by the embedding program (encrypted, say). When set, OpenWriter
+   * offers no key setting and never stores one. adr: adr/authors-voice.md
+   */
+  aiKey?: () => string | null;
+  /** Stands in for Anthropic (tests). */
+  aiClient?: ClientFactory;
 }
 
 let current: EmbedOptions = {};

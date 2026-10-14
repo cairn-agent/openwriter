@@ -1,7 +1,8 @@
 /**
- * Author's Voice plugin: right-click actions on the writer's own Claude key.
+ * Writing in the writer's voice: right-click actions on the writer's own Claude key.
  *
- *  - Add to Author's Voice: each paragraph enriched once with the search engine's GR5 prompt and the
+ *  - Settings > Claude: the key is saved on the server and never sent back, only its last four.
+ *  - Learn my voice from this: each paragraph enriched once with the search engine's GR5 prompt and the
  *    document with its document prompt, on Haiku; the index finds a paragraph by a word only its
  *    enrichment has and never stores the writing; a re-add sends only changed paragraphs.
  *  - The voice profile builds itself from the writer's own text: Author's Voice's analysis
@@ -14,7 +15,7 @@
  * Anthropic is never called: a stand-in client answers. Throwaway home folder.
  * adr: adr/authors-voice.md
  *
- * Run: `node scripts/test-authors-voice.mjs` (after `npm run build` and the plugin's build)
+ * Run: `node scripts/test-voice.mjs` (after `npm run build`)
  */
 
 import { mkdtempSync, rmSync, readFileSync, existsSync } from 'fs';
@@ -32,15 +33,14 @@ process.on('exit', () => { try { rmSync(home, { recursive: true, force: true });
 const { ROOT_DIR, ensureDataDir, getDataDir, resolveDocPath } = await import('../dist/server/helpers.js');
 if (!ROOT_DIR.startsWith(home)) { console.error(`Refusing to run: data root ${ROOT_DIR} is not in the temp folder`); process.exit(1); }
 ensureDataDir();
-const { TOOL_REGISTRY } = await import('../dist/server/mcp.js');
 const { createDocumentFromRequest } = await import('../dist/server/document-create.js');
 const { getDocId, getDocument, updateDocument, save, cancelDebouncedSave } = await import('../dist/server/state.js');
 const { filenameByDocId } = await import('../dist/server/documents.js');
-const AV = '../../../plugins/authors-voice/dist/';
-const { createAuthorsVoicePlugin } = await import(AV + 'index.js');
-const { voiceIndex } = await import(AV + 'voice/voice-index.js');
-const { chunksFromCompact } = await import(AV + 'voice/voice-enrich.js');
-const { STRUCTURAL_KEYS } = await import(AV + 'profile/AITellsCatalog.js');
+const { setEmbedOptions } = await import('../dist/server/embed-options.js');
+const { registerVoiceRoutes } = await import('../dist/server/voice/index.js');
+const { voiceIndex } = await import('../dist/server/voice/voice/voice-index.js');
+const { chunksFromCompact } = await import('../dist/server/voice/voice/voice-enrich.js');
+const { STRUCTURAL_KEYS } = await import('../dist/server/voice/profile/AITellsCatalog.js');
 
 let passed = 0;
 let failed = 0;
@@ -86,20 +86,10 @@ const fakeClient = (apiKey) => ({
   },
 });
 
-const plugin = createAuthorsVoicePlugin({ loadKey: () => key, clientFactory: fakeClient });
+setEmbedOptions({ aiClient: fakeClient });
 const app = express();
 app.use(express.json({ limit: '5mb' }));
-plugin.registerRoutes({
-  app,
-  config: {},
-  get dataDir() { return getDataDir(); },
-  configFile: join(home, 'config.json'),
-  host: {
-    tools: () => TOOL_REGISTRY,
-    createDocument: (body) => createDocumentFromRequest(body),
-    rootDir: ROOT_DIR,
-  },
-});
+registerVoiceRoutes(app);
 const server = app.listen(0);
 const base = `http://127.0.0.1:${server.address().port}`;
 const api = async (method, path, body) => {
@@ -130,9 +120,24 @@ console.log('\nNo key:');
 let r = await sidebar('add-to-corpus', filename, title);
 assert(r.status === 409 && r.json.code === 'no_key' && /Claude API key/.test(r.json.error), 'without a key: a plain "add your key" answer');
 assert(calls.length === 0, 'without a key Claude is not called');
-key = FAKE_KEY;
 
-console.log('\nAdd to Author\'s Voice:');
+console.log('\nSettings > Claude:');
+r = await api('PUT', '/api/voice/settings', { key: 'not-a-key' });
+assert(r.status === 400, 'a malformed key is refused');
+r = await api('PUT', '/api/voice/settings', { key: FAKE_KEY, model: 'sonnet' });
+assert(r.status === 200 && r.json.saved && r.json.last4 === FAKE_KEY.slice(-4) && r.json.model === 'sonnet' && !r.text.includes(FAKE_KEY.slice(0, 20)), 'key saved; the answer names only its last four characters');
+r = await api('GET', '/api/voice/settings');
+assert(!r.json.managed && r.json.saved && !r.text.includes(FAKE_KEY.slice(0, 20)), 'the settings never send the key back');
+r = await api('PUT', '/api/voice/settings', { key: null, model: '' });
+assert(r.json.saved === false && !existsSync(join(ROOT_DIR, 'ai', 'claude.json')), 'the key can be removed');
+
+// From here the key is kept by an embedding program, as the web version does.
+setEmbedOptions({ aiKey: () => key, aiClient: fakeClient });
+key = FAKE_KEY;
+r = await api('GET', '/api/voice/settings');
+assert(r.json.managed && r.json.saved, 'a key kept by the embedding program: no key setting offered');
+
+console.log('\nLearn my voice from this:');
 r = await sidebar('add-to-corpus', filename, title);
 assert(r.status === 200 && r.json.paragraphs === 3 && r.json.enriched === 3 && r.json.docEnriched, 'three paragraphs enriched, and the document');
 assert(r.json.message === `Added "${title}" to your voice: 3 paragraphs enriched.`, 'the answer says what happened, for the sidebar\'s toast');

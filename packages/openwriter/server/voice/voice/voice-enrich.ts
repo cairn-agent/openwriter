@@ -174,7 +174,7 @@ async function doAdd(docId: string): Promise<VoiceRunResult> {
       }
     }
   }));
-  if (keyRejected) throw new VoiceError(401, 'key_rejected', "Anthropic did not accept your API key. Check it in the Author's Voice settings.");
+  if (keyRejected) throw new VoiceError(401, 'key_rejected', "Anthropic did not accept your API key. Check it in Settings, under Claude.");
 
   // The document's own vocabulary, redone when any paragraph changed.
   const docHash = hash(chunks.map((c) => c.hash).join('|'));

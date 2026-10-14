@@ -42,6 +42,7 @@ import { createBillingRouter } from './billing-routes.js';
 import { createTaskRouter } from './task-routes.js';
 import { platformFetch, isAuthenticated } from './connections.js';
 import { PluginManager } from './plugin-manager.js';
+import { registerVoiceRoutes } from './voice/index.js';
 import type { PluginActionPayload } from './plugin-types.js';
 import { checkForUpdate, getUpdateInfo, getCurrentVersion, getInstallType, getUpdateCommand } from './update-check.js';
 import { addComment, getComments, resolveComments, unresolveComments, deleteComments, editComment } from './comments.js';
@@ -1130,6 +1131,10 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
       res.status(400).json({ error: err.message });
     }
   });
+
+  // Writing in the writer's voice on their Claude key: rewrite, voice, transforms, the key setting.
+  // adr: adr/authors-voice.md
+  registerVoiceRoutes(app);
 
   // Plugin Manager — discover, enable/disable, config persistence
   const pluginManager = new PluginManager(app);

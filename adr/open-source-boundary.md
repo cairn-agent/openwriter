@@ -38,6 +38,9 @@ them stay in the public history; that cannot be undone and they hold no secrets.
     discovered ones and are enabled at start, as are the discovered names in `enable`. They are
     part of the embedding program: the plugin list shows their `displayName` and no switch, and
     `disable()` refuses them.
+  - **Claude key**: `aiKey()` hands OpenWriter the writer's Claude key from the embedding
+    program, which then keeps it (Settings > Claude shows no key field); `aiClient` stands in
+    for Anthropic in tests. See `adr/authors-voice.md`.
   - **Plugin host**: `PluginHost` (`server/plugin-types.ts`) gives a plugin `saveConfig`,
     `createDocument`, `tools()` (the live tool list, to run OpenWriter's own tools in-process),
     `pendingDocs()`, `documentTitle(docId)` and `rootDir`. A plugin never calls its own server over HTTP.
@@ -125,3 +128,6 @@ the rail. Generic: any plugin with its own screens needs a way in that does not 
   same plugin in-process through a generic option, `createAuthorsVoicePlugin({ loadKey })`, for
   an embedder that keeps the key itself. The editor's right-click actions now send the
   document's `docId` beside its file name, so the plugin can search the voice by document.
+- **2026-10-13 — The Claude key is an extension point.** Writing in the writer's voice is now part
+  of OpenWriter itself, so an embedder hands over the key with `aiKey` instead of passing the
+  Author's Voice plugin in-process; `runEditor` is exported for an embedder's own Rewrite UI.

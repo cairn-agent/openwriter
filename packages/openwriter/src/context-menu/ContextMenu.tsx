@@ -9,7 +9,6 @@ import { getBacklinksForNode, type BacklinkEntry } from '../decorations/backlink
 import { injectSelectionMarkers, stripSelectionMarkers } from './selection-markers';
 import { formatLinkHref, linkHrefIdentifier } from '../editor/link-href';
 import { showToast } from '../utils/toast';
-import { openTopupCheckout } from '../utils/av-billing';
 import { useBookmarks, getBookmarks, addBookmark, editBookmark, removeBookmark } from '../bookmarks/bookmarks-store';
 import { PluginMount, useClientPlugins, type MenuPanelContext, type PluginMenuPanel } from '../plugins/client-plugins';
 
@@ -57,6 +56,20 @@ interface MenuPosition {
   y: number;
 }
 
+/**
+ * Writing in the writer's voice on their Claude key (server/voice/, adr/authors-voice.md). Sent
+ * through callPluginAction to POST /api/voice/apply-editor; without a key the answer says how to add one.
+ */
+const VOICE_ITEMS: PluginMenuItem[] = [
+  { label: 'Enhance', shortcut: 'R', action: 'voice:rewrite', condition: 'has-selection' },
+  { label: 'Modify...', action: 'voice:custom', condition: 'has-selection', promptForInput: true },
+  { label: 'Shrink', shortcut: 'S', action: 'voice:shrink', condition: 'has-selection' },
+  { label: 'Expand', shortcut: 'E', action: 'voice:expand', condition: 'has-selection' },
+  { label: 'Insert', shortcut: 'I', action: 'voice:insert', condition: 'empty-node', promptForInput: true },
+  { label: 'Fill paragraph', shortcut: 'F', action: 'voice:fill', condition: 'empty-node' },
+  { label: 'Fill sentence', action: 'voice:fill-sentence', condition: 'empty-node' },
+];
+
 const CORE_ACTIONS: Array<{ action: CoreAction; label: string; shortcut?: string; condition?: 'has-selection' }> = [
   { action: 'comment', label: 'Comment', shortcut: 'M', condition: 'has-selection' },
   { action: 'delete', label: 'Delete', shortcut: 'D' },
@@ -88,7 +101,7 @@ export default function ContextMenu({ editorRef, allEditors, documentId, docId }
   const [linkedDocs, setLinkedDocs] = useState<string[]>([]);
   const [showNewLinkInput, setShowNewLinkInput] = useState(false);
   const [newLinkTitle, setNewLinkTitle] = useState('');
-  const [pluginItems, setPluginItems] = useState<PluginMenuItem[]>([]);
+  const [pluginItems, setPluginItems] = useState<PluginMenuItem[]>(VOICE_ITEMS);
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [commentNote, setCommentNote] = useState('');
   const [editingComment, setEditingComment] = useState<{ id: string; text: string } | null>(null);
@@ -162,7 +175,7 @@ export default function ContextMenu({ editorRef, allEditors, documentId, docId }
     fetch('/api/plugins')
       .then((r) => r.json())
       .then((data) => {
-        const items: PluginMenuItem[] = [];
+        const items: PluginMenuItem[] = [...VOICE_ITEMS];
         for (const plugin of data.plugins || []) {
           const displayName = plugin.displayName || undefined;
           for (const item of plugin.contextMenuItems || []) {
@@ -567,21 +580,13 @@ export default function ContextMenu({ editorRef, allEditors, documentId, docId }
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         console.error('[ContextMenu] API error:', res.status, errData);
-        // Surface the failure instead of dropping silently after the blur. The API owns the
-        // user-facing copy (single-source control): billing/rate-limit errors carry `message`
-        // (insufficient_balance, rate_limited, free_limit_reached); validation/size errors carry
-        // `error`. Prefer message → error → a status fallback.
+        // Surface the failure instead of dropping silently after the blur. The server owns the
+        // writer-facing text (a missing or rejected key, rate limits, size): prefer message →
+        // error → a status fallback.
         const msg = (typeof errData?.message === 'string' && errData.message)
           || (typeof errData?.error === 'string' && errData.error)
           || `Enhance failed (${res.status}). Please try again.`;
-        // Insufficient balance (HTTP 402, `error: 'insufficient_balance'`) is recoverable: give
-        // the user a one-click "Top up" affordance that opens Stripe checkout (default $5) via
-        // the proxied billing route, instead of a dead-end error. Other errors stay plain toasts.
-        if (res.status === 402 && errData?.error === 'insufficient_balance') {
-          showToast(msg, 'error', 9000, { label: 'Top up', onClick: () => openTopupCheckout(5) });
-        } else {
-          showToast(msg, 'error');
-        }
+        showToast(msg, 'error', 9000);
         return;
       }
 

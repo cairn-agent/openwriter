@@ -35,3 +35,7 @@ ReviewTab shares the same loader.
 - **2026-10-13 — The transforms moved to Author's Voice.** Vary, Shrinkify, Expandify, Threadify,
   Storify, Emailify and Postify are `voice:` actions now (`plugins/authors-voice`), run on the
   writer's Claude key; the publish plugin no longer registers a sidebar handler.
+- **2026-10-13 — `voice:` is OpenWriter's own prefix.** The voice actions are built into the
+  sidebar menu and `/api/voice/sidebar-action` is a core route; the forwarder is unchanged. The
+  transforms share the group name "Transform", so they sit in one submenu, and "Learn my voice
+  from this" stays at the top level.

@@ -9,3 +9,35 @@
   padding: 10px var(--rail-inset);
   border-bottom: 1px solid var(--border);
 }
+
+/* Settings > Claude (ClaudeSettings.tsx). */
+.claude-settings {
+  padding: 10px var(--rail-inset);
+}
+.claude-settings-note {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: var(--ink-light);
+}
+.claude-settings-saved {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--ink-dark);
+}
+.claude-settings-remove {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 11px;
+  color: var(--ink-light);
+  cursor: pointer;
+}
+.claude-settings-remove:hover { color: var(--ink-dark); }
+.claude-settings-error {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #dc2626;
+}
