@@ -15,6 +15,7 @@ import { getDataDir, readConfig, ROOT_DIR } from '../helpers.js';
 import { TOOL_REGISTRY } from '../mcp.js';
 import { createDocumentFromRequest } from '../document-create.js';
 import { embedOptions } from '../embed-options.js';
+import { MODELS } from './models.js';
 
 export interface ToolDef {
   name: string;
@@ -70,9 +71,13 @@ export function loadKey(): string | null {
   return k || null;
 }
 
-/** The writer's model choice ('' for the default). */
+/**
+ * The writer's model choice ('' for the default). A choice that is not one of ours (the retired
+ * Author's Voice service's "strongest", "fast"...) reads as the default.
+ */
 export function modelSetting(): string {
-  return readSettings().model || '';
+  const m = readSettings().model;
+  return m && m in MODELS ? m : '';
 }
 
 /** What the settings panel may show: never the key, only its last four characters. */

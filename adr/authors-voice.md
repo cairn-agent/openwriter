@@ -83,3 +83,5 @@ The prompts are the refined part and are copied, never paraphrased:
   `startOpenWriter({ aiKey, aiClient })`. Also removed with it: the old Author's Voice credits
   panel and top-up toast (their billing routes were already gone), the `--api-key` / `--av-url`
   flags and `AV_API_KEY` (nothing read them), and the plugin's stale API skill docs.
+- **2026-10-13 — A model choice from the old service reads as the default.** The old plugin's
+  saved picks ("strongest", "fast"...) are not Claude models here; Settings showed none selected.
