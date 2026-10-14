@@ -9,7 +9,7 @@
 import { createHash } from 'crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import { claude, dataDir, tools, VoiceError, type MessagesClient } from '../host.js';
-import { MODELS } from '../models.js';
+import { createMessage, modelFor } from '../models.js';
 import { recordUsage, tokenCounts } from '../usage-log.js';
 import { voiceIndex, type Authenticity, type VoiceChunk } from './voice-index.js';
 import {
@@ -17,7 +17,6 @@ import {
   CHUNK_PROMPT_VERSION, DOC_PROMPT_VERSION, MIN_CHUNK_WORDS,
 } from './voice-prompts.js';
 
-const ENRICH_MODEL = MODELS.haiku.id;
 /** Haiku calls at once. Enough to finish a long post in under a minute, low enough for new keys' rate limits. */
 const CONCURRENCY = 4;
 
@@ -125,13 +124,13 @@ export async function rebuildVoiceSearch(): Promise<void> {
 }
 
 async function haiku(client: MessagesClient, prompt: string, maxTokens: number, docId: string): Promise<string> {
-  const r = await client.messages.create({
-    model: ENRICH_MODEL,
+  const model = await modelFor('haiku');
+  const r = await createMessage(client, model, {
     max_tokens: maxTokens,
     temperature: 0,
     messages: [{ role: 'user', content: prompt }],
-  } as Anthropic.MessageCreateParamsNonStreaming);
-  recordUsage({ kind: 'voice-enrich', model: ENRICH_MODEL, docId, ...tokenCounts(r.usage), toolCalls: 0, ok: r.stop_reason === 'end_turn' });
+  });
+  recordUsage({ kind: 'voice-enrich', model: model.id, docId, ...tokenCounts(r.usage), toolCalls: 0, ok: r.stop_reason === 'end_turn' });
   return r.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('');
 }
 

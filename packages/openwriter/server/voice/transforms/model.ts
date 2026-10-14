@@ -3,12 +3,11 @@
  * Copied from the publish server's transforms module (itself adapted from AV's
  * AVModelService); the call now runs on the writer's own key.
  *
- * Models (configurable via env):
- *   AV_FAST_MODEL    → default claude-sonnet-4-5-20250929
- *   AV_PREMIUM_MODEL → default claude-sonnet-4-6
+ * Model: the newest Sonnet (../models.ts); AV_FAST_MODEL / AV_PREMIUM_MODEL still pin one by id.
  */
 
 import { claude } from '../host.js';
+import { createMessage, modelFor, type LiveModel } from '../models.js';
 import { recordUsage, tokenCounts } from '../usage-log.js';
 
 export type ProviderMode = 'fast' | 'premium';
@@ -41,9 +40,10 @@ const DEFAULT_PRICING = { input: 15.00, output: 75.00, cacheWrite: 18.75, cacheR
 const MAX_RETRIES = 3;
 const RETRYABLE_STATUSES = [429, 503, 529];
 
-function resolveModel(env: ModelEnv, mode: ProviderMode): string {
-  if (mode === 'fast') return env.AV_FAST_MODEL || 'claude-sonnet-4-5-20250929';
-  return env.AV_PREMIUM_MODEL || 'claude-sonnet-4-6';
+async function resolveModel(env: ModelEnv, mode: ProviderMode): Promise<LiveModel> {
+  const latest = await modelFor('sonnet');
+  const pinned = mode === 'fast' ? env.AV_FAST_MODEL : env.AV_PREMIUM_MODEL;
+  return pinned ? { ...latest, id: pinned, name: pinned } : latest;
 }
 
 function estimateCost(
@@ -76,7 +76,8 @@ export class ModelService {
     maxTokens: number = 4096,
   ): Promise<ModelResult> {
     const client = claude();
-    const model = resolveModel(env, mode);
+    const live = await resolveModel(env, mode);
+    const model = live.id;
 
     let lastError: Error | null = null;
 
@@ -87,8 +88,7 @@ export class ModelService {
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        const response = await client.messages.create({
-          model,
+        const response = await createMessage(client, live, {
           max_tokens: maxTokens,
           temperature,
           ...systemParam,

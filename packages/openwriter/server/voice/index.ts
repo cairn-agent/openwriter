@@ -22,7 +22,7 @@ import { addToVoice, docIdFromMarkdown, voiceMessage } from './voice/voice-enric
 import { voiceIndex } from './voice/voice-index.js';
 import { buildProfile, readProfile } from './profile/build.js';
 import { isTransformAction, runTransform } from './transforms/run.js';
-import { MODELS } from './models.js';
+import { MODELS, modelFor, type ModelChoice } from './models.js';
 
 /** How long the sidebar's add waits before answering that the run continues in the background. */
 const VOICE_WAIT_MS = 45_000;
@@ -37,8 +37,12 @@ function refreshProfile(): void {
   buildProfile().catch((err) => console.warn('[voice] profile build failed:', err?.message || err));
 }
 
-function settingsAnswer() {
-  return { ...describeSettings(), models: Object.entries(MODELS).map(([choice, m]) => ({ choice, label: m.label })) };
+/** The choices with the model behind each now, e.g. Opus is Claude Opus 5.5. */
+async function settingsAnswer() {
+  const models = await Promise.all((Object.keys(MODELS) as ModelChoice[]).map(async (choice) => (
+    { choice, label: MODELS[choice].label, name: (await modelFor(choice)).name }
+  )));
+  return { ...describeSettings(), models };
 }
 
 export function registerVoiceRoutes(app: Express): void {
@@ -112,11 +116,11 @@ export function registerVoiceRoutes(app: Express): void {
   });
 
   // Settings > Claude. The answer never holds the key: whether one is saved and its last four.
-  app.get('/api/voice/settings', (_req: Request, res: Response) => {
-    res.json(settingsAnswer());
+  app.get('/api/voice/settings', async (_req: Request, res: Response) => {
+    res.json(await settingsAnswer());
   });
 
-  app.put('/api/voice/settings', (req: Request, res: Response) => {
+  app.put('/api/voice/settings', async (req: Request, res: Response) => {
     const { key, model } = req.body ?? {};
     if (key !== undefined) {
       if (keyManagedElsewhere()) { res.status(409).json({ error: 'The key is managed by this server.' }); return; }
@@ -128,7 +132,7 @@ export function registerVoiceRoutes(app: Express): void {
     if (model !== undefined && model !== '' && !(model in MODELS)) { res.status(400).json({ error: 'Unknown model.' }); return; }
     try {
       saveSettings({ key, model });
-      res.json(settingsAnswer());
+      res.json(await settingsAnswer());
     } catch {
       res.status(500).json({ error: 'Could not save the settings.' });
     }
@@ -137,3 +141,4 @@ export function registerVoiceRoutes(app: Express): void {
 
 export { runEditor, type EditorRequest, LENGTH_HINTS, type LengthHint, MAX_SELECTION_WORDS } from './editor/apply.js';
 export { VoiceError, explainApiError, redactKey, type ClientFactory } from './host.js';
+export { MODELS, DEFAULT_REWRITE_MODEL, DEFAULT_CHAT_MODEL, modelFor, resolveChoice, type ModelChoice, type LiveModel } from './models.js';

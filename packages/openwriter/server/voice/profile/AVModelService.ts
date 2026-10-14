@@ -1,18 +1,15 @@
 /**
  * AVModelService — the model caller Author's Voice's profile code expects, on the writer's key.
  * Same contract as authors-voice packages/api/src/services/AVModelService.ts for the Claude
- * models it used here: 'fast' is Haiku 4.5 (the blend matcher), 'premium' is Sonnet 4.6 (the
- * voice analysis), with its retries on 429/503/529.
+ * models it used here: 'fast' is the newest Haiku (the blend matcher), 'premium' the newest
+ * Sonnet (the voice analysis), with its retries on 429/503/529. Models: ../models.ts.
  */
 
 import { claude } from '../host.js';
+import { createMessage, modelFor } from '../models.js';
 import { recordUsage, tokenCounts } from '../usage-log.js';
 
 export type AVProviderMode = 'fast' | 'premium';
-
-const FAST_MODEL = 'claude-haiku-4-5-20251001';
-const PREMIUM_MODEL = 'claude-sonnet-4-6';
-const TEMPERATURE_DEPRECATED = new Set(['claude-opus-4-8', 'claude-opus-5-5']);
 
 const MAX_RETRIES = 3;
 const RETRYABLE_STATUSES = [429, 503, 529];
@@ -26,17 +23,16 @@ export class AVModelService {
     mode: AVProviderMode = 'premium',
     temperature: number = 0.7,
     maxTokens: number = 4096,
-    modelOverride?: string,
   ): Promise<{ content: string; usage: { inputTokens: number; outputTokens: number; estimatedCost: number; cacheCreation: number; cacheRead: number } }> {
-    const model = modelOverride || (mode === 'fast' ? FAST_MODEL : PREMIUM_MODEL);
+    const live = await modelFor(mode === 'fast' ? 'haiku' : 'sonnet');
+    const model = live.id;
     const client = claude();
     let lastError: Error | null = null;
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        const response = await client.messages.create({
-          model,
+        const response = await createMessage(client, live, {
           max_tokens: maxTokens,
-          ...(TEMPERATURE_DEPRECATED.has(model) ? {} : { temperature }),
+          temperature,
           ...(systemPrompt ? { system: systemPrompt } : {}),
           messages: [{ role: 'user', content: prompt }],
         });

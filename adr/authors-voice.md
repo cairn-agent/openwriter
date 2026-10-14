@@ -23,15 +23,27 @@ The prompts are the refined part and are copied, never paraphrased:
   Author's Voice's editorPromptBuilders, EditorPromptService instructions and size budgets,
   voicePrompts, the cadence directive and the selection markers (`editor/prompt.ts`).
 - Enrichment of the writer's documents: the search engine's GR5 paragraph prompt and its document prompt
-  (`voice/voice-prompts.ts`), on Haiku 4.5, temperature 0.
+  (`voice/voice-prompts.ts`), on the newest Haiku, temperature 0 where the model takes it.
 - Retrieval of voice examples: Author's Voice's production engine, coreRetrieve over the search engine's
   queryStore (`voice/voice-retrieve.ts`).
-- The voice profile: Author's Voice's analysis (deterministic counts plus one Sonnet 4.6 call)
-  and its author-blend matcher (Haiku 4.5), files copied as they are into `profile/`.
+- The voice profile: Author's Voice's analysis (deterministic counts plus one call to the newest
+  Sonnet) and its author-blend matcher (the newest Haiku), files copied as they are into `profile/`.
 - The transforms: the publish server's transforms module, copied as it is into `transforms/`
-  (Sonnet 4.5).
+  (the newest Sonnet).
 
 ## Current invariants
+
+- **No model is named in the code that calls it.** Each job names a line and gets that line's
+  newest active model from Anthropic's model list (`models.ts` `modelFor`): rewrites the
+  writer's pick (Opus, Sonnet, Haiku), Learn my voice and the blend match Haiku, the voice
+  analysis and the transforms Sonnet. The list is read at most daily and kept in
+  `<data root>/ai/models.json`; built-in choices apply until the first read. What a model
+  accepts comes from its list entry: an effort level, and whether thinking can be turned off.
+- **The copied prompts were written for models that do not think.** Their calls go through
+  `createMessage`: thinking off where the model allows it; where it cannot be (Sonnet 5.5,
+  Opus 5.5), the lowest effort and 8,000 tokens of room on top of the prompt's own length.
+  Their temperatures are sent until a model answers 400 to one; that model is remembered and
+  called without (Sonnet 5.5 and Opus 5.5 refuse it).
 
 - **Every model call runs on the writer's key** (`host.ts` `claude()`): saved in Settings >
   Claude to `<data root>/ai/claude.json` (owner-only, beside the usage log), or kept by the
@@ -85,3 +97,12 @@ The prompts are the refined part and are copied, never paraphrased:
   flags and `AV_API_KEY` (nothing read them), and the plugin's stale API skill docs.
 - **2026-10-13 — A model choice from the old service reads as the default.** The old plugin's
   saved picks ("strongest", "fast"...) are not Claude models here; Settings showed none selected.
+- **2026-10-14 — The newest model of each line, automatically.** Operator decision: OpenWriter
+  always uses Anthropic's newest models without a release per model. The model list (GET
+  /v1/models) gives each model's line, lifecycle and capabilities; each line's newest active
+  model is used. The first live read found Haiku 5.5 (a tenth of Haiku 4.5's price), which
+  Learn my voice and the Haiku choice now use, and moved the transforms off Sonnet 4.5 before its
+  2026-11-30 retirement. Rejected: Anthropic's per-version aliases (they never cross versions)
+  and a hand-kept table per model (the edit this removes). Measured on the live models: the
+  thinking Sonnet costs about the same as Sonnet 4.5 for six transforms, but Postify thinks
+  about 5,500 tokens even at low effort (≈ 7¢ against 1.3¢).

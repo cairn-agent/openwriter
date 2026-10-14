@@ -80,7 +80,7 @@ const fakeClient = (apiKey) => ({
           user_friendly_summary: { summary: 'Plain and practical.', writing_style: 'Short steps.', voice_signature: 'Imperatives.', confidence_description: 'Enough text.' },
         }));
       }
-      if (params.model === 'claude-sonnet-4-5-20250929') return text('<p>A varied take on the stock.</p>');
+      if (params.model === 'claude-sonnet-5-5') return text('<p>A varied take on the stock.</p>');
       return text('Rewritten in the voice.');
     },
   },
@@ -155,7 +155,7 @@ for (let i = 0; i < 50 && !existsSync(profileFile); i++) await new Promise((ok) 
 const profile = existsSync(profileFile) ? JSON.parse(readFileSync(profileFile, 'utf-8')) : null;
 assert(profile?.anchorBlend?.[0]?.author === 'Julia Child' && profile.guidelines?.author_voice_guidelines?.confidence === 'Medium', 'the blend and the analysis are saved');
 assert(profile?.guidelines?.author_voice_guidelines?.sentence_distribution?.average_length > 0, 'the sentence rhythm is counted from the writer\'s text');
-assert(calls.some((c) => c.params.model === 'claude-sonnet-4-6' && String(c.params.messages[0].content).startsWith('You are a linguistic analyst.')), 'the analysis runs on Sonnet 4.6, as in Author\'s Voice');
+assert(calls.some((c) => c.params.model === 'claude-sonnet-5-5' && String(c.params.messages[0].content).startsWith('You are a linguistic analyst.')), 'the analysis runs on the newest Sonnet');
 assert(calls.some((c) => c.params.model === 'claude-haiku-4-5-20251001' && String(c.params.messages[0].content).includes('literary stylometry analyst')), 'the blend match runs on Haiku 4.5');
 r = await api('GET', '/api/voice/status');
 assert(r.json.documents.length === 1 && r.json.profile?.confidence === 'Medium', 'the status lists the document and the profile');
@@ -190,8 +190,8 @@ assert(r.status === 200 && r.json.enriched === 1 && r.json.unchanged === 2, 'onl
 console.log('\nVary:');
 calls.length = 0;
 r = await sidebar('vary', filename, title);
-const varied = calls.find((c) => c.params.model === 'claude-sonnet-4-5-20250929');
-assert(r.status === 200 && r.json.success && r.json.title === `${title} (Variation)` && varied?.apiKey === FAKE_KEY, 'Vary makes a new document, on Sonnet 4.5 with the writer\'s key');
+const varied = calls.find((c) => c.params.model === 'claude-sonnet-5-5');
+assert(r.status === 200 && r.json.success && r.json.title === `${title} (Variation)` && varied?.apiKey === FAKE_KEY, 'Vary makes a new document, on the newest Sonnet with the writer\'s key');
 assert(readFileSync(resolveDocPath(r.json.filename), 'utf-8').includes('A varied take on the stock.'), 'the new document holds the transform');
 
 console.log('\nA rejected key:');
@@ -202,6 +202,46 @@ rejectKey = false;
 
 const usage = readFileSync(join(ROOT_DIR, 'ai', 'usage.jsonl'), 'utf-8');
 assert(['"voice-enrich"', '"voice-profile"', '"inline-edit"', '"transform"'].every((k) => usage.includes(k)) && !usage.includes(FAKE_KEY), 'every call is logged, without the key');
+
+console.log('\nThe newest model of each line, from Anthropic\'s list:');
+{
+  const { modelFor, createMessage, resetModels } = await import('../dist/server/voice/models.js');
+  const caps = (effort) => ({ effort: { low: { supported: effort } }, thinking: { types: { disabled: { supported: true } } } });
+  const listed = [
+    { id: 'claude-sonnet-9', display_name: 'Claude Sonnet 9', line: 'sonnet', lifecycle: 'deprecated', capabilities: caps(true) },
+    { id: 'claude-sonnet-6', display_name: 'Claude Sonnet 6', line: 'sonnet', lifecycle: 'active', capabilities: caps(true) },
+    { id: 'claude-haiku-5', display_name: 'Claude Haiku 5', line: 'haiku', lifecycle: 'active', capabilities: caps(false) },
+    { id: 'claude-sonnet-5-5', display_name: 'Claude Sonnet 5.5', line: 'sonnet', lifecycle: 'active', capabilities: caps(true) },
+  ];
+  const sent = [];
+  const listingClient = () => ({
+    models: { list: async () => ({ data: listed }) },
+    messages: {
+      create: async (params) => {
+        sent.push(params);
+        if (params.temperature !== undefined && params.model === 'claude-haiku-5') {
+          throw new Anthropic.BadRequestError(400, { type: 'error', error: { type: 'invalid_request_error', message: 'temperature is not supported' } }, 'temperature is not supported', new Headers());
+        }
+        return text('ok');
+      },
+    },
+  });
+  resetModels();
+  setEmbedOptions({ aiKey: () => key, aiClient: listingClient });
+  const sonnet = await modelFor('sonnet');
+  assert(sonnet.id === 'claude-sonnet-6' && sonnet.effort, 'the newest active Sonnet is chosen, a deprecated one skipped');
+  assert((await modelFor('opus')).id === 'claude-opus-5-5', 'a line missing from the list keeps the last known model');
+  r = await api('GET', '/api/voice/settings');
+  assert(r.json.models.find((m) => m.choice === 'sonnet')?.name === 'Claude Sonnet 6', 'Settings shows the model behind each choice');
+  const haiku = await modelFor('haiku');
+  await createMessage(listingClient(), haiku, { max_tokens: 10, temperature: 0, messages: [{ role: 'user', content: 'hi' }] });
+  await createMessage(listingClient(), haiku, { max_tokens: 10, temperature: 0, messages: [{ role: 'user', content: 'hi' }] });
+  assert(sent.length === 3 && sent[1].temperature === undefined && sent[2].temperature === undefined && sent[0].thinking?.type === 'disabled',
+    'a model that refuses temperature is retried without it, and remembered');
+  resetModels();
+  assert(JSON.parse(readFileSync(join(ROOT_DIR, 'ai', 'models.json'), 'utf-8')).models.sonnet.id === 'claude-sonnet-6' && (await modelFor('sonnet')).id === 'claude-sonnet-6',
+    'the choice survives a restart');
+}
 
 cancelDebouncedSave();
 server.close();

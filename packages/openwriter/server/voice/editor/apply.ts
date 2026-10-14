@@ -11,7 +11,7 @@ import { statSync } from 'fs';
 import { join } from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import { claude, dataDir, explainApiError, modelSetting, VoiceError } from '../host.js';
-import { DEFAULT_REWRITE_MODEL, resolveModel, type ModelChoice } from '../models.js';
+import { DEFAULT_REWRITE_MODEL, modelFor, resolveChoice, type ModelChoice } from '../models.js';
 import { recordUsage, tokenCounts } from '../usage-log.js';
 import {
   addToTextBudget, buildSystemPrompt, buildUserPrompt, computeSizeBudget, generateDocumentQuery,
@@ -136,7 +136,8 @@ export async function runEditor(req: EditorRequest): Promise<{ markdown: string;
     throw new VoiceError(413, 'too_large', `Selection too large: ${words.toLocaleString()} words (max ${MAX_SELECTION_WORDS.toLocaleString()}). Select a smaller section.`);
   }
 
-  const model = resolveModel(req.model ?? modelSetting(), DEFAULT_REWRITE_MODEL);
+  const choice = resolveChoice(req.model ?? modelSetting(), DEFAULT_REWRITE_MODEL);
+  const model = await modelFor(choice);
   const { action, budget, instruction } = editorAction(req, req.instruction?.trim() || undefined);
 
   const system = await systemPromptFor(req.docId, req.fullDocument, instruction);
@@ -158,11 +159,11 @@ export async function runEditor(req: EditorRequest): Promise<{ markdown: string;
   try {
     response = await client.messages.create({
       model: model.id,
-      // Opus 5.5 and Sonnet 5.5 think by default and spend from the same ceiling.
-      max_tokens: maxTokensFor(budget, !!model.rewriteEffort),
+      // A model that takes an effort level thinks by default and spends from the same ceiling.
+      max_tokens: maxTokensFor(budget, model.effort),
       system: [{ type: 'text', text: system.prompt, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: user }],
-      ...(model.rewriteEffort ? { output_config: { effort: model.rewriteEffort } } : {}),
+      ...(model.effort ? { output_config: { effort: 'low' } } : {}),
     } as Anthropic.MessageCreateParamsNonStreaming);
   } catch (err) {
     recordUsage({ kind: 'inline-edit', model: model.id, docId: req.docId, ...tokenCounts(null), toolCalls: 0, ok: false });
@@ -178,5 +179,5 @@ export async function runEditor(req: EditorRequest): Promise<{ markdown: string;
     response.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('\n\n'),
   ).trim();
   if (!markdown) throw new VoiceError(422, 'empty', 'Claude returned no text.');
-  return { markdown, model: model.choice, action };
+  return { markdown, model: choice, action };
 }

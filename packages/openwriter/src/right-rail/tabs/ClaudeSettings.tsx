@@ -11,7 +11,8 @@ interface ClaudeSettingsState {
   saved: boolean;
   last4: string | null;
   model: string;
-  models: Array<{ choice: string; label: string }>;
+  /** Each choice with the model behind it now (always that line's newest). */
+  models: Array<{ choice: string; label: string; name: string }>;
 }
 
 export default function ClaudeSettings() {
@@ -75,8 +76,8 @@ export default function ClaudeSettings() {
           value={state.model}
           onChange={(e) => save({ model: e.target.value })}
         >
-          <option value="">Default (Opus)</option>
-          {state.models.map((m) => <option key={m.choice} value={m.choice}>{m.label}</option>)}
+          <option value="">Default ({state.models.find((m) => m.choice === 'opus')?.name ?? 'Opus'})</option>
+          {state.models.map((m) => <option key={m.choice} value={m.choice}>{m.name}</option>)}
         </select>
       </div>
       {error && <div className="claude-settings-error">{error}</div>}

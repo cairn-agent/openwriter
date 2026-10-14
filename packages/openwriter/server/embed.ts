@@ -20,7 +20,10 @@ import { startHttpServer } from './index.js';
 export type { EmbedOptions, GateRefusal } from './embed-options.js';
 export type { OpenWriterPlugin, PluginHost, PluginRouteContext, PluginMcpTool, PluginConfigField } from './plugin-types.js';
 // Writing in the writer's voice, for an embedder with its own Rewrite UI. adr: adr/authors-voice.md
-export { runEditor, type EditorRequest, LENGTH_HINTS, type LengthHint, MAX_SELECTION_WORDS, VoiceError, explainApiError, redactKey, type ClientFactory } from './voice/index.js';
+export {
+  runEditor, type EditorRequest, LENGTH_HINTS, type LengthHint, MAX_SELECTION_WORDS, VoiceError, explainApiError, redactKey, type ClientFactory,
+  MODELS, DEFAULT_REWRITE_MODEL, DEFAULT_CHAT_MODEL, modelFor, resolveChoice, type ModelChoice, type LiveModel,
+} from './voice/index.js';
 
 export interface StartOptions extends EmbedOptions {
   /** Port to listen on (default 5050; 0 picks a free one). */
