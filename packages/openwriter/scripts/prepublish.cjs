@@ -66,6 +66,10 @@ if (!fs.existsSync(pluginsRoot)) {
 // so this pass costs well under a second.
 execSync('node scripts/build-plugins.cjs', { stdio: 'inherit' });
 
+// Start dist/plugins/ empty: a plugin removed from plugins/ (Author's Voice, 2026-10-13) must not
+// ship from an older build's copy, where plugin discovery would still load it.
+fs.rmSync(distPlugins, { recursive: true, force: true });
+
 function copyDirSync(src, dest) {
   fs.mkdirSync(dest, { recursive: true });
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
