@@ -20,7 +20,8 @@ any longer.
   <name>.md`, each with `version: N` frontmatter, copied to `dist/server/guidance` by
   `build:guidance`. `server/doc-guidance.ts` maps a content_type to its contracts: tweet,
   reply and quote get their own plus `x-post` (the post body) and `thread`; article gets
-  `article`. Other types get none.
+  `article`; blog and newsletter get their own plus `long-form` (the body and what leaves
+  OpenWriter when it is published). Other types get none.
 - **Written as facts about the document**, not commands: what the document is, how its parts
   are stored and rendered, and what each tool does to it. A fact is only written after it is
   checked against the current code; the contract changes with the code it describes, and its
@@ -53,3 +54,17 @@ any longer.
   lost its mechanics doc and DOC-CONVENTION section; its voice, hooks, strategy and pipeline
   stay. Candidates for the same treatment: newsletter, blog (blogContext, cover image path,
   paywall marker), linkedin, manuscript binding docs.
+- **2026-10-14** — Blog and newsletter documents get contracts through the same delivery
+  (`blog`, `newsletter`, shared `long-form`); the reminder names each type by its own noun
+  instead of "an X <type>". Checked against the code, much of /blog-writer and
+  /newsletter-writer was stale: set_metadata merges blogContext one level deep (a partial
+  update keeps lastPublish); markdown headings, rules and images parse to real nodes; no
+  send_newsletter tool exists (an issue is sent with publish_to_site send_email, subject from
+  the title, preview line from the subtitle); post_to_blog publishes the active document and
+  ignores pending changes without warning. Both skills lost those mechanics and keep voice,
+  beats, titling, editorial judgment and pipeline. Gaps the contracts state as facts rather
+  than fix: insert_image set_cover writes articleContext (no blog cover), the newsletter
+  editor's Subject and Preview fields are not read by publish_to_site, and the Schedule button
+  on both views queues a social post. Still without contracts: linkedin (linkedinContext,
+  post length and formatting on LinkedIn, how schedule_post sends it) and manuscript
+  (chapter binding, compile and export).

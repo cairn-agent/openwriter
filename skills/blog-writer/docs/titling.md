@@ -73,7 +73,7 @@ The preview text is what shows up:
 - In the RSS reader summary
 - In the OG card on social platforms (fallback if no custom OG description)
 
-It's set on `blogContext.description` and lands in the published frontmatter (`description: `, or whatever field the site's `frontmatter_field_map` renames it to).
+It lands in the published frontmatter as the post's description.
 
 ### Format
 
@@ -141,35 +141,13 @@ If the draft is unpublished and the slug needs to change, fine — just confirm 
 
 ### Slug uniqueness
 
-The slug must be unique within the site's `content_dir`. The publish plugin will error or overwrite if it collides — check `inspect_blog_repo` output or `gh` for existing slugs before locking a new one. If the desired slug is taken, add a disambiguator: `weekly-meal-plans-2026`, or rephrase.
+The slug must be unique within the site's `content_dir`. Publishing a slug that is taken overwrites that post — check `inspect_blog_repo` output or `gh` for existing slugs before locking a new one. If the desired slug is taken, add a disambiguator: `weekly-meal-plans-2026`, or rephrase.
 
 ## Locking the three to the Draft doc
 
-When title + preview + slug are locked in the Beats doc B0 block, mirror them onto the Draft doc — **title via `rename_item`, preview + slug via `set_metadata` → `blogContext`**. The publish plugin reads title from the doc's actual title field, not `blogContext.title`.
+When title + preview + slug are locked in the Beats doc B0 block, mirror them onto the Draft doc. Where each one lives on a blog document is in the blog contract OpenWriter sends with it.
 
-```js
-// Title goes on the DRAFT doc's title field (NOT blogContext).
-rename_item({ docId: draftDocId, name: "<locked title>" })
-
-// Preview + slug + the rest go on blogContext.
-set_metadata({
-  docId: draftDocId,
-  metadata: {
-    blogContext: {
-      active: true,
-      description: "<locked preview, 140-160 char>",
-      slug: "<locked-slug>",
-      date: "<YYYY-MM-DD>",
-      tags: ["<category1>", "<category2>"]
-      // coverImage / coverImageAlt set later by images mode
-    }
-  }
-})
-```
-
-Why title-via-doc-title: the publish plugin treats the OpenWriter doc title as the canonical published title. `blogContext.title` is ignored (intentionally — keeps the title surface single-sourced for direct editing in OpenWriter's title bar). Don't set both — set the doc title.
-
-The Beats doc keeps the B0 block as the canonical authored copy of the three commitments; the Draft doc's title field + blogContext is the publish-ready copy. They stay in sync because reshape passes update both surfaces.
+The Beats doc keeps the B0 block as the canonical authored copy of the three commitments; the Draft doc is the publish-ready copy. They stay in sync because reshape passes update both surfaces.
 
 The BlogComposeView UI also surfaces these as form fields — if the user wants to edit by hand mid-cycle, point them there and re-read the doc title + metadata before re-pouring.
 
@@ -183,7 +161,7 @@ The `beats` mode handles title + preview + slug as part of the Beats doc lock:
 4. Editor drafts 2 preview candidates (curiosity-gap and payoff-promise patterns)
 5. Author picks / sharpens — one locked preview
 6. Editor proposes the slug compressed from the locked title; author confirms or sharpens
-7. Mirror to `blogContext` via `set_metadata`
+7. Mirror onto the Draft doc
 
 If the title is reshaped post-draft, re-check the preview (it might still serve), and the slug stays (post is already published OR not yet published — author decides).
 

@@ -17,29 +17,25 @@ Convert a sent newsletter into a blog-type document in OpenWriter. The newslette
 
 - OpenWriter MCP server configured
 - The newsletter being converted must already be sent (we only archive sent newsletters)
-- A GitHub connection in OpenWriter (so the blog doc knows where to push later)
+- A blog site registered in OpenWriter (so the blog doc knows where to push later)
 
 ## Step 1: Identify the newsletter
 
 If the user specifies a newsletter by name, find it via `list_documents`. Otherwise, read the current pad via `read_pad` and `get_metadata`.
 
-**Verify it's a newsletter:** Check that `newsletterContext` exists and the issue went out: `sitePost` is present (published to the site) or, for issues sent before site posts, `lastSend`. If not sent yet, warn the user — we only archive sent newsletters.
+**Verify it's a sent newsletter:** the newsletter contract OpenWriter sends with the document says where a send is recorded. If not sent yet, warn the user — we only archive sent newsletters.
 
-Extract from metadata:
-- `title` — newsletter title (e.g. "The Sleep Brief #1")
-- `newsletterContext.previewText` — becomes blog description input
-- `newsletterContext.lastSend.sentAt` — becomes blog date (a site post has no send date in metadata: ask the user, or use today)
-- `newsletterContext.lastSend.sentCount` — note for reference, when present
+Note its title, preview text and send date: the date becomes the blog date (no send date recorded: ask the user, or use today).
 
-## Step 2: Identify target project
+## Step 2: Identify target site
 
-Run `list_connections`. Find the connection with `provider: "github"`.
+Run `list_blog_sites`.
 
-- If exactly one GitHub connection: use it (confirm with user)
+- If exactly one site: use it (confirm with user)
 - If multiple: ask user which one
-- If none: warn user they need a GitHub connection to push later, but still create the blog doc
+- If none: warn user they need `/blog-writer setup` to push later, but still create the blog doc
 
-The GitHub connection tells us which project this blog post targets. Note it for the user so they know where `/blog-writer integrate` will push.
+Note the site for the user so they know where `/blog-writer integrate` will push.
 
 ## Step 3: Transform content
 
@@ -71,21 +67,9 @@ Remove newsletter-specific framing. Match by content pattern, not exact strings:
 
 ## Step 4: Build blog metadata
 
-Construct `blogContext`:
+The post needs a description, the send date, an author (ask the user if the site has no default), 3-5 tags inferred from the content, and a slug. Where each lives on a blog document is in the blog contract OpenWriter sends with it.
 
-```json
-{
-  "active": true,
-  "description": "<SEO-focused summary — see below>",
-  "date": "<from newsletterContext.lastSend.sentAt, formatted YYYY-MM-DD>",
-  "author": "<from GitHub connection display_name or ask user>",
-  "tags": ["<inferred from content — 3-5 relevant tags>"],
-  "slug": "<keyword-focused slug — see below>",
-  "draft": false
-}
-```
-
-**Description:** Do NOT copy `newsletterContext.previewText` — that's an email preheader written to tease opens, not describe content. Instead, write a 1-2 sentence blog description that summarizes what the post covers. Target the same keywords as the slug. This appears in search results and social cards.
+**Description:** Do NOT copy the newsletter's preview text — that's an email preheader written to tease opens, not describe content. Instead, write a 1-2 sentence blog description that summarizes what the post covers. Target the same keywords as the slug. This appears in search results and social cards.
 
 - Newsletter previewText: "Weekly field notes on sleep, energy, and the biology underneath both."
 - Blog description: "Why sleep debt compounds, what the afternoon coffee actually costs you, and the case for a fixed wake time over a fixed bedtime."
@@ -97,7 +81,7 @@ Construct `blogContext`:
 
 Ask the user to confirm the slug before setting it. Suggest 2-3 options.
 
-**Cover image:** Use the first `![...]()` image in the content as `coverImage`. Remove that image from the body markdown before populating — it would be redundant with the blog's feature image display. All other section images stay.
+**Cover image:** Use the first image in the content as the post's cover. Remove that image from the body before populating — it would be redundant with the blog's feature image display. All other section images stay.
 
 If the user requests a generated cover instead, hand off to `/blog-writer images`.
 
@@ -108,13 +92,13 @@ If the user requests a generated cover instead, hand off to `/blog-writer images
    - `content_type`: `"blog"`
    - `empty`: `true` (we'll set content immediately)
 
-2. `set_metadata` with the `blogContext` from Step 4
+2. Set the Step 4 fields on it
 
 3. `populate_document` with the cleaned markdown content
 
 4. Tell the user:
    - Blog doc created, ready for review in the browser
-   - Target project (from GitHub connection)
+   - Target site
    - Next step: review in browser, then `/blog-writer integrate` to push
 
 ## Output

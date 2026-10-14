@@ -1,5 +1,5 @@
 /**
- * Format contracts arrive with the document: the first touch of an X document in an agent session
+ * Format contracts arrive with the document: the first touch of a contracted document (X, blog, newsletter) in an agent session
  * carries its contract in full, later touches a one-line reminder; each type gets its own
  * contracts; plain documents and OpenWriter's own (unwrapped) calls get nothing.
  * adr: adr/in-system-guidance.md
@@ -60,13 +60,33 @@ assert.match(g, /an X article: article v\d+\.\]/);
 assert.match(g, /## X Article/);
 assert.doesNotMatch(g, /## X thread/);
 
+// A blog post gets blog and long-form in full, then a reminder.
+const blog = idOf(await tool('create_document').handler({ title: 'Launch notes', content_type: 'blog', empty: true }));
+g = extra(await agent('d', 'get_metadata', { docId: blog }));
+assert.match(g, /a blog post: blog v\d+, long-form v\d+\.\]/);
+assert.match(g, /## Blog post/);
+assert.match(g, /## Long-form body/);
+assert.doesNotMatch(g, /## X /);
+g = extra(await agent('d', 'read_pad', { docId: blog }));
+assert.match(g, /^\[OpenWriter: [0-9a-f]{8} is a blog post\. Its format contract \(blog v\d+, long-form v\d+\) arrived earlier/);
+assert.equal(g.split('\n').length, 1, 'reminder is one line');
+
+// A newsletter in the same session: its own contract in full, long-form named as sent.
+const issue = idOf(await tool('create_document').handler({ title: 'Issue 12', content_type: 'newsletter', empty: true }));
+g = extra(await agent('d', 'read_pad', { docId: issue }));
+assert.match(g, /a newsletter issue: newsletter v\d+, long-form v\d+\. Sent earlier in this session: long-form v\d+\.\]/);
+assert.match(g, /## Newsletter issue/);
+assert.doesNotMatch(g, /## Long-form body/);
+
 // Another agent session gets its own full delivery.
 g = extra(await agent('b', 'read_pad', { docId: quote }));
 assert.match(g, /## X quote post/);
 
-// A plain document gets nothing; neither does a list tool or an error.
+// A plain document or a type without a contract gets nothing; neither does a list tool or an error.
 const plain = idOf(await tool('create_document').handler({ title: 'Notes', content_type: 'document', empty: true }));
 assert.equal(extra(await agent('c', 'read_pad', { docId: plain })), '');
+const linkedin = idOf(await tool('create_document').handler({ title: 'Post', content_type: 'linkedin', empty: true }));
+assert.equal(extra(await agent('c', 'read_pad', { docId: linkedin })), '');
 assert.equal(extra(await agent('c', 'list_documents', {})), '');
 assert.equal(extra(await agent('c', 'read_pad', { docId: 'ffffffff' }).catch(() => ({ content: [{ text: 'Error' }] }))), '');
 

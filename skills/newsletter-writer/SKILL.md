@@ -36,6 +36,8 @@ This newsletter is **behind the scenes**, not a content recap. Readers can go re
 - `/newsletter send` — Publish to your OpenWriter site, which emails it to your subscribers
 - `/newsletter status` — Subscriber count, last sent, domain status
 
+**Format rules for newsletter documents (subject, preview line, body, images, cover, sending and scheduling) arrive from OpenWriter when the document is opened.** This skill keeps voice, structure, section strategy and the weekly pipeline.
+
 ## Critical Rules
 
 1. **ALWAYS use the authors-voice protocol.** Load the voice profile/anchor, pull writing samples from the corpus, write with the profile as behavioral constraints, run anti-AI detection. Never skip this. Install the authors-voice skill with `claude install github:travsteward/authors-voice`.
@@ -173,14 +175,9 @@ Get full text, metrics, quoted tweet context.
 ### Tweet Screenshots
 Screenshot every tweet referenced in the newsletter (e.g. via a tweet-screenshot tool such as the x-reader skill, if installed, or any screenshot service). This is a required step — every section that references a tweet gets a visual.
 
-Copy each screenshot into OpenWriter's image directory before inserting:
+Copy each screenshot into OpenWriter's image directory, then insert into the section:
 ```bash
 cp <screenshot-output-dir>/{tweet_id}.png ~/.openwriter/profiles/Default/_images/{descriptive-name}.png
-```
-
-Insert into the newsletter doc via `write_to_pad` using TipTap JSON:
-```json
-{"type": "image", "attrs": {"src": "/_images/{descriptive-name}.png", "alt": "description"}}
 ```
 
 #### Screenshot Logic: Original vs QT
@@ -361,7 +358,7 @@ The newsletter has a precise structure in OpenWriter. Follow this exactly.
 [hr]
 ```
 
-**Intro list** — each item on its own line using TipTap hardBreak nodes, NOT markdown `\n`:
+**Intro list** — one paragraph, each item on its own line:
 ```json
 {"type": "paragraph", "content": [
   {"type": "text", "text": "Section Title One"},
@@ -409,12 +406,6 @@ The newsletter has a precise structure in OpenWriter. Follow this exactly.
 [p]  ← *Powered by **[OpenWriter](www.openwriter.io)*
 ```
 
-### TipTap Gotchas
-- **H2 headings**: Markdown `## Title` via insert often renders as empty paragraphs. Use TipTap JSON: `{"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Title"}]}`
-- **HRs**: Use TipTap JSON `{"type": "horizontalRule"}` for reliable HR insertion
-- **Images**: Always TipTap JSON `{"type": "image", "attrs": {"src": "/_images/name.png", "alt": "desc"}}` — markdown `![alt](path)` creates empty paragraphs
-- **Line breaks in a paragraph**: Use `hardBreak` nodes, not `\n`
-
 ## Section Strategy: Proven Content + Objection Angles
 
 ### Picking Sections from Proven Content
@@ -449,7 +440,7 @@ Every section needs a visual. For articles and threads posted to X:
    ```bash
    curl -sL "{image_url}" -o ~/.openwriter/profiles/Default/_images/{descriptive-name}.jpg
    ```
-4. Insert via TipTap JSON in `write_to_pad`
+4. Insert it into the section
 
 For tweet screenshots, use your screenshot tool (see Phase 2: Gather).
 
@@ -467,7 +458,7 @@ Read the full newsletter via `read_pad` and verify every item:
 - [ ] **Blockquotes** — QT sections have the author's quote blockquoted
 - [ ] **No outbound links** — zero links to X, external sites. Only the brand site in footer
 - [ ] **Footer** — branded H2 + CTA paragraph + branding lines
-- [ ] **Preview text** — `set_metadata` with `previewText` field filled (the snippet email clients show before opening). Should be a compelling 1-line hook, not the first sentence of the body.
+- [ ] **Preview text** — drafted (the snippet email clients show before opening). Should be a compelling 1-line hook, not the first sentence of the body.
 - [ ] **Subject line** — drafted and scored. Format: "The Sleep Brief #N — [hook]"
 
 ### Content Quality (90/100 scoring)
@@ -491,14 +482,7 @@ Present the full review to the author. Fix any issues. Then proceed to send.
 
 ## Phase 7: Send
 
-After author approves the review, publish the issue to the author's site and email it to their subscribers:
-```
-mcp__openwriter__publish_to_site({
-  title: "The Sleep Brief #N — [hook]",
-  send_email: true
-})
-```
-Add `email_only: true` to send it by email without putting it on the site. A post is emailed once.
+After author approves the review and accepts every pending change, send a test to the author first, then send (or schedule for the send day) with the approved subject line and preview text. The issue's contract from OpenWriter says which call does each and where the subject and preview go.
 
 ## Newsletter Structure
 

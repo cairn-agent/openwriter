@@ -57,36 +57,27 @@ The beats step is where the post's shape gets locked. Don't skip it — pouring 
 
 ## Step 3: Draft
 
-Run [draft mode](draft.md). Create the `<Post Title>` sibling doc (titled with the locked title from Beats B0, `content_type: blog`), resolve voice anchor (`voice/anchor-<site-slug>.md` or fallback), pour prose beat-by-beat via `/authors-voice` Apply Protocol. Cross-beat coherence pass after all beats land. Mirror preview + slug from Beats to Draft `blogContext` (title is already on the doc title field, not blogContext).
+Run [draft mode](draft.md). Create the `<Post Title>` sibling doc (titled with the locked title from Beats B0, `content_type: blog`), resolve voice anchor (`voice/anchor-<site-slug>.md` or fallback), pour prose beat-by-beat via `/authors-voice` Apply Protocol. Cross-beat coherence pass after all beats land. Mirror preview + slug from Beats onto the Draft.
 
 **Gate:** User approves the draft. Iterate via the reshape loop (below) if structural issues surface. Don't proceed until they explicitly approve — image generation hangs on the final angle, and the published frontmatter freezes the description.
 
 ## Step 4: Images
 
-Run [images mode](images.md). Read the style doc, check history, generate cover via `insert_image` + wire to `blogContext.coverImage`. Optionally generate inline images placed after specific paragraphs.
+Run [images mode](images.md). Read the style doc, check history, generate the cover. Optionally generate inline images placed after specific paragraphs.
 
 **Gate:** User approves the images. Iterate prompts until approval.
 
 ## Step 4.5: Accept pending
 
-Tell the user: *"I've inserted N images / wrote M paragraphs. Click Accept All (or Shift+A) in the right-rail Review tab so they commit to canonical before I publish — `post_to_blog` reads the canonical doc, not the pending overlay."*
+Tell the user: *"I've inserted N images / wrote M paragraphs. Click Accept All (or Shift+A) in the right-rail Review tab so they're in before I publish."*
 
-Wait for the user to confirm. Then verify:
-
-```js
-const status = await get_pad_status({ docId: draftDocId });
-// or scan read_pad output for "pending: 0"
-```
-
-If still pending, prompt again. Do not proceed until clean.
-
-**Why this matters.** `post_to_blog` reads `srv.getDocument()` which returns the on-disk canonical doc. Agent-pending decorations (inserts from `insert_image`, rewrites from `write_to_pad`) live in the in-memory overlay until accepted. Skip this step and you'll publish a post missing your latest agent writes.
+Wait for the user to confirm, then check `get_pad_status({ docId: draftDocId })` shows no pending changes. If still pending, prompt again. Do not proceed until clean: unaccepted changes don't publish.
 
 ## Step 5: Publish
 
 Run [integrate mode](integrate.md):
 - Find the site_id via `list_blog_sites`
-- `post_to_blog({site_id, commit_message: "blog: <title>"})` against the Draft doc
+- `post_to_blog({site_id, commit_message: "blog: <title>"})` with the Draft doc open
 
 **Gate:** `success: true` returned, `images_committed` count matches expectation, commit hash present.
 
@@ -134,7 +125,7 @@ Step 0/6 - Setup: Registered RecipeBox (yourname/recipebox-website)
 Step 1/6 - Brainstorm: User picked topic "Stripe Connect is a one-way door"
 Step 2/6 - Beats: 12 beats locked, B0 title/preview/slug committed (Beats doc: bb4f6c46)
 Step 3/6 - Draft: 12 beats poured, voice anchor voice/anchor-recipebox.md, draft approved (Draft doc: d8a1f203)
-Step 4/6 - Images: Cover + 1 inline image generated, wired to blogContext
+Step 4/6 - Images: Cover + 1 inline image generated
 Step 4.5/6 - Accept: User accepted pending decorations
 Step 5/6 - Publish: Commit 16413ed pushed to main, 2 images committed
 Step 6/6 - Deploy: Live at https://recipebox.example.com/blog/weekly-meal-plans/ (HTTP 200, visual confirmed)

@@ -58,29 +58,11 @@ populate_document({
 
 If a Draft doc already exists in the container (reshape case), use that one — don't create a sibling duplicate. Recognize it by: `content_type: blog` inside the post's container (only one such doc per container).
 
-### Step 3: Mirror preview + slug + date to the Draft's blogContext
+### Step 3: Mirror preview + slug + date onto the Draft
 
-Title is already on the doc's title field from Step 2. Mirror the rest of the B0 commitments + boilerplate:
+Title is already on the doc from Step 2. Mirror the rest of the B0 commitments: description (140-160 char), slug, today's date in the project timezone, tags from the Beats frontmatter. The blog contract OpenWriter sends with the Draft says where each one lives.
 
-```js
-set_metadata({
-  docId: draftDocId,
-  metadata: {
-    blogContext: {
-      active: true,
-      description: "<from Beats B0, 140-160 char>",
-      slug: "<from Beats B0>",
-      date: "<YYYY-MM-DD>",         // today in project timezone
-      tags: ["<from Beats frontmatter>"]
-      // coverImage / coverImageAlt set later by images mode
-    }
-  }
-})
-```
-
-Title is NOT set on blogContext — the publish plugin reads title from the doc title, not blogContext.title. See [titling.md](titling.md) for the reasoning.
-
-If the user reshapes title / preview / slug in the Beats doc post-draft, re-mirror on the next pour. Title reshape: `rename_item({ docId: draftDocId, name: "<new title>" })`. Preview / slug reshape: `set_metadata` again.
+If the user reshapes title / preview / slug in the Beats doc post-draft, re-mirror on the next pour.
 
 ### Step 4: Pour prose, beat by beat
 
@@ -136,11 +118,7 @@ After all beats have poured:
 
 If the coherence pass surfaces a structural problem (a missing beat, an out-of-order beat), STOP. Don't patch in prose. Return to `beats` mode, reshape, re-pour the affected beats.
 
-### Step 6: Date handling
-
-Set `blogContext.date` to today in the project's configured timezone (default: `America/Los_Angeles`). Format: `YYYY-MM-DD`. The publish plugin formats / renames per site config (`date → publishedDate` for Astro sites).
-
-### Step 7: Output
+### Step 6: Output
 
 ```json
 {
@@ -188,12 +166,12 @@ The voice layer eliminates AI tells, enforces register, locks down diction. The 
 
 ```
 <Post Title>/                              (container — named after the post)
-├── Beats — <Post Title>                   (beats mode output — content_type: notes)
+├── Beats — <Post Title>                   (beats mode output — content_type: document)
 ├── <Post Title>                           (THIS doc — the publishable post — content_type: blog)
-└── Sources — <Post Title>                 (optional — content_type: notes)
+└── Sources — <Post Title>                 (optional — content_type: document)
 ```
 
-The Draft doc's TITLE is the post's locked title (no prefix). That's what the publish plugin reads as the published title.
+The Draft doc's TITLE is the post's locked title (no prefix).
 
 The Beats and Sources docs are visually distinguished by the `Beats — ` / `Sources — ` prefix, and structurally distinguished by their `content_type` (anything other than `blog`). The Draft doc is identified inside the container by `content_type: blog` — the only such doc per container.
 
@@ -208,8 +186,6 @@ Sources doc is optional — most posts let the model's training data carry the e
 - ❌ Writing prose into the Beats doc instead of the Draft doc. The two-doc split is load-bearing.
 - ❌ Re-pouring the whole draft when one beat reshaped. Re-pour the affected beat only.
 - ❌ Using a single global voice anchor when a site-specific one exists. Read [voice-anchor.md](voice-anchor.md) — discovery is conventional, not opt-in.
-- ❌ Writing `---\nfrontmatter\n---` into the Draft doc body. Use `set_metadata({blogContext})`.
-- ❌ Site-wide constants (`layout`, `author`, `prerender`) in `blogContext`. Those live on the site's `frontmatter_defaults` (set during `/blog-writer setup`).
 - ❌ Generating images mid-draft. Images come AFTER draft is approved — the visual concept depends on the locked angle.
 - ❌ Skipping the cross-beat coherence pass. The post reads as a sequence; verify the sequence lands before declaring done.
 - ❌ Patching a structural problem with prose. Structural problems return to `beats` mode.

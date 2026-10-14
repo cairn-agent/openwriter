@@ -10,7 +10,7 @@ Blog-scale adaptation of book-writer's beat methodology. Same discipline, smalle
 
 Each post has TWO sibling docs in its container:
 
-- `Beats — <Post Title>` (content_type: notes) — the locked beat structure (this doc's output)
+- `Beats — <Post Title>` (content_type: document) — the locked beat structure (this doc's output)
 - `<Post Title>` (content_type: blog) — the prose pour, identified by content_type as the publishable doc (draft mode's output)
 
 Beats and draft change on different cycles. Beats get reshaped when the author rethinks a claim; the draft gets re-poured through `/authors-voice` against the new beats. Keep them separated so a beat-level reshape doesn't fight an in-flight prose edit.

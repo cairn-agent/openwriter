@@ -35,7 +35,7 @@ These fields used to live in project config (v0.3.x) but are now set during `/bl
 | `image_dir` | `add_blog_site({image_dir})` |
 | `image_public_prefix` (implicit) | `add_blog_site({image_public_prefix})` |
 | `post_format` | `add_blog_site({framework})` (`astro` / `next` / `jekyll` / `hugo` / `unknown`) |
-| `image_naming` (filename pattern) | n/a — the plugin uses openwriter's `/_images/<hash>.png` style, no per-site renaming |
+| `image_naming` (filename pattern) | the site's `image_naming` (the cover is named `og-{slug}` by default) |
 | `registries` (registry update list) | n/a — Astro/Next/Hugo/Jekyll auto-discover posts from `content_dir`; no separate registry to update |
 
 If you find a project still using the v0.3 schema, you can leave it alone or migrate by running `/blog-writer setup` — the per-site config takes precedence; project config gets ignored for those fields.
@@ -47,7 +47,7 @@ All `## Blog` fields are now optional. Defaults apply if missing:
 | Field | Default |
 |---|---|
 | `writing_rules` | None — voice + style live in `/authors-voice` and the site's voice anchor (see [voice-anchor.md](voice-anchor.md)); writing_rules only overrides for project-specific terminology or rhetorical patterns |
-| `author` | None — `blogContext.author` per post, or site's `frontmatter_defaults.author` |
+| `author` | None — the post's own author, or site's `frontmatter_defaults.author` |
 | `timezone` | `America/Los_Angeles` |
 | `style_doc` | None — `images` mode falls back to generic "clean modern illustration" prompt |
 | `content_driven` | `false` |

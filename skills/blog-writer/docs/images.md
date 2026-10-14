@@ -1,6 +1,6 @@
 # Mode: Images
 
-Generate the featured (cover) image and any inline body images for a blog post. Primary path is the openwriter `insert_image` MCP tool — places the image directly in the active doc (or onto disk for cover wiring), so the github plugin's `post_to_blog` finds it automatically.
+Generate the featured (cover) image and any inline body images for a blog post. Primary path is the openwriter `insert_image` MCP tool, so the image lives in OpenWriter and `post_to_blog` carries it to the repo. How the cover and inline images attach to a blog document is in the blog contract OpenWriter sends with it.
 
 ## When to use
 
@@ -11,17 +11,9 @@ Generate the featured (cover) image and any inline body images for a blog post. 
 ## Requirements
 
 - `GEMINI_API_KEY` set on the openwriter server (the plugin falls back to the publish platform API if absent)
-- Active OpenWriter blog doc OR `set_metadata` access if generating a cover for a non-active doc
 - Project SHOULD have a `style_doc` in `## Blog` config — used to pick a consistent visual style across the site. Optional but recommended.
 
-## Two image roles
-
-| Role | Where it lands | How to set |
-|---|---|---|
-| **Cover** (OG card / hero) | `blogContext.coverImage` on the doc; published as `coverImage` (or whatever the site renames it to) in frontmatter | `insert_image` with no `docId` → returns path → `set_metadata({blogContext: {coverImage, coverImageAlt}})` |
-| **Inline** (body image at a specific point) | Becomes an `<img>` node in the doc body at `afterNodeId` | `insert_image` with `docId` + `afterNodeId` |
-
-There's also a third mode — `insert_image` with `set_cover: true` — but that sets `articleContext.coverImage` (designed for `/x-writer` articles). For blog posts, use the path-return + explicit `blogContext.coverImage` set instead.
+Two roles: the **cover** (OG card / hero, published in the post's frontmatter) and **inline** images (body images at a specific point).
 
 ## Workflow
 
@@ -56,44 +48,11 @@ Universal rules (apply to every prompt regardless of project):
 
 ### Step 4: Generate the cover
 
-```js
-const { src } = await insert_image({
-  prompt: "<crafted prompt>",
-  aspect_ratio: "16:9"
-  // no docId, no set_cover — generates to disk and returns path
-});
-// src is like "/_images/9c69e9b0.png"
-```
-
-Then wire it to the active doc's blogContext:
-
-```js
-set_metadata({
-  docId,
-  metadata: {
-    blogContext: {
-      coverImage: src,
-      coverImageAlt: "<descriptive alt text — what's in the image, why it's relevant>"
-    }
-  }
-})
-```
+Generate at `aspect_ratio: "16:9"` and make it the post's cover with alt text that says what's in the image and why it's relevant.
 
 ### Step 5: Generate inline images (optional)
 
-For each inline image:
-
-```js
-insert_image({
-  prompt: "<crafted prompt>",
-  docId,                          // 8-char hex from the active doc
-  afterNodeId: "<node id>",        // from read_pad output, place image after this paragraph
-  alt: "<descriptive alt text>",
-  aspect_ratio: "16:9"
-})
-```
-
-The image lands in the doc body as a pending decoration. **Tell the user to accept it in the Review tab before invoking integrate** — see the integrate mode's Step 3 gotcha.
+Each inline image goes after the paragraph it illustrates, with descriptive alt text. Inline images land as pending changes: **tell the user to accept them in the Review tab before invoking integrate.**
 
 ### Step 6: Review
 
@@ -154,16 +113,13 @@ To add a new project's style doc: create the file with the same structure and re
     "inline_image_paths": ["/_images/<filename>.png", "..."]
   },
   "next_steps": ["/blog-writer integrate"],
-  "notes": "Cover wired to blogContext.coverImage. Inline images placed as pending decorations — tell the user to Accept All in the right rail before publishing."
+  "notes": "Cover set. Inline images placed as pending changes — tell the user to Accept All in the right rail before publishing."
 }
 ```
 
 ## Anti-patterns
 
 - ❌ Saving the image to `/c/tmp/` and manually copying it into the target repo — that's the old v0.3 path; the new flow puts images directly in OpenWriter and lets `post_to_blog` handle copy + path rewrite
-- ❌ Using `insert_image({set_cover: true})` for blog covers — it writes to `articleContext.coverImage` (article skill's field), not `blogContext.coverImage`. The plugin reads `blogContext` only.
-- ❌ Setting `coverImage` to an absolute filesystem path or external URL — `post_to_blog` only knows how to rewrite `/_images/...` references. External images must be downloaded into `~/.openwriter/profiles/<profile>/_images/` first.
-- ❌ Forgetting to set `coverImageAlt` — accessibility + the site layout often shows alt text as a caption fallback
-- ❌ Inline images without `afterNodeId` — won't insert into the body
+- ❌ Forgetting the cover's alt text — accessibility + the site layout often shows alt text as a caption fallback
 - ❌ Generating an image before content is approved — angle might shift
 - ❌ Reusing a style from the last 3 posts — history table exists for a reason

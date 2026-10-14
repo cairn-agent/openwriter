@@ -105,7 +105,7 @@ Call `list_blog_sites` and confirm the new site appears with all the fields the 
 
 **Backfill / correct a field with `edit_blog_site`.** If a site was registered without `site_url` (or with the wrong `blog_url_pattern`), call `edit_blog_site({ site_id, site_url, blog_url_pattern })` — only the fields you pass change, everything else is left intact. This is the one-click fix when a first publish came back with no live link: backfill `site_url`, then republish. No need to remove + re-register.
 
-The panel at right-rail → Plugins → GitHub shows the registered sites and lets the user remove them. For editing `frontmatter_defaults` after setup, the user edits `~/.openwriter/config.json` directly — the panel doesn't yet expose a defaults editor.
+The panel at right-rail → Plugins → GitHub shows the registered sites and lets the user remove them. `edit_blog_site` also replaces `frontmatter_defaults`, `frontmatter_field_map` or `frontmatter_schema` after setup — whole, not merged, so pass the complete object.
 
 ## Output
 

@@ -9,16 +9,18 @@
 
 import { readFileSync } from 'fs';
 
-/** Which contracts each content_type receives, in reading order. */
-const CONTRACTS: Record<string, string[]> = {
-  tweet: ['tweet', 'x-post', 'thread'],
-  reply: ['reply', 'x-post', 'thread'],
-  quote: ['quote', 'x-post', 'thread'],
-  article: ['article'],
+/** Which contracts each content_type receives, in reading order, and what the document is called. */
+const CONTRACTS: Record<string, { names: string[]; noun: string }> = {
+  tweet: { names: ['tweet', 'x-post', 'thread'], noun: 'an X tweet' },
+  reply: { names: ['reply', 'x-post', 'thread'], noun: 'an X reply' },
+  quote: { names: ['quote', 'x-post', 'thread'], noun: 'an X quote' },
+  article: { names: ['article'], noun: 'an X article' },
+  blog: { names: ['blog', 'long-form'], noun: 'a blog post' },
+  newsletter: { names: ['newsletter', 'long-form'], noun: 'a newsletter issue' },
 };
 
 /** For the MCP server instructions. */
-export const GUIDANCE_NOTICE = 'X documents (content_type tweet, reply, quote, article) have format contracts. The first tool result in a session that touches one carries its contract in full, later ones a one-line reminder; the contract describes how that document is written.';
+export const GUIDANCE_NOTICE = 'X documents (content_type tweet, reply, quote, article), blog posts and newsletter issues have format contracts. The first tool result in a session that touches one carries its contract in full, later ones a one-line reminder; the contract describes how that document is written and published.';
 
 interface Contract { name: string; version: number; body: string }
 
@@ -44,18 +46,18 @@ const delivered = new Map<string, Set<string>>();
  * this session in full, or a one-line reminder when all were; null for a type without contracts.
  */
 export function guidanceFor(session: string, docId: string, contentType: string | undefined): string | null {
-  const names = contentType ? CONTRACTS[contentType] : undefined;
-  if (!names) return null;
-  const contracts = names.map(contract);
+  const entry = contentType ? CONTRACTS[contentType] : undefined;
+  if (!entry) return null;
+  const contracts = entry.names.map(contract);
   let sent = delivered.get(session);
   if (!sent) delivered.set(session, sent = new Set());
   const fresh = contracts.filter((c) => !sent.has(`${c.name}@${c.version}`));
   for (const c of fresh) sent.add(`${c.name}@${c.version}`);
   const label = contracts.map((c) => `${c.name} v${c.version}`).join(', ');
   if (fresh.length === 0) {
-    return `[OpenWriter: ${docId} is an X ${contentType}. Its format contract (${label}) arrived earlier in this session and applies.]`;
+    return `[OpenWriter: ${docId} is ${entry.noun}. Its format contract (${label}) arrived earlier in this session and applies.]`;
   }
   const earlier = contracts.filter((c) => !fresh.includes(c)).map((c) => `${c.name} v${c.version}`);
-  const header = `[OpenWriter format contract for ${docId}, an X ${contentType}: ${label}.${earlier.length ? ` Sent earlier in this session: ${earlier.join(', ')}.` : ''}]`;
+  const header = `[OpenWriter format contract for ${docId}, ${entry.noun}: ${label}.${earlier.length ? ` Sent earlier in this session: ${earlier.join(', ')}.` : ''}]`;
   return [header, ...fresh.map((c) => c.body)].join('\n\n');
 }
