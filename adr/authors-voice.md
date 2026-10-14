@@ -119,3 +119,6 @@ The prompts are the refined part and are copied, never paraphrased:
   `/api/voice/balance*` passed to the server). Learn my voice now rebuilds the profile once per
   batch, after the last running add, instead of once per document: each rebuild is a paid Sonnet
   call on the balance.
+- **2026-10-14 — The balance shows sending charges.** Lists above 2,500 subscribers pay for sending
+  from the same balance (repo:openwriter-publish/adr/paid-sending.md); Settings > Claude labels those
+  charges "Newsletter sending".

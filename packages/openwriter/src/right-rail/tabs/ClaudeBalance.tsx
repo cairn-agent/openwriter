@@ -25,7 +25,7 @@ function money(hc: number): string {
   return `$${(Math.floor(abs / 100) / 100).toFixed(2)}`;
 }
 
-const JOB_LABEL: Record<string, string> = { rewrite: 'Rewrite', learn: 'Learn my voice', transform: 'Transform', image: 'Picture' };
+const JOB_LABEL: Record<string, string> = { rewrite: 'Rewrite', learn: 'Learn my voice', transform: 'Transform', image: 'Picture', sending: 'Newsletter sending' };
 const KIND_LABEL: Record<string, string> = { topup: 'Top-up', auto_topup: 'Auto top-up', starting: 'Starting balance' };
 
 function line(r: Balance['recent'][number]): string {

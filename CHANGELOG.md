@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### Added
+- Sites with more than 2,500 subscribers pay $1 a month per 1,000 above that for email, from the OpenWriter balance, charged with the first email of the month. If the balance cannot cover it, emails to the list pause until you top up; welcome emails keep going. Settings > Claude lists it as Newsletter sending.
 - Claude without your own key: signed in to OpenWriter, the writing actions, Learn my voice and the transforms run through OpenWriter. Haiku rewrites are free (30 a day) and so are the first 10,000 words of Learn my voice; anything else is paid from a prepaid OpenWriter balance at twice what it costs OpenWriter. Settings > Claude shows the balance, tops it up ($5, $10 or $20), emails you when it runs low, and can top it up by itself from a saved card. Your own key still works as before and never touches the balance.
 - Learn my voice on a folder rebuilds your voice profile once, after the last document, instead of once per document.
 - Sync with GitHub works both ways. Sync sends your changes and brings back the changes made in your other OpenWriter, and open documents update in place. When a file changed in both places, your version stays and GitHub's is saved next to it as a "(from GitHub …)" copy, so no writing is lost.
