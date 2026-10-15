@@ -566,9 +566,9 @@ When importing or organizing book-length projects, read the source material firs
 - **Synthesize, don't just copy.** Reorganize messy notes into clean, scannable docs (headers, bullets, sections) while keeping the author's voice and prose verbatim.
 - **Surface open threads.** Unanswered questions, brainstorm lists, and loose ideas get their own doc — don't bury them inside reference material.
 
-## X Content (Tweets, Threads, Articles)
+## X, Blog and Newsletter Documents
 
-X documents (tweet, reply, quote, article, threads) carry their format rules: OpenWriter sends them with the document. Voice and strategy: `/x-writer`.
+X documents (tweet, reply, quote, article, threads), blog posts and newsletter issues carry their format rules: OpenWriter sends them with the document. Voice and strategy: `/x-writer`, `/blog-writer`, `/newsletter-writer`.
 
 ## Review Etiquette
 
