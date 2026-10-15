@@ -22,29 +22,64 @@ function Invoke-DeliveryCommand {
   if ($LASTEXITCODE -ne 0) { throw "$File failed with exit code $LASTEXITCODE" }
 }
 
+# adr: adr/delivery-system.md
 # npm's web approval (login, publish) waits for ENTER before opening the
-# browser, and an approval nobody opened times out and fails the run. npm skips
-# that prompt when stdin is not a terminal and only prints the link, so the
-# command runs with stdin closed and the first npmjs.com auth or login link it
-# prints is opened here. Output still streams to the console as it arrives.
+# browser, and an approval nobody opened times out and fails the run, so npm
+# runs here with stdin closed and its output streaming to the console. Login
+# then prints its link and waits for the approval itself; the link is opened
+# as soon as it appears. Publish does not wait: without a terminal npm 11.16
+# fails at once with EOTP, and its plain error text masks the link. Its --json
+# error keeps the approval link and a done link intact, so the page is opened
+# here, the done link is polled until the approval hands back a one-time
+# token, and the same command runs once more with that token.
 function Invoke-DeliveryNpmWithBrowser {
+  param([string[]]$Arguments, [int]$ApprovalTimeoutSeconds = 300, [int]$PollSeconds = 5)
+  $run = Invoke-DeliveryNpmStreaming -Arguments $Arguments
+  if ($run.Code -ne 0 -and $run.DoneUrl) {
+    $doneUrl = $run.DoneUrl
+    $token = Wait-DeliveryValue -Name 'your approval in the browser' -Probe { Get-DeliveryNpmApprovalToken -DoneUrl $doneUrl } -TimeoutSeconds $ApprovalTimeoutSeconds -PollSeconds $PollSeconds
+    if (!$token) { throw "The npm approval was not given within $ApprovalTimeoutSeconds seconds." }
+    $run = Invoke-DeliveryNpmStreaming -Arguments ($Arguments + @('--otp', $token))
+  }
+  if ($run.Code -ne 0) { throw "npm failed with exit code $($run.Code)" }
+}
+
+function Invoke-DeliveryNpmStreaming {
   param([string[]]$Arguments)
   $prior = $ErrorActionPreference
   $ErrorActionPreference = 'Continue'
   $opened = $false
+  $doneUrl = $null
   try {
     $null | & npm @Arguments 2>&1 | ForEach-Object {
       $line = "$_"
       Write-Host $line
-      if (!$opened -and $line -match '^\s*(https://www\.npmjs\.com/(auth|login)/\S+)') {
+      # Anywhere on the line: npm prefixes error output, and JSON quotes it. A
+      # masked link (***) is not a link.
+      $link = if ($line -match '(https://www\.npmjs\.com/(auth|login)/[^\s"\\]+)') { $Matches[1] }
+      if (!$opened -and $link -and $link -notmatch '\*') {
         $opened = $true
         Write-Host 'Opening the approval page in your browser...'
-        Start-Process $Matches[1]
+        Start-Process $link
       }
+      if ($line -match '"doneUrl":\s*"(https://[^"]+)"') { $doneUrl = $Matches[1] }
     }
     $code = $LASTEXITCODE
   } finally { $ErrorActionPreference = $prior }
-  if ($code -ne 0) { throw "npm failed with exit code $code" }
+  return [pscustomobject]@{ Code = $code; DoneUrl = $doneUrl }
+}
+
+# The done link answers 202 while the approval is pending and 200 with the
+# one-time token once it is given. Anything else means it expired or was
+# refused, and waiting longer cannot help.
+function Get-DeliveryNpmApprovalToken {
+  param([string]$DoneUrl)
+  try { $response = Invoke-WebRequest -Uri $DoneUrl -UseBasicParsing }
+  catch { throw "npm's approval link stopped answering, so the approval expired or was refused: $($_.Exception.Message)" }
+  if ($response.StatusCode -ne 200) { return $null }
+  $token = ($response.Content | ConvertFrom-Json).token
+  if (!$token) { throw "npm's approval link answered without a token." }
+  return $token
 }
 
 function Get-DeliveryCommandOutput {

@@ -199,3 +199,28 @@ way when `npm whoami` fails. Approval itself stays a human step in the browser;
 no token replaces it. Tested with a stand-in npm under Windows PowerShell and
 pwsh 7: stdin reached npm as a non-terminal, one link opened, and a non-zero
 exit still failed the step.
+
+### 2026-10-14 — publish approval completes without a terminal
+
+The v0.47.0 release stopped twice, once run by an agent and once from the
+operator's own PowerShell terminal, with nothing published. npm 11.16 completes
+a publish approval only when both its input and its output are a terminal; the
+wrapper closes input and reads output, so npm failed at once with EOTP instead
+of waiting. Its plain error text masks the approval link (*** in place of the
+id), so no line-matching fix could have opened it.
+
+npm's `--json` error carries the approval link and a done link intact. The
+release now publishes with `--json`; `Invoke-DeliveryNpmWithBrowser` opens the
+approval link wherever it appears on a line, skips masked ones, and on a
+challenge polls the done link (202 while pending, 200 with a one-time token
+once approved; it needs no credentials) for up to five minutes, then runs the
+same command once more with `--otp` set to that token. This is the step npm
+itself takes in a terminal. Login is unchanged: it prints its link and waits
+for the approval on its own. Approval remains a human step in the browser; the
+token is single-use, never printed, and replaces no credential. The publish
+record is still written before the first attempt, so resume behaves as before.
+
+Checked against the real npm 11.16 with a harmless challenge (a dist-tag add
+left unapproved): the real link opened, the done link was captured, and a
+pending approval read as not yet given. scripts/test-npm-approval.ps1 locks the
+flow with a stand-in npm, browser and done link.

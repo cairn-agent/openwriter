@@ -44,8 +44,9 @@ link; local runtime deployment uses [deploy.ps1](../scripts/deploy.ps1).
 The wrapper checks npm whoami and, if the login has lapsed, runs npm login
 --auth-type=web itself. Login and publishing each need a browser approval that
 only a human at the machine can complete. The wrapper opens each approval page
-in the browser as soon as npm prints it (no ENTER to press), so approve it
-promptly; an approval left unopened times out and stops the run. Never print a
+in the browser as soon as npm prints it (no ENTER to press) and waits up to five
+minutes for the approval, then carries on by itself; it works the same from a
+terminal or from an agent. An approval not given in time stops the run. Never print a
 token or replace credentials merely to bypass interactive authentication.
 
 If a run stops part way — a missed publish approval, a network failure, a closed

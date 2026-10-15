@@ -101,7 +101,9 @@ try {
     # and the run still end before the next line, and this record is the only
     # proof of which bytes it was given.
     Write-DeliveryPublishRecord -Path $recordPath -Spec $spec -Sha $sha -Integrity $packed[0].integrity -Tarball $tarball
-    Invoke-DeliveryNpmWithBrowser -Arguments @('publish', $tarball, '--access', 'public', '--ignore-scripts')
+    # --json: npm masks the approval links in its plain error text, and the
+    # approval is completed from the links in its JSON error.
+    Invoke-DeliveryNpmWithBrowser -Arguments @('publish', $tarball, '--access', 'public', '--ignore-scripts', '--json')
   }
   # Never skipped: whether this run published or a previous one did, the
   # registry artifact is proven against the tarball that was actually
