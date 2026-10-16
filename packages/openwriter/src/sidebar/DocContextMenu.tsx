@@ -115,9 +115,10 @@ interface DocContextMenuProps {
   onRename: (filename: string, title: string) => void;
   onBulkDelete?: () => void;
   onBulkRequestSort?: () => void;
+  onCreateOutline?: () => void;
 }
 
-export default function DocContextMenu({ menu, onClose, docs, workspaces, actions, onSwitchDocument, pluginItems, hasPublishPlugin, onRename, onBulkDelete, onBulkRequestSort }: DocContextMenuProps) {
+export default function DocContextMenu({ menu, onClose, docs, workspaces, actions, onSwitchDocument, pluginItems, hasPublishPlugin, onRename, onBulkDelete, onBulkRequestSort, onCreateOutline }: DocContextMenuProps) {
   const [focusModal, setFocusModal] = useState<{ action: string; label: string; filename: string; title: string } | null>(null);
   const [scheduleModal, setScheduleModal] = useState<{ filename: string; title: string } | null>(null);
   const [postBlogModal, setPostBlogModal] = useState<{ filename: string; title: string; isActive: boolean } | null>(null);
@@ -151,6 +152,7 @@ export default function DocContextMenu({ menu, onClose, docs, workspaces, action
           title={menu.title}
           bulkCount={menu.bulkCount}
           onBulkDelete={onBulkDelete}
+          onCreateOutline={onCreateOutline}
           onBulkRequestSort={menu.bulkCount ? onBulkRequestSort : undefined}
           onClose={onClose}
           onDuplicate={() => {

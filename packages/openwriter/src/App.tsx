@@ -3,6 +3,7 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useSta
 import type { Editor } from '@tiptap/react';
 
 import PadEditor from './editor/PadEditor';
+import OutlineSurface from './outline/OutlineSurface';
 import FormatToolbar from './editor/FormatToolbar';
 import Titlebar from './titlebar/Titlebar';
 import UpdateBanner from './UpdateBanner';
@@ -286,6 +287,7 @@ export default function App() {
   // rename-stable identity the client mistakes the rename for navigation to
   // a different doc and remounts the editor, destroying focus mid-edit.
   const currentDocId = useRef<string>('');
+  const outlineRemovals = useRef(new Map<string, Set<string>>());
   const focusCreatedDoc = useRef(false);
   const [activeFilename, setActiveFilename] = useState('');
   const [canGoBack, setCanGoBack] = useState(false);
@@ -310,6 +312,9 @@ export default function App() {
   const isArticle = contentType === 'article';
   const isBlog = contentType === 'blog';
   const isNewsletter = contentType === 'newsletter';
+  const isOutline = contentType === 'manuscript';
+  const [outlineTextMode, setOutlineTextMode] = useState(false);
+  useEffect(() => { setOutlineTextMode(false); }, [metadata?.docId]);
   const isTweet = contentType === 'tweet' || contentType === 'reply' || contentType === 'quote';
   useEffect(() => {
     if (isArticle) {
@@ -435,7 +440,8 @@ export default function App() {
     if (!keepContent) setInitialContent(payload.document);
     if (keepUnsent) {
       const docStr = docKey(lastDocJson.current);
-      if (sendMessage({ type: 'doc-update', document: lastDocJson.current, filename: payload.filename, version: docVersionRef.current })) {
+      if (sendMessage({ type: 'doc-update', document: lastDocJson.current, filename: payload.filename, version: docVersionRef.current, removedOutlineIds: [...(outlineRemovals.current.get(payload.filename) || [])] })) {
+        outlineRemovals.current.delete(payload.filename);
         lastSentDocJson.current = docStr;
         setUnsent(false);
       }
@@ -598,7 +604,7 @@ export default function App() {
     pendingDocsSeeded.current = true;
   }, []);
 
-  const { connected, sendMessage, docVersionRef } = useWebSocket({
+  const { connected, sendMessage, docVersionRef, saveView } = useWebSocket({
     onNodeChanges: (changes) => {
       const editors = allEditorsRef.current;
       if (editors.length <= 1) {
@@ -693,11 +699,21 @@ export default function App() {
     // before switch_document does its own save.
     const docStr = docKey(doc);
     if (docStr === lastSentDocJson.current) { setUnsent(false); return; }
-    if (sendMessage({ type: 'doc-update', document: doc, filename: currentFilename.current, version: docVersionRef.current })) {
+    if (sendMessage({ type: 'doc-update', document: doc, filename: currentFilename.current, version: docVersionRef.current, removedOutlineIds: [...(outlineRemovals.current.get(currentFilename.current) || [])] })) {
+      outlineRemovals.current.delete(currentFilename.current);
       lastSentDocJson.current = docStr;
       setUnsent(false);
     }
   }, [sendMessage, docVersionRef, setUnsent]);
+
+  const saveOutlineBeforeBuild = useCallback(async () => {
+    const docId = currentDocId.current;
+    const document = editorRef.current?.getJSON();
+    if (!docId || !document) throw new Error('Wait for the outline to finish opening.');
+    flushCurrentDoc();
+    await saveView(docId, document);
+    if (currentDocId.current !== docId) throw new Error('The open document changed. Return to the outline before building.');
+  }, [flushCurrentDoc, saveView]);
 
   // Flush on browser close / tab switch to prevent data loss
   useEffect(() => {
@@ -1097,7 +1113,12 @@ export default function App() {
   // loop. Reading lastDocJson at fire time picks up any rewrites that landed
   // during the debounce window.
   // adr: adr/node-identity-matcher.md
-  const handleDocUpdate = useCallback((json: any) => {
+  const handleDocUpdate = useCallback((json: any, removedOutlineIds?: string[]) => {
+    if (removedOutlineIds?.length && currentFilename.current) {
+      const removed = outlineRemovals.current.get(currentFilename.current) || new Set<string>();
+      removedOutlineIds.forEach(id => removed.add(id));
+      outlineRemovals.current.set(currentFilename.current, removed);
+    }
     // Before the server's first document lands, the editor holds a blank
     // placeholder, not this tab's doc: there is nothing to save. adr: adr/per-tab-view.md
     if (currentFilename.current === '') return;
@@ -1114,7 +1135,8 @@ export default function App() {
       // already resolved, or burn save cycles on docs that haven't changed.
       const freshStr = docKey(fresh);
       if (freshStr === lastSentDocJson.current) { setUnsent(false); return; }
-      if (sendMessage({ type: 'doc-update', document: fresh, filename: currentFilename.current, version: docVersionRef.current })) {
+      if (sendMessage({ type: 'doc-update', document: fresh, filename: currentFilename.current, version: docVersionRef.current, removedOutlineIds: [...(outlineRemovals.current.get(currentFilename.current) || [])] })) {
+        outlineRemovals.current.delete(currentFilename.current);
         lastSentDocJson.current = freshStr;
         setUnsent(false);
       }
@@ -1250,7 +1272,7 @@ export default function App() {
             ? `Voice heatmap — ${attribution.percent.human}% human · ${attribution.percent.agent}% agent${attribution.percent.unknown ? ` · ${attribution.percent.unknown}% unknown` : ''}`
             : 'Voice heatmap — attribution starts on the next edit'}
         />
-        {showToolbar && editorInstance && (
+        {showToolbar && editorInstance && (!isOutline || outlineTextMode) && (
           <FormatToolbar editor={activeEditor || editorInstance} />
         )}
         {isBoardMode && (
@@ -1321,7 +1343,7 @@ export default function App() {
         )}
         <div className="editor-container">
           <BackToTop />
-          <HeadingTickRail editor={editorInstance} />
+          {(!isOutline || outlineTextMode) && <HeadingTickRail editor={editorInstance} />}
           {isArticle ? (
             <ArticleComposeView
               title={title}
@@ -1389,6 +1411,18 @@ export default function App() {
                 autoplug={metadata?.autoplug as boolean | undefined}
               />
             </Suspense>
+          ) : isOutline ? (
+            <OutlineSurface
+              key={(metadata?.docId as string) || activeFilename}
+              editor={editorInstance} docId={(metadata?.docId as string) || ''}
+              filename={activeFilename} title={title} connected={connected}
+              onOpenSource={handleSwitchDocument} beforeBuild={saveOutlineBeforeBuild}
+              onModeChange={setOutlineTextMode}
+            >
+              <PadEditor documentId={(metadata?.docId as string) || activeFilename}
+                initialContent={initialContent} onUpdate={handleDocUpdate}
+                onReady={handleEditorReady} onLinkClick={handleLinkClick} />
+            </OutlineSurface>
           ) : (
             <PadEditor
               documentId={(metadata?.docId as string) || activeFilename}

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import { EditorState, TextSelection } from '@tiptap/pm/state';
+import { isHistoryTransaction } from '@tiptap/pm/history';
 import { createDocument } from '@tiptap/core';
 
 import { padExtensions } from './extensions';
@@ -20,7 +21,7 @@ interface PadEditorProps {
   documentId?: string;
   initialContent?: any;
   extensions?: Extensions;
-  onUpdate?: (json: any) => void;
+  onUpdate?: (json: any, removedOutlineIds?: string[]) => void;
   onReady?: (editor: Editor) => void;
   onLinkClick?: (target: ParsedLinkHref) => void;
 }
@@ -41,9 +42,16 @@ export default function PadEditor({ documentId, initialContent, extensions, onUp
   const editor = useEditor({
     extensions: extensions || padExtensions,
     content: initialContent || '<p></p>',
-    onUpdate: ({ editor }) => {
+    onUpdate: ({ editor, transaction }) => {
       if (isPreviewActive()) return; // Skip sync during original/modified preview
-      onUpdate?.(editor.getJSON());
+      let removed = transaction.getMeta('outlineRemovedIds') as string[] | undefined;
+      if (isHistoryTransaction(transaction)) {
+        const kept = new Set<string>();
+        transaction.doc.forEach(n => { if (n.attrs.id) kept.add(n.attrs.id); });
+        removed = [];
+        transaction.before.forEach(n => { if (n.attrs.id && !kept.has(n.attrs.id)) removed!.push(n.attrs.id); });
+      }
+      onUpdate?.(editor.getJSON(), removed);
     },
     editorProps: {
       attributes: {

@@ -39,3 +39,10 @@ ReviewTab shares the same loader.
   sidebar menu and `/api/voice/sidebar-action` is a core route; the forwarder is unchanged. The
   transforms share the group name "Transform", so they sit in one submenu, and "Learn my voice
   from this" stays at the top level.
+
+- **2026-10-16 — Create an outline from selection.** The Files multi-selection
+  menu offers a titled outline with explicit workspace placement. It creates
+  through the book route in the background, stages the chosen document basket,
+  and navigates through the existing tab action only after success. Hidden
+  selections are retained and repeated workspace appearances are deduplicated.
+  It does not infer chapters or change the source documents.

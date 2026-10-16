@@ -152,3 +152,18 @@ and setMetadata auto-tagged any doc gaining articleContext with x + article.
 set_cover now pins the doc's current derived type when none is explicit, and
 setMetadata adds context tags only when the context belongs to the doc's own
 type. X articles and tweets tag as before; removal tagging is unchanged.
+
+### 2026-10-16 — Outline is another presentation of the full editor
+
+The manuscript content type now opens the visual outline canvas. Its full
+PadEditor remains mounted while hidden; Text and Outline use the same document,
+schema, history and save handler. No simplified outline serialization can
+replace the body. See [outline-editor.md](outline-editor.md).
+
+The collapse policy was extracted unchanged before extending it. Deliberate
+outline removals now carry the exact top-level block IDs removed by the user's
+transaction (including Undo/Redo) through the existing doc-update message. Only
+outline writes can supply this evidence. A large collapse is permitted only
+when every disappearing block is accounted for; accidental blank snapshots and
+partial/unrelated removal lists remain refused. The current-version, merged and
+file write paths all call the same policy. No blanket bypass flag is introduced.

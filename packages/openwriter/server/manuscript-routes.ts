@@ -17,6 +17,7 @@ import {
   BookError, BOOK_FORMATS, type BookFormat, bookStatus, listBooks, adoptManuscript, addChapter, bookSource, renderBook, setBookStyle,
 } from './manuscript/book.js';
 import { createRevision } from './document-revisions.js';
+import { outlineInfo, outlineSource, createOutline } from './manuscript/outline-info.js';
 
 function fail(res: Response, err: any): void {
   if (err instanceof BookError) {
@@ -56,11 +57,28 @@ export function createManuscriptRouter(): Router {
     res.json({ books: listBooks() });
   });
 
+  router.get('/api/book/outline', (req, res) => {
+    try { res.json(outlineInfo(String(req.query.docId || ''))); } catch (err) { fail(res, err); }
+  });
+  router.post('/api/book/outline', (req, res) => {
+    try {
+      const { title, workspaceFile } = req.body || {};
+      if (typeof title !== 'string' || (workspaceFile !== undefined && typeof workspaceFile !== 'string')) throw new BookError('Choose a title and workspace.');
+      res.status(201).json(createOutline(title, workspaceFile));
+    } catch (err) { fail(res, err); }
+  });
+  router.get('/api/book/source', (req, res) => {
+    try { res.json(outlineSource(String(req.query.docId || ''))); } catch (err) { fail(res, err); }
+  });
+
   router.post('/api/book/build', (req, res) => {
     try {
-      const { docId, confirm, useExisting } = req.body || {};
+      const { docId, confirm, useExisting, revision } = req.body || {};
       if (typeof docId !== 'string') return res.status(400).json({ error: 'Choose an outline.' });
       if (typeof useExisting === 'string') return res.json(adoptManuscript(docId, useExisting));
+      if (revision !== undefined && revision !== outlineInfo(docId).revision) {
+        throw new BookError('The outline or a source changed. Review the build again before creating the manuscript.', 409);
+      }
       res.status(201).json(createRevision(docId, undefined, { confirm: confirm === true }));
     } catch (err) { fail(res, err); }
   });

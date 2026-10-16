@@ -1423,3 +1423,13 @@ settle (`doc-update`, then `pending-resolved` once no change is left) moved from
 `src/decorations/review-actions.ts`. The Review tab, Focus mode and a client plugin's review UI
 (`app.resolvePending`, `app.previewOriginal`) all call them, so a document's review ends the
 same way whichever presentation settled the last change.
+
+### 2026-10-16 — Outline controls share the mounted editor and write path
+
+The visual outline dispatches normal transactions on the same editor as Text.
+It refuses structural changes overlapping pending proposals rather than
+flattening them. Human block-removal receipts travel with the existing browser
+update so intentional large chapter removals pass the shared fidelity check;
+pending merges, revision checks and sidecar writes retain their existing path.
+A save barrier verifies canonical Markdown and overlay persistence before a
+build proceeds. See [outline-editor.md](outline-editor.md).

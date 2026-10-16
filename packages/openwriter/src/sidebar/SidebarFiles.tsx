@@ -7,6 +7,7 @@ import SidebarContextMenu from './SidebarContextMenu';
 import type { SidebarMenuItem } from './SidebarContextMenu';
 import DocContextMenu, { docMenuTarget, requestSort, useSidebarPlugins, type DocMenuTarget } from './DocContextMenu';
 import CreateDocDropdown from './CreateDocDropdown';
+import CreateOutlineDialog from '../outline/CreateOutlineDialog';
 import { TAB_HEADER } from '../ws/client';
 import SearchResults from './SearchResults';
 import './SidebarFiles.css';
@@ -165,6 +166,7 @@ export default function SidebarFiles({
       return saved ? new Set(JSON.parse(saved)) : new Set();
     } catch { return new Set(); }
   });
+  const [outlineItems, setOutlineItems] = useState<DocumentInfo[] | null>(null);
 
   // Live mirrors so the drag hook (declared before the `selection` state below)
   // can read the current multi-selection and clear it after a cohort move.
@@ -743,7 +745,19 @@ export default function SidebarFiles({
         onRename={(filename, title) => startRename('doc', filename, title)}
         onBulkDelete={handleBulkDelete}
         onBulkRequestSort={() => requestSortFor([...selection])}
+        onCreateOutline={ctxMenu?.bulkCount && [...selection].every(file => {
+          const doc = docs.find(d => d.filename === file);
+          return doc?.docId && doc.contentType !== 'manuscript';
+        }) ? () => {
+          // Keep hidden selections and deduplicate repeated workspace appearances.
+          const ordered = [...new Set([...orderedFilenames, ...selection])].filter(file => selection.has(file));
+          setOutlineItems(ordered.map(file => docs.find(d => d.filename === file)!).filter(Boolean));
+        } : undefined}
       />
+      {outlineItems && <CreateOutlineDialog items={outlineItems} workspaces={workspaces}
+        onClose={() => setOutlineItems(null)} onCreated={filename => {
+          setOutlineItems(null); setSelection(new Set()); actions.fetchDocs(); onSwitchDocument(filename);
+        }} />}
       {createDropdown && (
         <CreateDocDropdown
           anchorRect={createDropdown.anchor}

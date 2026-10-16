@@ -4,6 +4,7 @@
 
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server } from 'http';
+import { saveViewedDocument } from './view-save.js';
 import {
   updateDocument,
   syncBrowserDocUpdate,
@@ -450,6 +451,20 @@ export function setupWebSocket(server: Server): void {
      *  scope above. Returns void. */
     async function handleMessage(msg: any): Promise<void> {
       try {
+        // Ordered after this tab's normal doc-update; only acknowledge persisted state.
+        // adr: adr/outline-editor.md
+        if (msg.type === 'save-view' && typeof msg.requestId === 'string') {
+          try {
+            const target = views.get(ws);
+            if (!target) throw new Error('Reconnect to the document before building.');
+            if (target !== getActiveFilename()) switchDocument(target);
+            saveViewedDocument(msg.docId, msg.document);
+            ws.send(JSON.stringify({ type: 'view-saved', requestId: msg.requestId, success: true }));
+          } catch (err: any) {
+            ws.send(JSON.stringify({ type: 'view-saved', requestId: msg.requestId, success: false, error: err.message }));
+          }
+          return;
+        }
         // A tab's write applies to the doc that tab shows (the server's own
         // record, not the tab's spelling of it), made live first if needed.
         // A write built on a revision someone else has since replaced is
@@ -478,6 +493,8 @@ export function setupWebSocket(server: Server): void {
         }
 
         if (msg.type === 'doc-update' && msg.document) {
+          const removedOutlineIds = getMetadata().content_type === 'manuscript' && Array.isArray(msg.removedOutlineIds)
+            ? msg.removedOutlineIds.filter((id: unknown) => typeof id === 'string' && /^[a-f0-9]{8}$/i.test(id)) : [];
           const docContent = msg.document?.content || [];
           const nodeCount = docContent.length;
           const currentNodeCount = getDocument()?.content?.length || 0;
@@ -503,7 +520,7 @@ export function setupWebSocket(server: Server): void {
               msg.document.content = msg.document.content.filter((n: any) => n.type !== 'imageLoading');
             }
             const pendingBefore = getPendingChangeCount();
-            const result = syncBrowserDocUpdate(msg.document, browserVersion);
+            const result = syncBrowserDocUpdate(msg.document, browserVersion, removedOutlineIds);
             diagLog(`[WS] doc-update SYNC-MERGED stale v${browserVersion}→v${serverVersion} preservedServerEntries=${result.preservedServerEntries}`);
             updatePendingCacheForActiveDoc();
             if (getPendingChangeCount() !== pendingBefore) broadcastPendingDocsChanged();
@@ -513,7 +530,7 @@ export function setupWebSocket(server: Server): void {
             // Browser sent a doc-update for a different document (race: server switched away).
             // Save directly to that file on disk instead of corrupting the active doc.
             diagLog(`[WS] doc-update ROUTED-TO-NON-ACTIVE filename=${browserFilename} browserPending=[${pendingSummary(msg.document)}]`);
-            saveDocToFile(browserFilename, msg.document);
+            saveDocToFile(browserFilename, msg.document, removedOutlineIds);
           } else {
             // Strip ephemeral imageLoading nodes — they're transient placeholders that should
             // never persist. The browser's doc-update can re-add them after a failed rewrite.
@@ -532,7 +549,7 @@ export function setupWebSocket(server: Server): void {
             }
             diagLog(`[WS] doc-update ACCEPTED (browser: ${nodeCount} nodes, cleaned: ${cleanedCount}, server: ${currentNodeCount} nodes)`);
             const pendingBefore = getPendingChangeCount();
-            updateDocument(msg.document);
+            updateDocument(msg.document, removedOutlineIds);
             updatePendingCacheForActiveDoc(); // Keep cache in sync after browser edits/reject-all
             // An accept or reject in the browser changed what is pending: tell
             // every tab, so counts and the manuscript's chapter list catch up.

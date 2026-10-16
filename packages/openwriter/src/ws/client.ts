@@ -121,6 +121,7 @@ interface UseWebSocketOptions {
 
 export function useWebSocket({ onNodeChanges, onAgentStatus, onDocumentSwitched, onDocumentReloaded, onDocumentsChanged, onWorkspacesChanged, onTitleChanged, onPendingDocsChanged, onMetadataChanged, onSyncStatus, onWritingStarted, onWritingFinished, onIdRewrites, onPendingFilenamesChanged, getEditorState, getViewFilename }: UseWebSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
+  const savesRef = useRef(new Map<string, { resolve: () => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>());
   const [connected, setConnected] = useState(false);
   // Messages sent while the socket was closed, replayed once the server has
   // told this tab what it shows. Edits are not queued: the app re-sends its
@@ -202,6 +203,14 @@ export function useWebSocket({ onNodeChanges, onAgentStatus, onDocumentSwitched,
       ws.onmessage = (event) => {
         try {
           const msg: WebSocketMessage = JSON.parse(event.data);
+
+          if (msg.type === 'view-saved') {
+            const pending = savesRef.current.get(msg.requestId);
+            if (pending) {
+              clearTimeout(pending.timer); savesRef.current.delete(msg.requestId);
+              if (msg.success) pending.resolve(); else pending.reject(new Error(msg.error || 'The document could not be saved.'));
+            }
+          }
 
           if (msg.type === 'node-changes' && msg.changes) {
             // Apply changes FIRST, then bump version. If the callback throws
@@ -405,6 +414,8 @@ export function useWebSocket({ onNodeChanges, onAgentStatus, onDocumentSwitched,
 
       ws.onclose = () => {
         setConnected(false);
+        for (const pending of savesRef.current.values()) { clearTimeout(pending.timer); pending.reject(new Error('Connection lost before the save completed.')); }
+        savesRef.current.clear();
         // Plugins may react to a lost connection (client plugin API, onConnectionLost).
         window.dispatchEvent(new Event(CONNECTION_LOST_EVENT));
         reconnectTimer = setTimeout(connect, backoff);
@@ -430,6 +441,8 @@ export function useWebSocket({ onNodeChanges, onAgentStatus, onDocumentSwitched,
 
     return () => {
       clearTimeout(reconnectTimer);
+      for (const pending of savesRef.current.values()) { clearTimeout(pending.timer); pending.reject(new Error('The editor closed before the save completed.')); }
+      savesRef.current.clear();
       document.removeEventListener('visibilitychange', handleVisibility);
       // Detach onclose before closing to prevent the handler from setting
       // a new reconnect timer that the cleanup can't clear (StrictMode fix).
@@ -470,5 +483,16 @@ export function useWebSocket({ onNodeChanges, onAgentStatus, onDocumentSwitched,
     for (const msg of queued) sendMessage(msg);
   }
 
-  return { connected, sendMessage, docVersionRef };
+  /** A barrier after the caller's doc-update; never queued across reconnects.
+   * adr: adr/outline-editor.md */
+  const saveView = useCallback((docId: string, document: any): Promise<void> => {
+    if (!seededRef.current || wsRef.current?.readyState !== WebSocket.OPEN) return Promise.reject(new Error('Reconnect before building the manuscript.'));
+    return new Promise((resolve, reject) => {
+      const requestId = crypto.randomUUID();
+      const timer = setTimeout(() => { savesRef.current.delete(requestId); reject(new Error('The save was not confirmed. Try again after reconnecting.')); }, 10000);
+      savesRef.current.set(requestId, { resolve, reject, timer });
+      wsRef.current!.send(JSON.stringify({ type: 'save-view', requestId, docId, document }));
+    });
+  }, []);
+  return { connected, sendMessage, docVersionRef, saveView };
 }

@@ -163,3 +163,11 @@ this tab's, and could land after the socket's copy and replace it. The deep
 link no longer fetches the doc list to find its filename; it takes it from the
 first `document-switched` whose docId matches. The Backlinks tab reads outbound
 links from this tab's metadata instead of `/api/document`, for the same reason.
+
+### 2026-10-16 — Confirm a viewed document's save before book compilation
+
+`save-view` follows the tab's normal edits on its socket, checks that the server
+holds the same document, saves through the existing path, and verifies a disk
+read before acknowledging. It neither writes a new snapshot nor navigates other
+tabs. Lost connections reject pending acknowledgments instead of replaying them.
+The outline build waits for this barrier; see [outline-editor.md](outline-editor.md).

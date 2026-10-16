@@ -355,12 +355,12 @@ function checkpointActiveBody(): void {
  * Returns the count of server overlay entries that were preserved.
  * adr: adr/pending-overlay-model.md
  */
-export function syncBrowserDocUpdate(browserDoc: PadDocument, browserVersion: number): { preservedServerEntries: number } {
+export function syncBrowserDocUpdate(browserDoc: PadDocument, browserVersion: number, removedOutlineIds: readonly string[] = []): { preservedServerEntries: number } {
   // Browser-write fidelity: a STALE-version browser doc-update is the same
   // autosave-clobber class as the current-version path — and this path
   // previously bypassed the guard, writing the empty surface straight to
   // canonical. Refuse + checkpoint here too. adr: adr/browser-write-fidelity.md
-  if (wouldCollapseBody(state.document, browserDoc)) {
+  if (wouldCollapseBody(state.document, browserDoc, removedOutlineIds)) {
     checkpointActiveBody();
     console.error(`[State] REFUSED body-collapse in syncBrowserDocUpdate: ${browserDoc?.content?.length ?? 0} nodes would replace ${state.document?.content?.length ?? 0} nodes (checkpointed, write refused)`);
     return { preservedServerEntries: 0 };
@@ -369,7 +369,7 @@ export function syncBrowserDocUpdate(browserDoc: PadDocument, browserVersion: nu
   // Install through the same mutation boundary as current-version browser
   // edits, including lastModified and docVersion. Otherwise save's no-op gate
   // can silently skip an accepted stale-version edit after metadata changes.
-  updateDocument(applyOverlayPure(merged.canonical, merged.entries));
+  updateDocument(applyOverlayPure(merged.canonical, merged.entries), removedOutlineIds);
   return { preservedServerEntries: merged.preservedServerEntries };
 }
 
@@ -1141,13 +1141,13 @@ export function getStatus() {
 // SETTERS
 // ============================================================================
 
-export function updateDocument(doc: PadDocument): void {
+export function updateDocument(doc: PadDocument, removedOutlineIds: readonly string[] = []): void {
   // Browser-write fidelity: refuse a clobbering body-collapse. A compose
   // surface that mounted empty (wrong view) or parsed the body through a
   // narrower schema can otherwise overwrite a populated body with near-
   // nothing. Checkpoint the good on-disk body first, then refuse.
   // adr: adr/browser-write-fidelity.md
-  if (wouldCollapseBody(state.document, doc)) {
+  if (wouldCollapseBody(state.document, doc, removedOutlineIds)) {
     checkpointActiveBody();
     console.error(`[State] REFUSED body-collapse in updateDocument: ${doc?.content?.length ?? 0} nodes would replace ${state.document?.content?.length ?? 0} nodes (checkpointed, write refused)`);
     return;
@@ -3146,7 +3146,7 @@ export function removeDocTag(filename: string, tag: string): void {
  * disk write.
  * adr: adr/pending-overlay-model.md
  */
-export function saveDocToFile(filename: string, doc: PadDocument): void {
+export function saveDocToFile(filename: string, doc: PadDocument, removedOutlineIds: readonly string[] = []): void {
   const targetPath = resolveDocPath(filename);
   if (!existsSync(targetPath)) return; // Target doesn't exist, nothing to save to
   try {
@@ -3156,7 +3156,7 @@ export function saveDocToFile(filename: string, doc: PadDocument): void {
     // (the server switched away mid-flight). Refuse a clobbering collapse
     // against the target's own on-disk body; checkpoint it first.
     // adr: adr/browser-write-fidelity.md
-    if (wouldCollapseBody(parsed.document, doc)) {
+    if (wouldCollapseBody(parsed.document, doc, removedOutlineIds)) {
       const refuseDocId = (parsed.metadata && typeof parsed.metadata.docId === 'string') ? parsed.metadata.docId : '';
       if (refuseDocId) forceSnapshot(refuseDocId, targetPath);
       console.error(`[State] REFUSED body-collapse in saveDocToFile(${filename}): ${doc?.content?.length ?? 0} nodes would replace ${parsed.document?.content?.length ?? 0} nodes (checkpointed, write refused)`);

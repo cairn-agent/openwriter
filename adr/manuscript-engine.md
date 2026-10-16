@@ -157,3 +157,10 @@ containers and calls them chapters), the engine doesn't know what a "book" is.
   beat whose chapter a manuscript already holds shows a banner with Open
   manuscript. The create menu calls the type "Book outline". The sidebar's
   Revision on an outline that has a manuscript opens it.
+
+- **2026-10-16 — Visual outline editing.** Outlines now offer chapter/document
+  controls over the existing mounted editor, with Text as the alternate view.
+  Structural transactions preserve ranges and link occurrences; the compiler
+  format and independently built manuscript remain unchanged. Preflight uses
+  the existing accepted-text compiler and binds build confirmation to its input
+  revision. Detailed invariants: [outline-editor.md](outline-editor.md).
