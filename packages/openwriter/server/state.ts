@@ -319,11 +319,8 @@ function setPrimaryFromMerged(merged: PadDocument): void {
  * A replacement that collapses a substantial body (>5 nodes) to under 30%
  * of its node count is a view artifact, not an edit — refuse it.
  */
-export function wouldCollapseBody(current: PadDocument | null | undefined, incoming: PadDocument | null | undefined): boolean {
-  const currentNodes = current?.content?.length ?? 0;
-  const incomingNodes = incoming?.content?.length ?? 0;
-  return currentNodes > 5 && incomingNodes < currentNodes * 0.3;
-}
+export { wouldCollapseBody } from './browser-write-fidelity.js';
+import { wouldCollapseBody } from './browser-write-fidelity.js';
 
 /**
  * Checkpoint-then-refuse helper for the active doc. Forces a version
