@@ -46,6 +46,10 @@ any longer.
 
 ## Decision log
 
+- **2026-10-16** — Moved the agent-boundary envelope from the large MCP registry
+  into mcp-guidance.ts, re-exported under the same name. Delivery behavior is
+  unchanged; book context can be added at this single boundary.
+
 - **2026-10-14** — Built for X documents. Rejected: patching each document tool (many sites,
   and plugins' tools would miss it); wrapping the handlers in the registry (voice indexing
   and plugins run the same handlers in-process and would consume the once-per-session
