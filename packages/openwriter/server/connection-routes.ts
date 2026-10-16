@@ -238,44 +238,117 @@ export function createConnectionRouter(): Router {
   // ---- Platform-first X posting routes ----
   // These intercept /api/x/* and try platform connection first.
   // If no platform X connection exists, next() falls through to plugin routes.
+  // adr: adr/x-accounts.md
 
-  /** Find the first active X connection on the platform */
-  async function getFirstXConnection(): Promise<{ id: string; display_name: string } | null> {
-    if (!isAuthenticated()) return null;
+  type XConn = { id: string; display_name: string };
+
+  /** Every active X connection on the platform. */
+  async function listXConnections(): Promise<XConn[]> {
+    if (!isAuthenticated()) return [];
     try {
       const upstream = await platformFetch('/connections/unified');
-      if (!upstream.ok) return null;
+      if (!upstream.ok) return [];
       const data = await upstream.json() as { connections: any[] };
-      const xConn = data.connections.find((c: any) => c.provider === 'x' && c.status === 'active');
-      return xConn ? { id: xConn.id, display_name: xConn.display_name } : null;
+      return data.connections
+        .filter((c: any) => c.provider === 'x' && c.status === 'active')
+        .map((c: any) => ({ id: c.id, display_name: c.display_name }));
     } catch {
-      return null;
+      return [];
     }
   }
 
-  // GET /api/x/status — platform connection first, then plugin
+  /**
+   * The platform X account to post as. A named connectionId must be an active X
+   * connection; without one, a lone account is used and two or more are refused,
+   * so nothing goes out from an account nobody picked. null = no platform account
+   * (the caller falls through to the x-api plugin).
+   */
+  async function resolveXConnection(connectionId: unknown): Promise<{ conn: XConn } | { error: string } | null> {
+    const conns = await listXConnections();
+    if (connectionId) {
+      const conn = conns.find((c) => c.id === connectionId);
+      return conn ? { conn } : { error: 'That X account is no longer connected. Pick another account.' };
+    }
+    if (conns.length === 0) return null;
+    if (conns.length === 1) return { conn: conns[0] };
+    return { error: `Choose which X account to post as (${conns.map((c) => c.display_name).join(', ')}).` };
+  }
+
+  /** Upload a local /_images/ file through a platform X connection. */
+  async function uploadLocalImage(connId: string, src: string): Promise<{ mediaId: string } | { error: string }> {
+    if (!/^\/_images\/[^/\\]+$/.test(src)) return { error: 'Invalid image path — must be /_images/<filename>' };
+    const filename = src.replace('/_images/', '');
+    const filePath = join(getDataDir(), '_images', filename);
+    if (!existsSync(filePath)) return { error: `Image not found: ${filename}` };
+    const mimeMap: Record<string, string> = {
+      '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+      '.png': 'image/png', '.webp': 'image/webp',
+      '.gif': 'image/gif', '.bmp': 'image/bmp',
+    };
+    const upstream = await platformFetch(`/connections/${connId}/upload-media`, {
+      method: 'POST',
+      body: JSON.stringify({
+        media_base64: readFileSync(filePath).toString('base64'),
+        media_type: mimeMap[extname(filename).toLowerCase()] || 'image/jpeg',
+      }),
+    });
+    const data = await upstream.json().catch(() => ({})) as any;
+    return upstream.ok && data.mediaId ? { mediaId: data.mediaId } : { error: data.error || 'Image upload failed' };
+  }
+
+  const handleOf = (conn: XConn) => (conn.display_name || '').replace('@', '');
+
+  // GET /api/x/status — platform connection first, then plugin.
+  // `accounts` lists every platform X account; `username` is set only when there is one.
   router.get('/api/x/status', async (req, res, next) => {
-    const conn = await getFirstXConnection();
-    if (conn) {
-      const username = (conn.display_name || '').replace('@', '');
-      res.json({ connected: true, username, source: 'platform' });
+    const conns = await listXConnections();
+    if (conns.length > 0) {
+      res.json({
+        connected: true,
+        username: conns.length === 1 ? handleOf(conns[0]) : undefined,
+        accounts: conns.map((c) => ({ id: c.id, username: handleOf(c) })),
+        source: 'platform',
+      });
       return;
     }
     next(); // Fall through to plugin
   });
 
+  // POST /api/x/upload-media — with a connectionId, upload through that platform
+  // account so its post can use the media id. Without one, the plugin uploads.
+  router.post('/api/x/upload-media', async (req, res, next) => {
+    const { connectionId, src } = req.body || {};
+    if (!connectionId) { next(); return; }
+    const resolved = await resolveXConnection(connectionId);
+    if (!resolved || 'error' in resolved) {
+      res.status(400).json({ success: false, error: resolved?.error || 'No X account connected' });
+      return;
+    }
+    try {
+      const result = await uploadLocalImage(resolved.conn.id, String(src || ''));
+      if ('error' in result) { res.status(400).json({ success: false, error: result.error }); return; }
+      res.json({ success: true, mediaId: result.mediaId });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // POST /api/x/post — platform connection first, then plugin
-  // If mediaIds present, skip platform — media was uploaded via plugin's X app
-  // and media IDs aren't transferable between X API apps.
+  // Media ids from the plugin's X app aren't transferable between X API apps, so
+  // media without a connectionId stays on the plugin path; media uploaded for a
+  // named connectionId (route above) posts through that platform account.
   router.post('/api/x/post', async (req, res, next) => {
-    if (req.body?.mediaIds?.length) { next(); return; }
-    const conn = await getFirstXConnection();
-    if (!conn) { next(); return; }
+    const { connectionId, ...body } = req.body || {};
+    if (!connectionId && body.mediaIds?.length) { next(); return; }
+    const resolved = await resolveXConnection(connectionId);
+    if (!resolved) { next(); return; }
+    if ('error' in resolved) { res.status(400).json({ success: false, error: resolved.error }); return; }
+    const conn = resolved.conn;
 
     try {
       const upstream = await platformFetch(`/connections/${conn.id}/post`, {
         method: 'POST',
-        body: JSON.stringify(req.body),
+        body: JSON.stringify(body),
       });
       const data = await upstream.json();
       if (!upstream.ok) { res.status(upstream.status).json(data); return; }
@@ -285,19 +358,21 @@ export function createConnectionRouter(): Router {
     }
   });
 
-  // POST /api/x/post-thread — platform connection first, then plugin
-  // If any tweet has mediaIds, skip platform — media was uploaded via plugin's X app
-  // and media IDs aren't transferable between X API apps.
+  // POST /api/x/post-thread — platform connection first, then plugin.
+  // Same media rule as /api/x/post.
   router.post('/api/x/post-thread', async (req, res, next) => {
-    const hasMedia = req.body?.tweets?.some((t: any) => t.mediaIds?.length);
-    if (hasMedia) { next(); return; }
-    const conn = await getFirstXConnection();
-    if (!conn) { next(); return; }
+    const { connectionId, ...body } = req.body || {};
+    const hasMedia = body.tweets?.some((t: any) => t.mediaIds?.length);
+    if (!connectionId && hasMedia) { next(); return; }
+    const resolved = await resolveXConnection(connectionId);
+    if (!resolved) { next(); return; }
+    if ('error' in resolved) { res.status(400).json({ success: false, error: resolved.error }); return; }
+    const conn = resolved.conn;
 
     try {
       const upstream = await platformFetch(`/connections/${conn.id}/post-thread`, {
         method: 'POST',
-        body: JSON.stringify(req.body),
+        body: JSON.stringify(body),
       });
       const data = await upstream.json();
       if (!upstream.ok) { res.status(upstream.status).json(data); return; }
@@ -313,8 +388,10 @@ export function createConnectionRouter(): Router {
   // is read from the active server doc and converted to X content_state here;
   // the cover image (articleContext.coverImage) is uploaded via the platform.
   router.post('/api/x/post-article', async (req, res, next) => {
-    const conn = await getFirstXConnection();
-    if (!conn) { next(); return; } // No platform connection → direct plugin path
+    const resolved = await resolveXConnection(req.body?.connectionId);
+    if (!resolved) { next(); return; } // No platform connection → direct plugin path
+    if ('error' in resolved) { res.status(400).json({ success: false, error: resolved.error }); return; }
+    const conn = resolved.conn;
 
     try {
       const title = (getTitle() || '').trim();
@@ -332,25 +409,9 @@ export function createConnectionRouter(): Router {
       // Optional cover — upload through the platform, attach by media id.
       let coverMediaId: string | undefined;
       const coverSrc = getMetadata()?.articleContext?.coverImage;
-      if (coverSrc && typeof coverSrc === 'string' && /^\/_images\/[^/\\]+$/.test(coverSrc)) {
-        const filename = coverSrc.replace('/_images/', '');
-        const filePath = join(getDataDir(), '_images', filename);
-        if (existsSync(filePath)) {
-          const ext = extname(filename).toLowerCase();
-          const mimeMap: Record<string, string> = {
-            '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
-            '.png': 'image/png', '.webp': 'image/webp',
-            '.gif': 'image/gif', '.bmp': 'image/bmp',
-          };
-          const uploadRes = await platformFetch(`/connections/${conn.id}/upload-media`, {
-            method: 'POST',
-            body: JSON.stringify({ media_base64: readFileSync(filePath).toString('base64'), media_type: mimeMap[ext] || 'image/jpeg' }),
-          });
-          if (uploadRes.ok) {
-            const data = await uploadRes.json() as any;
-            if (data.mediaId) coverMediaId = data.mediaId;
-          }
-        }
+      if (coverSrc && typeof coverSrc === 'string') {
+        const uploaded = await uploadLocalImage(conn.id, coverSrc);
+        if ('mediaId' in uploaded) coverMediaId = uploaded.mediaId;
       }
 
       const upstream = await platformFetch(`/connections/${conn.id}/post-article`, {

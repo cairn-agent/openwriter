@@ -122,6 +122,23 @@
 
 .connections-dropdown__add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.connections-dropdown__add-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ink-light);
+}
+
+.connections-dropdown__notice {
+  margin: 8px 14px 0;
+  padding: 8px 10px;
+  border: 1px solid #f4b400;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-dark);
+}
+
 .connections-dropdown__confirm {
   display: flex;
   align-items: center;

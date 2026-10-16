@@ -377,3 +377,12 @@ The enclosing border and padding made the note text look nested beneath the
 rest of the rail. The note now extends its faint background halfway into the
 rail gutter, with a yellow left accent there. Equal negative margins and inner
 padding preserve the standard text alignment. Approval rows remain above it.
+
+### 2026-10-16 — Several X accounts in Connections
+
+X now lists every connected account, each with its own settings and disconnect, plus a
+dashed "+ Add X account" row with a hint to switch accounts on x.com first (X connects
+whichever account is signed in there). A connect that returns an account already listed
+shows a notice instead of silently refreshing it. The empty `MULTI_PROVIDERS` set became
+`MULTI_ADD_LABEL`; a multi provider with no connections keeps the ordinary Connect row.
+See `adr/x-accounts.md`.

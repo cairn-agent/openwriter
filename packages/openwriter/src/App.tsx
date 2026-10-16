@@ -1354,6 +1354,7 @@ export default function App() {
               pendingTitle={pendingTitle}
               docId={(metadata?.docId as string) || undefined}
               autoplug={metadata?.autoplug as boolean | undefined}
+              xAccount={metadata?.xAccount as string | undefined}
             >
               <PadEditor
                 documentId={(metadata?.docId as string) || activeFilename}
@@ -1409,6 +1410,7 @@ export default function App() {
                 filename={activeFilename}
                 title={title}
                 autoplug={metadata?.autoplug as boolean | undefined}
+                xAccount={metadata?.xAccount as string | undefined}
               />
             </Suspense>
           ) : isOutline ? (

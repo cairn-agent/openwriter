@@ -1,0 +1,21 @@
+.x-account-picker {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  max-width: 180px;
+}
+
+.x-account-picker option {
+  color: initial;
+}
+
+.x-account-picker--unset {
+  border-color: #f4b400;
+}

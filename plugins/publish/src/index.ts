@@ -26,6 +26,25 @@ import { siteExtrasTools } from './site-extras-tools.js';
 import { readFileSync, existsSync } from 'fs';
 import { join, extname } from 'path';
 
+/**
+ * Which connection to post with when the caller named none. The document's chosen
+ * account (`preferredId`) wins if still active; else a lone active connection; two
+ * or more are refused, listing their ids, so nothing posts from an unpicked account.
+ * adr: adr/x-accounts.md
+ */
+async function pickConnection(provider: string, preferredId?: unknown): Promise<{ id: string } | { error: string }> {
+  const server = await getServerModules();
+  const listRes = await server.platformFetch('/connections');
+  const data = listRes.ok ? await listRes.json() as { connections: any[] } : { connections: [] };
+  const active = data.connections.filter((c: any) => c.provider === provider && c.status === 'active');
+  const preferred = preferredId && active.find((c: any) => c.id === preferredId);
+  if (preferred) return { id: preferred.id };
+  if (active.length === 1) return { id: active[0].id };
+  if (active.length === 0) return { error: `No active ${provider} connection found. Connect an account first.` };
+  const choices = active.map((c: any) => `${c.display_name} (connection_id ${c.id})`).join(', ');
+  return { error: `Several ${provider} accounts are connected: ${choices}. Pass connection_id to choose one.` };
+}
+
 const plugin: OpenWriterPlugin = {
   name: '@openwriter/plugin-publish',
   version: '0.1.0',
@@ -212,26 +231,18 @@ const plugin: OpenWriterPlugin = {
           type: 'object',
           properties: {
             content: { type: 'string', description: 'Tweet text (max 280 characters)' },
-            connection_id: { type: 'string', description: 'X connection ID. If omitted, uses the first active X connection.' },
+            connection_id: { type: 'string', description: 'X connection ID (use list_connections to find). Required when more than one X account is connected.' },
             autoplug: { type: 'boolean', description: 'Eligible for engagement autoplugs (default true). Pass false to opt this post out of autoplug tracking.' },
           },
           required: ['content'],
         },
         handler: async (params) => {
-          const connectionId = params.connection_id as string | undefined;
-          let id = connectionId;
-
+          let id = params.connection_id as string | undefined;
           if (!id) {
-            const server = await getServerModules();
-            const listRes = await server.platformFetch('/connections');
-            if (listRes.ok) {
-              const data = await listRes.json() as { connections: any[] };
-              const xConn = data.connections.find((c: any) => c.provider === 'x' && c.status === 'active');
-              if (xConn) id = xConn.id;
-            }
+            const picked = await pickConnection('x');
+            if ('error' in picked) return picked;
+            id = picked.id;
           }
-
-          if (!id) return { error: 'No active X connection found. Connect an X account first.' };
 
           const server = await getServerModules();
           const res = await server.platformFetch(`/connections/${id}/post`, {
@@ -292,7 +303,7 @@ const plugin: OpenWriterPlugin = {
         inputSchema: {
           type: 'object',
           properties: {
-            connection_id: { type: 'string', description: 'Target connection ID (use list_connections to find). If omitted, infers from content_type.' },
+            connection_id: { type: 'string', description: 'Target connection ID (use list_connections to find). If omitted: the account chosen on the document, else the only connection for the content_type. Required when several accounts are connected and the document has none chosen.' },
             mode: { type: 'string', enum: ['queue', 'now', 'custom'], description: 'Scheduling mode (default: queue)' },
             scheduled_at: { type: 'string', description: 'ISO datetime for custom mode' },
             slot_id: { type: 'string', description: 'Specific slot ID to target (overrides automatic slot selection)' },
@@ -375,17 +386,13 @@ const plugin: OpenWriterPlugin = {
           // Derive content_type from metadata
           const contentType = metadata?.content_type || 'tweet';
 
-          // Auto-find connection
+          // Connection: explicit, else the document's chosen X account, else the only one
           let connectionId = params.connection_id as string | undefined;
           if (!connectionId) {
             const provider = contentType === 'linkedin' ? 'linkedin' : 'x';
-            const listRes = await server.platformFetch('/connections');
-            if (listRes.ok) {
-              const data = await listRes.json() as { connections: any[] };
-              const conn = data.connections.find((c: any) => c.provider === provider && c.status === 'active');
-              if (conn) connectionId = conn.id;
-            }
-            if (!connectionId) return { error: `No active ${provider} connection found.` };
+            const picked = await pickConnection(provider, provider === 'x' ? metadata?.xAccount : undefined);
+            if ('error' in picked) return picked;
+            connectionId = picked.id;
           }
 
           // --- Build content: single tweet or thread ---

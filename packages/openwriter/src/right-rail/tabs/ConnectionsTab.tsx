@@ -56,6 +56,14 @@ function providerIcon(provider: string): JSX.Element {
   }
 }
 
+// Providers that hold several accounts: one row per connection, then an "add another" row
+// with this label. X authorizes whichever account is signed in on x.com.
+// adr: adr/x-accounts.md
+const MULTI_ADD_LABEL: Record<string, string> = { x: 'X account' };
+const MULTI_ADD_HINT: Record<string, string> = {
+  x: 'X connects the account signed in on x.com. Switch accounts there first.',
+};
+
 function statusDot(status: string): string {
   if (status === 'active') return 'connections-status--active';
   if (status === 'expired') return 'connections-status--expired';
@@ -70,6 +78,7 @@ export default function ConnectionsTab(_props: RightRailTabProps) {
   const [connecting, setConnecting] = useState<string | null>(null);
   const [showSetup, setShowSetup] = useState<'new' | 'edit' | null>(null);
   const [configConnection, setConfigConnection] = useState<{ id: string; provider: string; display_name: string } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function fetchConnections(): Promise<Connection[]> {
@@ -93,6 +102,8 @@ export default function ConnectionsTab(_props: RightRailTabProps) {
 
   async function startOAuth(provider: string) {
     setConnecting(provider);
+    setNotice(null);
+    const before = connections.filter((c) => c.provider === provider);
     try {
       const res = await fetch(`/api/connections/oauth/${provider}/start`, { method: 'POST' });
       const data = await res.json();
@@ -109,14 +120,18 @@ export default function ConnectionsTab(_props: RightRailTabProps) {
             if (pollRef.current) clearInterval(pollRef.current);
             pollRef.current = null;
             setConnecting(null);
-            const conns = await fetchConnections();
-            if (provider === 'x') {
-              const xConn = conns.find((c) => c.provider === 'x' && c.status === 'active');
-              if (xConn?.display_name) {
-                const handle = xConn.display_name.replace('@', '');
-                localStorage.setItem('ow-x-handle', handle);
-                window.dispatchEvent(new StorageEvent('storage', { key: 'ow-x-handle', newValue: handle }));
-              }
+            await fetchConnections();
+            const added = statusData.connection as Connection | null | undefined;
+            const existing = added && before.find((c) => c.id === added.id);
+            if (existing && MULTI_ADD_LABEL[provider]) {
+              // The provider authorized an account that is already connected.
+              setNotice(`That was ${existing.display_name || 'an account already connected'} again. To add a different account, switch accounts on ${provider === 'x' ? 'x.com' : 'the site'} first, then add it.`);
+            }
+            if (provider === 'x' && before.length === 0 && added?.display_name) {
+              // First X account sets the compose preview handle.
+              const handle = added.display_name.replace('@', '');
+              localStorage.setItem('ow-x-handle', handle);
+              window.dispatchEvent(new StorageEvent('storage', { key: 'ow-x-handle', newValue: handle }));
             }
           } else if (statusData.status === 'failed') {
             if (pollRef.current) clearInterval(pollRef.current);
@@ -155,9 +170,6 @@ export default function ConnectionsTab(_props: RightRailTabProps) {
     allConnectionsByProvider.set(conn.provider, list);
   }
 
-  // Providers that support multiple connections per account (one row per connection + an "add another" button)
-  const MULTI_PROVIDERS = new Set<string>();
-
   const isDisabled = authenticated === false;
 
   return (
@@ -185,8 +197,9 @@ export default function ConnectionsTab(_props: RightRailTabProps) {
         </div>
       ) : (
         <div className="connections-dropdown__list">
+          {notice && <div className="connections-dropdown__notice">{notice}</div>}
           {ALL_PROVIDERS.flatMap((p) => {
-            const isMulti = MULTI_PROVIDERS.has(p.id);
+            const addLabel = MULTI_ADD_LABEL[p.id];
             const conns = allConnectionsByProvider.get(p.id) || [];
 
             const renderConnected = (conn: Connection) => {
@@ -244,8 +257,8 @@ export default function ConnectionsTab(_props: RightRailTabProps) {
 
             const rows: JSX.Element[] = conns.map(renderConnected);
 
-            if (isMulti) {
-              // GitHub & co. — render every connection plus a dashed "+ Add" button
+            if (addLabel && conns.length > 0) {
+              // Every connection plus a dashed "+ Add" button
               rows.push(
                 <div key={`${p.id}__add`} className="connections-dropdown__add-row">
                   <button
@@ -253,8 +266,11 @@ export default function ConnectionsTab(_props: RightRailTabProps) {
                     onClick={() => startOAuth(p.id)}
                     disabled={connecting !== null}
                   >
-                    {connecting === p.id ? 'Connecting…' : `+ Add ${p.label} repo`}
+                    {connecting === p.id ? 'Connecting…' : `+ Add ${addLabel}`}
                   </button>
+                  {MULTI_ADD_HINT[p.id] && (
+                    <div className="connections-dropdown__add-hint">{MULTI_ADD_HINT[p.id]}</div>
+                  )}
                 </div>
               );
               return rows;

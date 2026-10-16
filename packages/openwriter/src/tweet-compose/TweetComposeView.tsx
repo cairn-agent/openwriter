@@ -19,6 +19,7 @@ import TweetEmbed from './TweetEmbed';
 import TweetEditor from './TweetEditor';
 import CharacterCounter from './CharacterCounter';
 import XConnectPrompt from './XConnectPrompt';
+import XAccountPicker, { useXAccount } from './XAccountPicker';
 import SchedulePostModal from '../sidebar/SchedulePostModal';
 import { weightedLength } from './tweetWeight';
 
@@ -125,6 +126,8 @@ interface TweetComposeViewProps {
   filename?: string;
   title?: string;
   autoplug?: boolean;
+  /** Connection id of the X account this document posts as (metadata `xAccount`). */
+  xAccount?: string;
 }
 
 function TweetSkeleton() {
@@ -261,7 +264,7 @@ function saveTweetMeta(partial: Partial<TweetContext>) {
 
 type PostState = 'idle' | 'uploading' | 'posting' | 'success' | 'error';
 
-export default function TweetComposeView({ tweetContext, initialContent, onUpdate, onEditorReady, onEditorsChange, onActiveEditorChange, filename, title, autoplug }: TweetComposeViewProps) {
+export default function TweetComposeView({ tweetContext, initialContent, onUpdate, onEditorReady, onEditorsChange, onActiveEditorChange, filename, title, autoplug, xAccount: docXAccount }: TweetComposeViewProps) {
   const { tweet, loading, error } = useTweetEmbed(tweetContext?.url);
 
   // Split initial content into per-tweet parts, extracting preview images from persisted image nodes
@@ -297,8 +300,8 @@ export default function TweetComposeView({ tweetContext, initialContent, onUpdat
   });
 
   // X connection state
-  const [xConnected, setXConnected] = useState<boolean | null>(null);
-  const [xUsername, setXUsername] = useState<string | undefined>();
+  const xAccount = useXAccount(docXAccount);
+  const { connected: xConnected, username: xUsername, connectionId: xConnectionId } = xAccount;
   const [showConnect, setShowConnect] = useState(false);
   const [postState, setPostState] = useState<PostState>('idle');
   const [postError, setPostError] = useState('');
@@ -400,26 +403,6 @@ export default function TweetComposeView({ tweetContext, initialContent, onUpdat
       keepalive: true,
     }).catch(() => {});
   };
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch('/api/x/status');
-        if (cancelled) return;
-        if (res.ok) {
-          const data = await res.json();
-          setXConnected(data.connected);
-          setXUsername(data.username);
-        } else {
-          setXConnected(false);
-        }
-      } catch {
-        if (!cancelled) setXConnected(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
 
   // Sync server-side content changes (e.g. MCP insert_image, agent write_to_pad) into split editors
   useEffect(() => {
@@ -526,7 +509,9 @@ export default function TweetComposeView({ tweetContext, initialContent, onUpdat
     const hasPreviewContent = previewImageCounts.some(c => c > 0);
     return hasEditorContent || hasPreviewContent;
   })();
-  const canPost = xConnected && hasContent && postState === 'idle';
+  const canPost = xConnected && hasContent && postState === 'idle' && !xAccount.needsChoice;
+  // Sent with every upload and post so media and post use the same account.
+  const accountBody = xConnectionId ? { connectionId: xConnectionId } : {};
 
   const handlePost = async () => {
     if (!xConnected) { setShowConnect(true); return; }
@@ -553,7 +538,7 @@ export default function TweetComposeView({ tweetContext, initialContent, onUpdat
           const uploadRes = await fetch('/api/x/upload-media', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ src }),
+            body: JSON.stringify({ src, ...accountBody }),
           });
           const uploadData = await uploadRes.json();
           if (!uploadData.success) {
@@ -574,7 +559,7 @@ export default function TweetComposeView({ tweetContext, initialContent, onUpdat
 
       if (tweetData.length === 1) {
         // Single tweet
-        const body: Record<string, any> = {};
+        const body: Record<string, any> = { ...accountBody };
         if (tweetData[0].text) body.text = tweetData[0].text;
         if (tweetData[0].mediaIds.length > 0) body.mediaIds = tweetData[0].mediaIds;
         if (tweetContext?.mode === 'reply' && contextTweetId) body.replyTo = contextTweetId;
@@ -603,7 +588,7 @@ export default function TweetComposeView({ tweetContext, initialContent, onUpdat
           text: t.text,
           ...(t.mediaIds.length > 0 ? { mediaIds: t.mediaIds } : {}),
         }));
-        const body: any = { tweets };
+        const body: any = { tweets, ...accountBody };
         if (tweetContext?.mode === 'reply' && contextTweetId) body.replyTo = contextTweetId;
 
         const res = await fetch('/api/x/post-thread', {
@@ -633,11 +618,8 @@ export default function TweetComposeView({ tweetContext, initialContent, onUpdat
   useEffect(() => () => { if (successTimer.current) clearTimeout(successTimer.current); }, []);
 
   const handleConnected = () => {
-    setXConnected(true);
     setShowConnect(false);
-    fetch('/api/x/status').then(r => r.json()).then(d => {
-      if (d.username) setXUsername(d.username);
-    }).catch(() => {});
+    xAccount.refresh();
   };
 
   const postBtnLabel = postState === 'uploading' ? 'Uploading...'
@@ -775,11 +757,16 @@ export default function TweetComposeView({ tweetContext, initialContent, onUpdat
         </button>
       )}
       {apiCanPost && (
+        <XAccountPicker accounts={xAccount.accounts} value={xConnectionId} onChange={xAccount.select} />
+      )}
+      {apiCanPost && (
         <button
           className={`tweet-post-btn${canPost || (!xConnected && xConnected !== null) ? ' tweet-post-btn--active' : ''}${postState === 'success' ? ' tweet-post-btn--success' : ''}${postState === 'error' ? ' tweet-post-btn--error' : ''}`}
           disabled={xConnected ? !canPost : false}
           onClick={handlePost}
-          title={xConnected ? (xUsername ? `Post as @${xUsername}` : 'Post to X') : 'Connect X to post'}
+          title={!xConnected ? 'Connect X to post'
+            : xAccount.needsChoice ? 'Choose which X account to post as'
+            : xUsername ? `Post as @${xUsername}` : 'Post to X'}
         >
           {postBtnLabel}
         </button>

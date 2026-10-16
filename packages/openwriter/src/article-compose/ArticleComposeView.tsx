@@ -11,6 +11,7 @@ import { useArticleCopy } from './useArticleCopy';
 import { useAutoGrowTitle } from '../hooks/useAutoGrowTitle';
 import PendingTitleField from '../components/PendingTitleField';
 import XConnectPrompt from '../tweet-compose/XConnectPrompt';
+import XAccountPicker, { useXAccount } from '../tweet-compose/XAccountPicker';
 import './ArticleComposeView.css';
 
 type PostState = 'idle' | 'posting' | 'success' | 'error';
@@ -353,9 +354,11 @@ interface ArticleComposeViewProps {
   docId?: string;
   /** Per-doc autoplug opt-out. Absent = eligible (default on). */
   autoplug?: boolean;
+  /** Connection id of the X account this document posts as (metadata `xAccount`). */
+  xAccount?: string;
 }
 
-export default function ArticleComposeView({ children, title, onTitleChange, coverImage, coverImages, lastPost, pendingTitle, docId, autoplug }: ArticleComposeViewProps) {
+export default function ArticleComposeView({ children, title, onTitleChange, coverImage, coverImages, lastPost, pendingTitle, docId, autoplug, xAccount: docXAccount }: ArticleComposeViewProps) {
   const { copyAsHtml, copyState } = useArticleCopy();
   const [sentState, setSentState] = useState<'idle' | 'done'>(lastPost ? 'done' : 'idle');
 
@@ -428,21 +431,16 @@ export default function ArticleComposeView({ children, title, onTitleChange, cov
   const [postState, setPostState] = useState<PostState>('idle');
   const [postError, setPostError] = useState('');
   const [showConnect, setShowConnect] = useState(false);
-  const [xConnected, setXConnected] = useState<boolean | null>(null);
   const postTimer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => () => { if (postTimer.current) clearTimeout(postTimer.current); }, []);
 
   // X connection state — /api/x/status is platform-aware (managed connection
-  // OR direct plugin creds). Gates the connect prompt, same as tweet compose.
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/x/status')
-      .then((r) => r.json())
-      .then((d) => { if (!cancelled) setXConnected(!!d.connected); })
-      .catch(() => { if (!cancelled) setXConnected(false); });
-    return () => { cancelled = true; };
-  }, []);
+  // OR direct plugin creds). Gates the connect prompt, same as tweet compose,
+  // and picks the account when several are connected.
+  const xAccount = useXAccount(docXAccount);
+  const xConnected = xAccount.connected;
+  const xConnectionId = xAccount.connectionId;
 
   const recordPosted = useCallback((url?: string) => {
     const payload = url ? { postedAt: new Date().toISOString(), tweetUrl: url } : { postedAt: new Date().toISOString() };
@@ -455,15 +453,15 @@ export default function ArticleComposeView({ children, title, onTitleChange, cov
     setSentState('done');
   }, []);
 
-  const handlePostToX = useCallback(async () => {
-    if (xConnected === false) { setShowConnect(true); return; }
+  const handlePostToX = useCallback(async (justConnected = false) => {
+    if (xConnected === false && !justConnected) { setShowConnect(true); return; }
     setPostState('posting');
     setPostError('');
     try {
       const res = await fetch('/api/x/post-article', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: '{}',
+        body: JSON.stringify(xConnectionId ? { connectionId: xConnectionId } : {}),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
@@ -484,14 +482,14 @@ export default function ArticleComposeView({ children, title, onTitleChange, cov
       if (postTimer.current) clearTimeout(postTimer.current);
       postTimer.current = setTimeout(() => setPostState('idle'), 5000);
     }
-  }, [recordPosted, xConnected]);
+  }, [recordPosted, xConnected, xConnectionId]);
 
   // After the user connects X via the inline prompt, retry the post.
   const handleConnected = useCallback(() => {
     setShowConnect(false);
-    setXConnected(true);
-    handlePostToX();
-  }, [handlePostToX]);
+    xAccount.refresh();
+    handlePostToX(true);
+  }, [handlePostToX, xAccount.refresh]);
 
   const postBtnLabel = postState === 'posting' ? 'Posting…'
     : postState === 'success' ? 'Posted!'
@@ -602,11 +600,13 @@ export default function ArticleComposeView({ children, title, onTitleChange, cov
             </span>
           )
         )}
+        <XAccountPicker accounts={xAccount.accounts} value={xConnectionId} onChange={xAccount.select} />
         <button
           className={`article-post-btn${postState === 'success' ? ' article-post-btn--success' : ''}${postState === 'error' ? ' article-post-btn--error' : ''}`}
-          onClick={handlePostToX}
-          disabled={postState === 'posting'}
-          title="Publish this article to X"
+          onClick={() => handlePostToX()}
+          disabled={postState === 'posting' || xAccount.needsChoice}
+          title={xAccount.needsChoice ? 'Choose which X account to post as'
+            : xAccount.username ? `Publish this article to X as @${xAccount.username}` : 'Publish this article to X'}
         >
           {postBtnLabel}
         </button>
