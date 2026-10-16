@@ -19,6 +19,12 @@ only clear the archived flag, leaving the document unassigned.
 
 ## Decision log
 
+### 2026-10-16
+
+Book workspace settings reuse the workspace writer and leave the tree intact.
+Archived or removed attachments do not resolve as active pins; their documents
+and original archive placements remain governed by this lifecycle.
+
 ### 2026-09-07
 
 Extracted the archive lifecycle from documents.ts before changing it. Placement

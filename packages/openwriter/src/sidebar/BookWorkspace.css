@@ -1,0 +1,27 @@
+.book-workspace-pins { padding: 3px 12px 7px 28px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.book-workspace-pins > button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: var(--rail-row, 28px); border: 0; border-radius: 4px; padding: 4px 6px; color: var(--ink-dark); background: transparent; text-align: left; font: inherit; font-size: 12px; cursor: pointer; }
+.book-workspace-pins > button:hover, .book-workspace-pins > button[aria-current="page"] { background: var(--bg-hover); }
+.book-workspace-pins > button[aria-current="page"] { font-weight: 600; }
+.book-pin-icon { width: 14px; flex: 0 0 14px; text-align: center; color: var(--ink-body); }
+.book-workspace-links { display: flex; gap: 14px; padding: 3px 6px 2px 28px; }
+.book-workspace-links button { padding: 3px 0; font: inherit; font-size: 11px; background: none; border: 0; color: var(--ink-body); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.book-workspace-pins button:focus-visible, .workspace-menu-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.book-workspace-pins button:disabled { opacity: .5; cursor: default; }
+.book-workspace-pins--compact { display: flex; align-items: center; padding: 0 6px; margin: 0; border-bottom: 0; border-right: 1px solid var(--border); flex: 0 0 auto; }
+.book-workspace-pins--compact > button { width: auto; white-space: nowrap; }
+.book-workspace-pins--compact .book-workspace-links { padding: 0 8px; }
+.book-workspace-dialog { width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); padding: 24px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-paper); color: var(--ink-dark); box-sizing: border-box; overflow-y: auto; font: inherit; }
+.book-workspace-dialog::backdrop { background: rgba(0, 0, 0, .4); }
+.book-workspace-dialog h2 { font-size: 19px; margin: 0 0 8px; }
+.book-workspace-dialog p { font-size: 13px; line-height: 1.55; color: var(--ink-body); }
+.book-workspace-dialog label { display: grid; gap: 6px; margin-top: 16px; font-size: 13px; }
+.book-workspace-dialog select { width: 100%; min-width: 0; padding: 8px; color: var(--ink-dark); background: var(--bg-paper); border: 1px solid var(--border); border-radius: 4px; font: inherit; }
+.book-workspace-dialog footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+.book-workspace-dialog button { border: 1px solid var(--border); border-radius: 4px; padding: 8px 14px; color: var(--ink-dark); background: var(--bg-hover); font: inherit; cursor: pointer; }
+.book-workspace-dialog button:focus-visible, .book-workspace-dialog select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.book-workspace-error { color: var(--ink-dark); font-size: 12px; line-height: 1.5; }
+.workspace-menu-button { background: transparent; border: 0; color: var(--ink-body); min-width: 26px; min-height: 26px; cursor: pointer; font: inherit; }
+.workspace-type-badge { color: var(--ink-body); font-size: 10px; margin-left: 6px; font-weight: 400; }
+.tl-workspace-filter { display: flex; align-items: center; gap: 4px; padding: 0 var(--rail-inset) 8px; }
+.tl-workspace-filter select { min-width: 0; flex: 1; color: var(--ink-body); background: var(--bg-paper); border: 1px solid var(--border); border-radius: 4px; padding: 5px; font: inherit; font-size: 12px; }
+.board-workspace-entry { display: inline-flex; align-items: center; flex: 0 0 auto; }

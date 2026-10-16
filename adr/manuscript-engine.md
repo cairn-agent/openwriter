@@ -85,6 +85,11 @@ containers and calls them chapters), the engine doesn't know what a "book" is.
 
 ## Decision log
 
+- **2026-10-16 — Book workspace replaces the separate Books block.** Existing
+  workspaces can opt into Book behavior and pin their own outline/manuscript.
+  The global launcher is removed from the UI; existing book APIs remain available.
+  Attached brief context is kept outside compilation. See book-workspaces.md.
+
 - **2026-06-15** — Engine/skill line drawn: engine = docs + pointers +
   compile/render; all book semantics + assembly methodology are /book-writer
   convention. Welds collapse to "ordinary docs linked at a seam" (no engine

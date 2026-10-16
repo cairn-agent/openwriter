@@ -34,7 +34,8 @@ export function useOutlineLibrary() {
   }, [tick]);
   useEffect(() => {
     window.addEventListener('ow-documents-changed', reload);
-    return () => window.removeEventListener('ow-documents-changed', reload);
+    window.addEventListener('ow-workspaces-changed', reload);
+    return () => { window.removeEventListener('ow-documents-changed', reload); window.removeEventListener('ow-workspaces-changed', reload); };
   }, [reload]);
   const projection = useMemo(() => {
     const byId = new Map(documents.map(d => [d.docId, d]));
@@ -66,7 +67,8 @@ export function useOutlineLibrary() {
     const tree: LibraryWorkspace[] = workspaces.map(w => ({ ...build(w.workspace?.root || [], w.filename, w.title, w.title), filename: w.filename }));
     const unfiled = documents.filter(d => !assigned.has(d.docId));
     tree.push({ key: 'unfiled', filename: 'unfiled', title: 'Unfiled documents', documents: unfiled, children: [], ordered: unfiled });
-    return { byId, contexts, tree };
+    const briefIds = new Set(workspaces.flatMap(w => w.workspace?.workspaceType === 'book' && w.workspace.book?.briefDocId ? [w.workspace.book.briefDocId] : []));
+    return { byId, contexts, tree, briefIds };
   }, [documents, workspaces]);
   return { documents, ...projection, loaded, error, reload };
 }

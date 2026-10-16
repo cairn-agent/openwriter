@@ -82,6 +82,25 @@ export default function OutlineView({ editor, docId, filename, title, connected,
     } catch { /* A blocked session store does not prevent editing an outline. */ }
     return () => { if (hover.current) clearTimeout(hover.current); };
   }, [docId]);
+  useEffect(() => {
+    if (!editor || !connected || !book) return;
+    const consume = () => {
+      try {
+        if (sessionStorage.getItem('ow-book-build-request') !== docId) return;
+        sessionStorage.removeItem('ow-book-build-request');
+        // The workspace pin enters the same save/preflight/review flow.
+        if (!book.manuscripts?.length) {
+          if (!readOutline(editor.state.doc).some(section => section.key !== 'intro')) {
+            showToast('Add a chapter and choose its documents before building the manuscript.', 'info');
+            root.current?.querySelector<HTMLElement>('[data-outline-focus="add"]')?.focus();
+          } else setBuilding(true);
+        }
+        else onOpenSource(book.manuscripts[0].filename);
+      } catch { /* The normal outline Build button remains available. */ }
+    };
+    consume(); window.addEventListener('ow-book-build-request', consume);
+    return () => window.removeEventListener('ow-book-build-request', consume);
+  }, [docId, editor, connected, book, onOpenSource]);
   const undo = () => {
     if (editor?.commands.undo()) { setAnnouncement('Outline edit undone.'); focus('add'); }
   };

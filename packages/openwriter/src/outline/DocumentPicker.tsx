@@ -30,7 +30,7 @@ export default function DocumentPicker({ chapter, sections, library, excluded, i
   const target = sections.find(s => s.key === destination);
   const linked = new Set(target?.references.map(r => r.docId) || []);
   // The existing API calls outline documents "manuscript"; compiled books are ordinary documents.
-  const visibleSource = (d: SourceDocument) => !excluded.has(d.docId) && d.contentType !== 'manuscript';
+  const visibleSource = (d: SourceDocument) => !excluded.has(d.docId) && !library.briefIds.has(d.docId) && d.contentType !== 'manuscript';
   const eligible = (d: SourceDocument) => visibleSource(d) && !linked.has(d.docId);
   const selected = new Set(basket.map(d => d.docId));
   const chosenSpace = library.tree.find(w => w.filename === space);
@@ -98,7 +98,7 @@ export default function DocumentPicker({ chapter, sections, library, excluded, i
     <header className="outline-dialog-head"><h2 id="outline-picker-title">{replace ? 'Replace document' : `Add documents${target ? ` to “${target.title}”` : ''}`}</h2><button type="button" onClick={onClose} aria-label="Close document picker">×</button></header>
     {!target && <p role="alert">This chapter was removed. Your selection is kept; choose a destination.</p>}
     {!replace && <label className="outline-field">Destination chapter<select value={destination} onChange={e => setDestination(e.target.value)}><option value="" disabled>Choose a chapter</option>{!target && <option value={destination} disabled>Removed chapter</option>}{sections.map(s => <option key={s.key} value={s.key}>{s.title}</option>)}</select></label>}
-    <p className="outline-muted">Choose source documents in reading order. Outline documents and this book’s manuscripts are excluded. Changes awaiting review are not included when building.</p>
+    <p className="outline-muted">Choose source documents in reading order. Outlines, attached briefs and this book’s manuscripts are excluded. Changes awaiting review are not included when building.</p>
     <div className="outline-picker-grid"><div>
       <label className="outline-field">Workspace<select value={space} onChange={e => setSpace(e.target.value)}>{library.tree.map(w => <option value={w.filename} key={w.filename}>{w.title}</option>)}</select></label>
       <label className="outline-field">Search documents<input autoFocus type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by title" /></label>

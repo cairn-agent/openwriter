@@ -8,6 +8,7 @@ import type { SidebarMenuItem } from './SidebarContextMenu';
 import DocContextMenu, { docMenuTarget, requestSort, useSidebarPlugins, type DocMenuTarget } from './DocContextMenu';
 import CreateDocDropdown from './CreateDocDropdown';
 import CreateOutlineDialog from '../outline/CreateOutlineDialog';
+import BookWorkspacePins from './BookWorkspacePins';
 import { TAB_HEADER } from '../ws/client';
 import SearchResults from './SearchResults';
 import './SidebarFiles.css';
@@ -155,6 +156,7 @@ function dropIndentForContainer(workspaces: { workspace?: { root: WorkspaceNode[
 
 export default function SidebarFiles({
   docs, workspaces, assignedFiles, pendingDocs,
+  onWorkspaceSettings,
   onSwitchDocument, onCreateDocument, actions, scrollRef,
   writingTitle, writingTarget, pendingWriteFilenames,
   searchQuery, searchResults, searchLoading, searchError, onSearchChange,
@@ -634,9 +636,14 @@ export default function SidebarFiles({
                 <>
                   <span className={`files-row-chevron leading${isCollapsedWs ? ' collapsed' : ''}`}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
                   <span {...sidebarRowProps(!isCollapsedWs)} className="files-row-label">{ws.title}</span>
+                  {ws.workspace?.workspaceType === 'book' && <span className="workspace-type-badge">Book</span>}
                   {((ws as any).workspace?.autoAccept === true || (ws as any).autoAccept === true) && <span className="sidebar-auto-accept-dot" title="Auto-accept on for this workspace" />}
                   <span className="files-row-count">{count}</span>
                   <div className="files-section-actions">
+                    <button className="workspace-menu-button" type="button" data-workspace-menu={ws.filename} aria-label={`Workspace menu for ${ws.title}`} onPointerDown={e => e.stopPropagation()} onClick={e => {
+                      e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect();
+                      setFolderMenu({ x: rect.left, y: rect.bottom, type: 'workspace', wsFilename: ws.filename, title: ws.title, nodes: wsRoot, autoAccept: wsAutoAccept });
+                    }}>⋯</button>
                     <button className="files-section-btn" onClick={(e) => { e.stopPropagation(); setCreateDropdown({ anchor: (e.target as HTMLElement).getBoundingClientRect(), wsFilename: ws.filename, containerId: null }); }} title="New document">+</button>
                     <button className="files-section-btn" onClick={(e) => { e.stopPropagation(); actions.handleCreateContainer(ws.filename, null); }} title="New container">&#9744;</button>
                   </div>
@@ -644,6 +651,7 @@ export default function SidebarFiles({
               )}
             </div>
             <div className={`files-section-list files-children${isCollapsedWs ? ' collapsed' : ''}`} data-drop-ws={ws.filename}>
+              <BookWorkspacePins workspace={ws} docs={docs} onOpen={onSwitchDocument} onSettings={() => onWorkspaceSettings(ws.filename)} />
               {/* adr: adr/sidebar-spinner-placement.md — match workspace-root child indent (renderNode depth=1 → 28) */}
               {writingTitle && !writingTarget?.parentDocId && writingTarget?.wsFilename === ws.filename && writingTarget.containerId === null && (
                 <div className="sidebar-item sidebar-writing-placeholder" style={{ paddingLeft: 28 }}>
@@ -670,6 +678,7 @@ export default function SidebarFiles({
           x={folderMenu.x}
           y={folderMenu.y}
           filename={folderMenu.wsFilename}
+          onWorkspaceType={folderMenu.type === 'workspace' ? () => onWorkspaceSettings(folderMenu.wsFilename) : undefined}
           title={folderMenu.title}
           onClose={() => setFolderMenu(null)}
           onDuplicate={() => {}}

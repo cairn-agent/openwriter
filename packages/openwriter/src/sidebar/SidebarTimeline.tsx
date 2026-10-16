@@ -6,8 +6,13 @@ import SearchResults from './SearchResults';
 import DocContextMenu, { docMenuTarget, useSidebarPlugins, type DocMenuTarget } from './DocContextMenu';
 import './SidebarTimeline.css';
 import { sidebarRowProps } from './sidebar-keyboard';
+import BookWorkspacePins from './BookWorkspacePins';
+import { workspaceDocuments } from '../../server/book-workspace-model';
 
-export default function SidebarTimeline({ docs, docsLoaded, workspaces, assignedFiles, pendingDocs, onSwitchDocument, onCreateDocument, actions, scrollRef, searchQuery, searchResults, searchLoading, searchError }: SidebarModeProps) {
+export default function SidebarTimeline({ docs, docsLoaded, workspaces, assignedFiles, pendingDocs, onSwitchDocument, onCreateDocument, onWorkspaceSettings, actions, scrollRef, searchQuery, searchResults, searchLoading, searchError }: SidebarModeProps) {
+  const [workspaceFile, setWorkspaceFile] = useState('');
+  const selectedWorkspace = workspaces.find(w => w.filename === workspaceFile);
+  const scopedDocs = selectedWorkspace?.workspace ? workspaceDocuments(selectedWorkspace.workspace, docs) : docs;
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   // Right-click offers the same doc menu as the file tree.
   const [menu, setMenu] = useState<DocMenuTarget | null>(null);
@@ -27,7 +32,7 @@ export default function SidebarTimeline({ docs, docsLoaded, workspaces, assigned
 
   // Sort by latest activity (saves or pending agent changes), most recent first
   const activity = (d: DocumentInfo) => d.lastActivity ?? d.lastModified;
-  const sorted = [...docs].sort((a, b) => new Date(activity(b)).getTime() - new Date(activity(a)).getTime());
+  const sorted = [...scopedDocs].sort((a, b) => new Date(activity(b)).getTime() - new Date(activity(a)).getTime());
 
   // Group by date
   const groups: { label: string; docs: DocumentInfo[] }[] = [];
@@ -61,8 +66,12 @@ export default function SidebarTimeline({ docs, docsLoaded, workspaces, assigned
     <div className="sidebar-scroll tl-scroll" ref={scrollRef}>
       <div className="tl-header">
         <span className="tl-title">Timeline</span>
-        <button className="sidebar-new-btn" onClick={onCreateDocument} title="New document">+</button>
+        <button className="sidebar-new-btn" onClick={() => selectedWorkspace ? actions.handleCreateInWorkspace(selectedWorkspace.filename, null) : onCreateDocument()} title="New document">+</button>
       </div>
+      <div className="tl-workspace-filter"><select aria-label="Timeline workspace" value={selectedWorkspace?.filename ?? ''} onChange={e => setWorkspaceFile(e.target.value)}>
+        <option value="">All workspaces</option>{workspaces.map(w => <option value={w.filename} key={w.filename}>{w.title}</option>)}
+      </select>{selectedWorkspace && <button type="button" className="workspace-menu-button" aria-label={`Workspace type for ${selectedWorkspace.title}`} onClick={() => onWorkspaceSettings(selectedWorkspace.filename)}>⋯</button>}</div>
+      {selectedWorkspace && <BookWorkspacePins workspace={selectedWorkspace} docs={docs} onOpen={onSwitchDocument} onSettings={() => onWorkspaceSettings(selectedWorkspace.filename)} />}
 
       {groups.map((group) => (
         <div key={group.label} className="tl-group">
@@ -111,7 +120,7 @@ export default function SidebarTimeline({ docs, docsLoaded, workspaces, assigned
         </div>
       ))}
 
-      {docs.length === 0 && <div className="sidebar-empty">{docsLoaded ? 'No documents yet' : 'Loading…'}</div>}
+      {scopedDocs.length === 0 && <div className="sidebar-empty">{docsLoaded ? 'No documents yet' : 'Loading…'}</div>}
 
       <DocContextMenu
         menu={menu}

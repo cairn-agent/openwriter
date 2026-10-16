@@ -9,7 +9,7 @@ import SidebarBoard from './SidebarBoard';
 import SidebarFiles from './SidebarFiles';
 import SidebarSchedule from './SidebarSchedule';
 import SidebarTasks from './SidebarTasks';
-import SidebarBooks from './SidebarBooks';
+import WorkspaceTypeDialog from './WorkspaceTypeDialog';
 import ProfileSwitcher from './ProfileSwitcher';
 import LayoutMenu from '../themes/LayoutMenu';
 import './Sidebar.css';
@@ -107,6 +107,9 @@ export default function Sidebar({ open, onSwitchDocument, onCreateDocument, refr
   }, [onSwitchDocument]);
   const [scheduleView, setScheduleView] = useState(false);
   const [tasksView, setTasksView] = useState(false);
+  const [settingsFilename, setSettingsFilename] = useState<string | null>(null);
+  const settingsWorkspace = workspaces.find(w => w.filename === settingsFilename);
+  const workspaceDialog = settingsWorkspace?.workspace ? <WorkspaceTypeDialog key={settingsWorkspace.filename} workspace={settingsWorkspace} docs={docs} onClose={() => setSettingsFilename(null)} onSaved={fetchWorkspaces} /> : null;
 
   // Profile state
   const [profiles, setProfiles] = useState<string[]>([]);
@@ -193,6 +196,7 @@ export default function Sidebar({ open, onSwitchDocument, onCreateDocument, refr
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const modeProps = {
+    onWorkspaceSettings: setSettingsFilename,
     docs, docsLoaded, archivedDocs: [] as DocumentInfo[], workspaces, assignedFiles, pendingDocs, writingTitle, writingTarget,
     pendingWriteFilenames,
     onSwitchDocument: optimisticSwitchDocument, onCreateDocument, actions, scrollRef,
@@ -206,8 +210,6 @@ export default function Sidebar({ open, onSwitchDocument, onCreateDocument, refr
       default: return <SidebarFiles {...modeProps} />;
     }
   };
-
-  const booksNavigation = <SidebarBooks activeFilename={shownFilename} refreshKey={refreshKey} onSwitchDocument={optimisticSwitchDocument} />;
 
   const searchBar = (
     <div className="sidebar-search">
@@ -249,7 +251,7 @@ export default function Sidebar({ open, onSwitchDocument, onCreateDocument, refr
   if (mode === 'board') {
     return (
       <div ref={panelRef} aria-hidden={!open} onKeyDown={moveSidebarFocus} className={`sidebar sidebar-board-mode ${open ? 'open' : ''}`} style={sidebarStyle}>
-        {booksNavigation}
+        {workspaceDialog}
         {renderMode()}
         <LayoutMenu className="layout-menu-btn board-layout-btn" />
         {resizeHandle}
@@ -313,7 +315,7 @@ export default function Sidebar({ open, onSwitchDocument, onCreateDocument, refr
       ) : (
         <>
           {searchBar}
-          {booksNavigation}
+          {workspaceDialog}
           {renderMode()}
         </>
       )}

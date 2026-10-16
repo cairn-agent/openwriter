@@ -25,6 +25,7 @@ import {
 import { findNode } from './workspace-tree.js';
 import type { WorkspaceNode, ContainerItem } from './workspace-types.js';
 import { deleteDocument } from './documents.js';
+import { configureBookWorkspace, createWorkspaceBrief, createWorkspaceOutline } from './book-workspaces.js';
 
 function collectDocFilesInSubtree(nodes: WorkspaceNode[], out: string[] = []): string[] {
   for (const n of nodes) {
@@ -96,6 +97,17 @@ export function createWorkspaceRouter(b: BroadcastFn): Router {
     } catch (err: any) {
       res.status(404).json({ error: err.message });
     }
+  });
+
+  router.put('/api/workspaces/:filename/book', (req, res) => {
+    try { res.json(configureBookWorkspace(req.params.filename, req.body)); }
+    catch (err: any) { res.status(400).json({ error: err.message }); }
+  });
+  router.post('/api/workspaces/:filename/book/:role', (req, res) => {
+    try {
+      if (!['outline', 'brief'].includes(req.params.role)) throw new Error('Choose outline or brief.');
+      res.json(req.params.role === 'outline' ? createWorkspaceOutline(req.params.filename) : createWorkspaceBrief(req.params.filename));
+    } catch (err: any) { res.status(400).json({ error: err.message }); }
   });
 
   router.put('/api/workspaces/:filename', (req, res) => {

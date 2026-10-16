@@ -111,6 +111,7 @@ interface SidebarContextMenuProps {
   onRejectSortProposal?: () => void;
   // Folder mode (workspace/container) — shows folder-specific actions instead of doc actions
   folderMode?: boolean;
+  onWorkspaceType?: () => void;
   onNewDoc?: (e: React.MouseEvent) => void;
   onNewContainer?: () => void;
   onAcceptAll?: () => void;
@@ -222,7 +223,7 @@ function PluginSubmenu({ items, onAction }: {
   return <>{result}</>;
 }
 
-export default function SidebarContextMenu({ x, y, filename, title, onClose, onDuplicate, onCreateVariant, onRename, onArchive, onDelete, onPluginAction, pluginItems, onSchedulePost, onPostNow, isAlreadyPublished, onViewAnalytics, viewAnalyticsLabel, onMarkSent, isAlreadySent, isApproved, onToggleApprove, isAutoAccept, onToggleAutoAccept, sortState, sortProposalLabel, sortProposalReasoning, onRequestSort, onCancelSort, onAcceptSortProposal, onRejectSortProposal, folderMode, onNewDoc, onNewContainer, onAcceptAll, onRejectAll, folderAutoAccept, onToggleFolderAutoAccept, folderAutoAcceptLabel, onRequestSortAll, folderDocCount, onDeleteWithDocs, bulkCount, onBulkDelete, onBulkRequestSort, onCreateOutline }: SidebarContextMenuProps) {
+export default function SidebarContextMenu({ x, y, filename, title, onClose, onDuplicate, onCreateVariant, onRename, onArchive, onDelete, onPluginAction, pluginItems, onSchedulePost, onPostNow, isAlreadyPublished, onViewAnalytics, viewAnalyticsLabel, onMarkSent, isAlreadySent, isApproved, onToggleApprove, isAutoAccept, onToggleAutoAccept, sortState, sortProposalLabel, sortProposalReasoning, onRequestSort, onCancelSort, onAcceptSortProposal, onRejectSortProposal, folderMode, onWorkspaceType, onNewDoc, onNewContainer, onAcceptAll, onRejectAll, folderAutoAccept, onToggleFolderAutoAccept, folderAutoAcceptLabel, onRequestSortAll, folderDocCount, onDeleteWithDocs, bulkCount, onBulkDelete, onBulkRequestSort, onCreateOutline }: SidebarContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
@@ -296,6 +297,7 @@ export default function SidebarContextMenu({ x, y, filename, title, onClose, onD
   if (folderMode) {
     return (
       <div ref={menuRef} className="context-menu" style={{ left: adjustedPos.left, top: adjustedPos.top }}>
+        {onWorkspaceType && <button className="context-menu-item" onClick={() => { onWorkspaceType(); onClose(); }}>Workspace type…</button>}
         <button className="context-menu-item" onClick={() => { onRename(); onClose(); }}>
           <span>Rename</span>
         </button>

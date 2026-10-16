@@ -3,7 +3,7 @@
  * adr: adr/outline-editor.md */
 import { createHash } from 'crypto';
 import { filenameByDocId, createDocumentFile } from '../documents.js';
-import { getWorkspace, addDoc } from '../workspaces.js';
+import { getWorkspace, addDoc, writeWorkspace } from '../workspaces.js';
 import { broadcastDocumentsChanged, broadcastWorkspacesChanged } from '../ws.js';
 import { readFrontmatter } from '../backlinks.js';
 import { loadOverlay } from '../pending-overlay.js';
@@ -16,7 +16,13 @@ export function createOutline(title: string, workspaceFile?: string) {
   if (!title.trim()) throw new BookError('Give the outline a title.');
   if (workspaceFile) getWorkspace(workspaceFile); // Validate placement before creating any file.
   const made = createDocumentFile(title.trim(), undefined, { content_type: 'manuscript', manuscriptContext: { active: true } });
-  if (workspaceFile) addDoc(workspaceFile, null, made.filename, made.title);
+  if (workspaceFile) {
+    const ws = addDoc(workspaceFile, null, made.filename, made.title);
+    if (ws.workspaceType === 'book' && !ws.book?.outlineDocId) {
+      ws.book = { ...ws.book, outlineDocId: made.docId };
+      writeWorkspace(workspaceFile, ws);
+    }
+  }
   broadcastDocumentsChanged();
   if (workspaceFile) broadcastWorkspacesChanged();
   return made;

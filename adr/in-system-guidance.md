@@ -46,6 +46,11 @@ any longer.
 
 ## Decision log
 
+- **2026-10-16** — Book membership adds role-specific contracts at the same
+  agent boundary. Accepted brief text and direct-source revisions refresh when
+  their fingerprint changes; generic method remains deduplicated by version.
+  Shared documents require explicit book context, never browser-state inference.
+
 - **2026-10-16** — Moved the agent-boundary envelope from the large MCP registry
   into mcp-guidance.ts, re-exported under the same name. Delivery behavior is
   unchanged; book context can be added at this single boundary.

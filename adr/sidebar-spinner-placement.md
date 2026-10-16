@@ -14,6 +14,9 @@ The race that makes this non-obvious: `workspaces-changed` only bumps a refresh 
 
 ## Current invariants
 
+- Book workspace pins precede the existing tree as shortcuts. Workspace/container
+  spinner targets and document placements remain unchanged by type conversion.
+
 - **The spinner only renders at the workspace root when `containerId === null`.** No defensive fallback that promotes a container-targeted spinner up to the workspace root when the container appears absent — that fallback exists nowhere in `SidebarDefault.tsx` or `SidebarFiles.tsx`. If the container isn't in the client tree yet, the spinner waits one render cycle for the workspace refetch to complete, then renders inside the container.
 - **The server is the authority on container existence at broadcast time.** `create_document` and `declare_writes` run `findOrCreateContainer` before broadcasting `writing-started`, so a `containerId` in the payload is guaranteed valid on disk. Client-side "is this container real" checks are redundant at best and bug-causing at worst.
 - **`broadcastWorkspacesChanged()` MUST fire before `broadcastWritingStarted()` on the server.** Same WS, same connection, in-order delivery — the client sees the workspace-tree refresh kick off first, then the spinner-placement message. Reversing this order would break even with the right client-side logic.

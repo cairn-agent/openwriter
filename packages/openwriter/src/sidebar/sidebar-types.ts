@@ -57,6 +57,8 @@ export interface WorkspaceInfo { filename: string; title: string; docCount: numb
 export interface WorkspaceFull {
   version: 2;
   title: string;
+  workspaceType?: 'general' | 'book';
+  book?: { outlineDocId?: string; manuscriptDocId?: string; briefDocId?: string };
   root: WorkspaceNode[];
   context?: any;
   // Enrichment fields — see brief 2026-05-18-frontmatter-enrichment-system.
@@ -101,6 +103,7 @@ export interface SearchResult {
 }
 
 export interface SidebarModeProps {
+  onWorkspaceSettings: (filename: string) => void;
   docs: DocumentInfo[];
   /** False until the first document list arrives. */
   docsLoaded: boolean;

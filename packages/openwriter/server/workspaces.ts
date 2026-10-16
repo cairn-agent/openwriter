@@ -12,6 +12,8 @@ import trash from 'trash';
 import { getDataDir, getWorkspacesDir, ensureWorkspacesDir, sanitizeFilename, resolveDocPath, isExternalDoc } from './helpers.js';
 import { markdownToTiptap, tiptapToMarkdown } from './markdown.js';
 import { resolveListingTitle } from './title-resolve.js';
+import { listDocuments } from './documents.js';
+import { workspaceDocuments } from './book-workspace-model.js';
 
 function getOrderFile(): string { return join(getWorkspacesDir(), '_order.json'); }
 import type { Workspace, WorkspaceInfo, WorkspaceContext, WorkspaceNode, DocItem, ContainerItem } from './workspace-types.js';
@@ -122,7 +124,7 @@ function readWorkspace(filename: string): Workspace {
   return parsed as Workspace;
 }
 
-function writeWorkspace(filename: string, workspace: Workspace): void {
+export function writeWorkspace(filename: string, workspace: Workspace): void {
   writeFileSync(workspacePath(filename), JSON.stringify(workspace, null, 2), 'utf-8');
 }
 
@@ -457,7 +459,7 @@ export function updateWorkspaceContext(wsFile: string, update: WorkspaceConfigUp
 export function getItemContext(wsFile: string, docFile: string): object {
   const ws = getWorkspace(wsFile);
   const found = findDocNode(ws.root, docFile);
-  if (!found) throw new Error(`Document "${docFile}" not found in workspace`);
+  if (!found && !(ws.workspaceType === 'book' && workspaceDocuments(ws, listDocuments()).some(d => d.filename === docFile))) throw new Error(`Document "${docFile}" not found in workspace`);
 
   // Read tags from document frontmatter (not workspace manifest)
   const fm = readDocFrontmatter(docFile);

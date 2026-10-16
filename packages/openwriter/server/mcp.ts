@@ -12,6 +12,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { getDataDir, ensureDataDir, resolveDocPath, generateNodeId, atomicWriteFileSync, readConfig } from './helpers.js';
 import { manuscriptTools } from './manuscript/tools.js';
+import { bookWorkspaceTools } from './book-workspaces.js';
 
 import {
   getDocument,
@@ -267,6 +268,7 @@ let firstTruncationShown = false;
 const AGENT_FORBIDDEN_METADATA_KEYS = new Set(['autoAccept']);
 
 export const TOOL_REGISTRY: ToolDef[] = [
+  ...bookWorkspaceTools,
   {
     name: 'read_pad',
     description: `Read a document by docId. Returns compact tagged-line format with [type:id] per node. Default: first ~${READ_PAD_MAX_WORDS} words. Three knobs for longer docs:\n• \`slice: { from, to }\` — read a percentile range (floats in [0,1]). \`{from:0.5, to:1}\` = back half, \`{from:0.25, to:0.75}\` = middle 50%, \`{from:0.0, to:0.1}\` then \`{from:0.1, to:0.2}\` … = sequential 10% chunks. Snaps to top-level node boundaries; subject to the word cap unless force is set.\n• \`force: true\` — bypass the cap, return the full requested region (whole doc or whole slice). Use for full-doc audits/rewrites where you've accepted the cost.\n• When the cap kicks in, the response includes \`lastNodeId\` + continuation hints to \`peek_doc\` / \`outline_doc\` / \`search_docs\` / another \`read_pad\` slice.`,

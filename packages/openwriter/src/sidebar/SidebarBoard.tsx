@@ -5,6 +5,7 @@ import { useRevealActiveDoc } from './use-reveal-active-doc';
 import './SidebarBoard.css';
 import SearchResults from './SearchResults';
 import { sidebarRowProps, searchInputKeyDown } from './sidebar-keyboard';
+import BookWorkspacePins from './BookWorkspacePins';
 
 interface PathEntry {
   type: 'workspace' | 'container';
@@ -13,7 +14,7 @@ interface PathEntry {
   wsFilename: string;
 }
 
-export default function SidebarBoard({ docs, workspaces, assignedFiles, pendingDocs, onSwitchDocument, actions, scrollRef, searchQuery, searchResults, searchLoading, searchError, onSearchChange }: SidebarModeProps) {
+export default function SidebarBoard({ docs, workspaces, assignedFiles, pendingDocs, onSwitchDocument, onWorkspaceSettings, actions, scrollRef, searchQuery, searchResults, searchLoading, searchError, onSearchChange }: SidebarModeProps) {
   const [path, setPath] = useState<PathEntry[]>([]);
   const [dropdownKey, setDropdownKey] = useState<string | null>(null);
   // Flat mode — no folders to expand; just center + pulse the active row.
@@ -263,10 +264,12 @@ export default function SidebarBoard({ docs, workspaces, assignedFiles, pendingD
             </button>
           )}
           {workspaces.map(ws => {
-            const hasContainers = ws.workspace?.root.some(n => n.type === 'container');
+            const hasContainers = ws.workspace?.workspaceType === 'book' || ws.workspace?.root.some(n => n.type === 'container');
             return (
+              <span className="board-workspace-entry" key={ws.filename}>
               <button
                 key={ws.filename}
+                onContextMenu={e => { e.preventDefault(); onWorkspaceSettings(ws.filename); }}
                 className={`board-chip ${dropdownKey === ws.filename ? 'open' : ''}`}
                 onClick={(e) => hasContainers
                   ? drillIn({ type: 'workspace', key: ws.filename, title: ws.title, wsFilename: ws.filename })
@@ -276,6 +279,8 @@ export default function SidebarBoard({ docs, workspaces, assignedFiles, pendingD
                 {ws.title} <span className="board-chip-count">{ws.docCount}</span>
                 {hasContainers && <span className="board-chip-arrow">&rsaquo;</span>}
               </button>
+              <button type="button" className="workspace-menu-button" aria-label={`Workspace type for ${ws.title}`} onClick={() => onWorkspaceSettings(ws.filename)}>⋯</button>
+              </span>
             );
           })}
           <button className="board-chip board-chip-add" onClick={actions.handleCreateWorkspace} title="New workspace">+</button>
@@ -285,6 +290,7 @@ export default function SidebarBoard({ docs, workspaces, assignedFiles, pendingD
       {/* Drilled in: containers + direct docs dropdown */}
       {path.length > 0 && (
         <>
+          {path.length === 1 && (() => { const workspace = workspaces.find(w => w.filename === path[0].wsFilename); return workspace ? <BookWorkspacePins compact workspace={workspace} docs={docs} onOpen={onSwitchDocument} onSettings={() => onWorkspaceSettings(workspace.filename)} /> : null; })()}
           {currentDocs.length > 0 && (
             <button
               className={`board-chip board-chip-docs ${dropdownKey === '__level-docs__' ? 'open' : ''}`}

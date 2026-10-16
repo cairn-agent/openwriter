@@ -20,7 +20,7 @@ const CONTRACTS: Record<string, { names: string[]; noun: string }> = {
 };
 
 /** For the MCP server instructions. */
-export const GUIDANCE_NOTICE = 'Every document carries editing guidance, including when an optional review note helps. X documents, blog posts and newsletter issues also have format contracts. The first document touch in an agent session delivers unseen contracts in full; later touches carry a one-line reminder.';
+export const GUIDANCE_NOTICE = 'Every document carries editing guidance, including when an optional review note helps. X documents, blog posts and newsletter issues also have format contracts. Book workspaces deliver their attached brief and book guidance on document access; changed briefs or linked sources refresh that context. The first touch in an agent session delivers unseen contracts in full; later touches carry a reminder.';
 
 interface Contract { name: string; version: number; body: string }
 
@@ -45,9 +45,10 @@ const delivered = new Map<string, Set<string>>();
  * The guidance for one touch of a document by one agent session: the contracts not yet sent in
  * this session in full, or a one-line reminder when all were. Editing applies to every type.
  */
-export function guidanceFor(session: string, docId: string, contentType: string | undefined): string | null {
+export function guidanceFor(session: string, docId: string, contentType: string | undefined, bookRole?: string): string | null {
   const entry = (contentType ? CONTRACTS[contentType] : undefined) ?? { names: [], noun: 'a document' };
-  const contracts = [...entry.names, 'editing'].map(contract);
+  const bookNames = bookRole ? ['book', ...(['brief', 'outline', 'manuscript'].includes(bookRole) ? [`book-${bookRole}`] : [])] : [];
+  const contracts = [...entry.names, ...bookNames, 'editing'].map(contract);
   let sent = delivered.get(session);
   if (!sent) delivered.set(session, sent = new Set());
   const fresh = contracts.filter((c) => !sent.has(`${c.name}@${c.version}`));

@@ -47,6 +47,9 @@ export interface WorkspaceContext {
 export interface Workspace {
   version: 2;
   title: string;
+  /** Explicit user-selected behavior, separate from agent-written schema enrichment. */
+  workspaceType?: 'general' | 'book';
+  book?: { outlineDocId?: string; manuscriptDocId?: string; briefDocId?: string };
   voiceProfileId?: string | null;
   root: WorkspaceNode[];
   context?: WorkspaceContext;

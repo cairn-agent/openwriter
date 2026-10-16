@@ -63,6 +63,14 @@ stale content over them. That is why the old design moved every tab.
 
 ## Decision log
 
+### 2026-10-16 — Workspace pins follow ordinary navigation
+
+Book workspace pins use the tab's existing document-switch handler. The removed
+global Books block is replaced by workspace-owned shortcuts; no new navigation
+broadcast or active-document ownership path is introduced.
+Workspace-change messages also notify local library subscribers, keeping book
+attachment roles current without navigating or mutating a document.
+
 ### 2026-09-28 — per-tab view replaces "every tab mirrors the live doc"
 Chose attach/detach over two alternatives:
 - Sending a tab's own switch only to that tab, and nothing else, would stop

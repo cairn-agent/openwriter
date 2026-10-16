@@ -323,6 +323,7 @@ export function useWebSocket({ onNodeChanges, onAgentStatus, onDocumentSwitched,
 
           if (msg.type === 'workspaces-changed') {
             onWorkspacesChangedRef.current?.();
+            window.dispatchEvent(new CustomEvent('ow-workspaces-changed'));
           }
 
           if (msg.type === 'title-changed' && msg.title) {

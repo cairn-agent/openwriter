@@ -36,6 +36,14 @@ second source of truth or discard content that the compiler ignores.
 
 ## Decision log
 
+- 2026-10-16: A Book workspace's Build manuscript pin opens the existing outline
+  review flow. It never bypasses the save barrier, source preflight or explicit
+  build action, and opens an existing manuscript instead of making a duplicate.
+  Creating an outline from a Files selection fills an empty outline attachment
+  in its selected Book workspace, preserving the same selection basket flow.
+  Attached briefs are excluded from the source picker. Workspace-change events
+  refresh attachment roles while a picker is open, including its selected basket.
+
 - 2026-10-16: Added the outline canvas, document picker, reversible structural
   transactions and accepted-text build review. Retained the original schema and
   compiler. Added an observed-save barrier instead of racing an HTTP build against
