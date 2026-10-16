@@ -26,6 +26,10 @@ through their own pathway.
 
 ## Current invariants
 
+- **2026-10-15 extraction:** block application and canonical rejection live in
+  `server/block-changes.ts`; state retains its public exports and passes the
+  existing tweet context. This move preserves behavior before adding edit notes.
+
 - Focus mode uses the same ReviewTab title/body cursor, preview restoration,
   resolution handlers, and WebSocket persistence as the full review panel.
 
