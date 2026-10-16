@@ -370,3 +370,10 @@ them down. A yellow border and restrained tint distinguish the note as
 supporting context. Focus follows the same order: accept/reject, then the
 yellow-outlined note disclosure. Text retains normal high contrast in both
 themes; no warning icon or required-reading treatment is introduced.
+
+### 2026-10-16 — Note emphasis occupies the gutter
+
+The enclosing border and padding made the note text look nested beneath the
+rest of the rail. The note now extends its faint background halfway into the
+rail gutter, with a yellow left accent there. Equal negative margins and inner
+padding preserve the standard text alignment. Approval rows remain above it.

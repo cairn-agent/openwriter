@@ -51,13 +51,22 @@
 }
 
 .review-tab__note {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 10px;
-  border: 1px solid var(--review-note-border);
-  border-radius: 6px;
+  margin-inline: calc(var(--rail-inset) * -0.5);
+  padding: 10px calc(var(--rail-inset) * 0.5);
   background: var(--review-note-tint);
+}
+
+.review-tab__note::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: var(--review-note-border);
+  pointer-events: none;
 }
 
 .review-tab__note .review-tab__section-label {
