@@ -483,14 +483,14 @@ export default function ReviewTab({
         <button type="button" onClick={handleGoToPrevious} disabled={totalSlots === 0} aria-label="Previous change" title="Previous change"><ChevronLeft /></button>
         <span className="focus-review__count" aria-live="polite" aria-atomic="true" title={cursor === 'title' && pendingTitle ? `${pendingTitle.from} → ${pendingTitle.to}` : 'Current change'}>{cursor === 'title' ? 'Title ' : ''}{slotIndex + 1}/{totalSlots}</span>
         <button type="button" onClick={handleGoToNext} disabled={totalSlots === 0} aria-label="Next change" title="Next change"><ChevronRight /></button>
+        <button type="button" className="focus-review__accept" onClick={handleAcceptCurrent} aria-label="Accept current change" title="Accept current change"><Check /></button>
+        <button type="button" className="focus-review__reject" onClick={handleRejectCurrent} aria-label="Reject current change" title="Reject current change"><XIcon /></button>
         {feedback && (
           <details className="focus-review__note" key={`${currentNode?.nodeId}:${feedback}`}>
             <summary>Agent note</summary>
             <p>{feedback}</p>
           </details>
         )}
-        <button type="button" className="focus-review__accept" onClick={handleAcceptCurrent} aria-label="Accept current change" title="Accept current change"><Check /></button>
-        <button type="button" className="focus-review__reject" onClick={handleRejectCurrent} aria-label="Reject current change" title="Reject current change"><XIcon /></button>
       </div>,
       focusReviewTarget,
     );
@@ -570,13 +570,6 @@ export default function ReviewTab({
         </div>
       </div>
 
-      {cursor === 'body' && currentNode?.feedback && (
-        <div className="review-tab__section">
-          <div className="review-tab__section-label">Agent note</div>
-          <p className="review-tab__feedback">{currentNode.feedback}</p>
-        </div>
-      )}
-
       <div className="review-tab__section">
         <div className="review-tab__row">
           <button className="review-tab__judge-btn review-tab__judge-btn--accept" onClick={handleAcceptCurrent} title="Accept (a)"><Check /><span>Accept</span></button>
@@ -590,6 +583,15 @@ export default function ReviewTab({
           <button className="review-tab__bulk-btn review-tab__bulk-btn--reject" onClick={handleRejectAll} title="Reject all (Shift+R)"><XIcon /><span>Reject all</span></button>
         </div>
       </div>
+
+      {cursor === 'body' && currentNode?.feedback && (
+        <div className="review-tab__section">
+          <aside className="review-tab__note" aria-label="Agent note">
+            <div className="review-tab__section-label">Agent note</div>
+            <p className="review-tab__feedback">{currentNode.feedback}</p>
+          </aside>
+        </div>
+      )}
 
       <CommentsSection editors={editors} filename={currentFilename} />
       <BookmarksSection editors={editors} filename={currentFilename} />

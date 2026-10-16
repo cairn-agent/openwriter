@@ -1,5 +1,16 @@
 /* ─── Review tab ───────────────────────────────────────────────────── */
 
+.review-tab,
+.focus-review {
+  --review-note-border: #9e7b0c;
+  --review-note-tint: rgba(214, 181, 72, 0.08);
+}
+
+[data-mode="dark"] .review-tab,
+[data-mode="dark"] .focus-review {
+  --review-note-border: #d6b548;
+}
+
 .review-tab {
   padding: 8px 0;
   display: flex;
@@ -39,9 +50,23 @@
   gap: 6px;
 }
 
+.review-tab__note {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--review-note-border);
+  border-radius: 6px;
+  background: var(--review-note-tint);
+}
+
+.review-tab__note .review-tab__section-label {
+  color: var(--ink-dark);
+}
+
 .review-tab__feedback {
   margin: 0;
-  color: var(--ink-body);
+  color: var(--ink-dark);
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;

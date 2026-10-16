@@ -361,3 +361,12 @@ Title slots and edits without notes take no space. Focus uses a keyboard-operabl
 disclosure for the full note, rather than a truncated span with a hover-only title.
 Moving to another proposal or replacing its explanation resets the disclosure.
 Both presentations keep the same controller and accept/reject handlers.
+
+### 2026-10-16 — Approval controls precede optional notes
+
+A writer reviewing an edit needs the decision buttons in a stable place.
+Both approval rows now precede the optional note, so its length cannot push
+them down. A yellow border and restrained tint distinguish the note as
+supporting context. Focus follows the same order: accept/reject, then the
+yellow-outlined note disclosure. Text retains normal high contrast in both
+themes; no warning icon or required-reading treatment is introduced.
