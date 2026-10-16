@@ -353,3 +353,11 @@ lost the Author's Voice credits panel with the plugin. See `adr/authors-voice.md
 The publish server retired its plans (openwriter-publish `docs/one-money-model.md`, phase 1), so the
 `BillingSection` under the Publish plugin (plan badge, Upgrade and Manage Billing buttons) and the
 `/api/billing` proxy behind it are gone. The rich-panel slot stays for the GitHub plugin's settings.
+
+### 2026-10-15 — Optional explanation for the current edit
+
+Review displays an Agent note only when the selected body proposal carries one.
+Title slots and edits without notes take no space. Focus uses a keyboard-operable
+disclosure for the full note, rather than a truncated span with a hover-only title.
+Moving to another proposal or replacing its explanation resets the disclosure.
+Both presentations keep the same controller and accept/reject handlers.

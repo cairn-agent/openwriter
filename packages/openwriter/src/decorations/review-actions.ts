@@ -21,6 +21,7 @@ function replaceNodeContent(editor: Editor, nodeId: string, newContent: any): bo
       id: node.attrs.id,
       pendingStatus: node.attrs.pendingStatus,
       pendingOriginalContent: node.attrs.pendingOriginalContent,
+      pendingFeedback: node.attrs.pendingFeedback,
       pendingSelectionFrom: node.attrs.pendingSelectionFrom,
       pendingSelectionTo: node.attrs.pendingSelectionTo,
       pendingOriginalFrom: node.attrs.pendingOriginalFrom,
@@ -70,6 +71,7 @@ export function showOriginal(editor: Editor, change: { nodeId: string; groupId?:
         ...(orig.attrs || {}),
         pendingStatus: 'rewrite',
         pendingGroupId: change.groupId,
+        pendingFeedback: members[0].node.attrs.pendingFeedback,
         ...(i === 0 ? { pendingOriginalContent: originalContent } : {}),
       },
     }));

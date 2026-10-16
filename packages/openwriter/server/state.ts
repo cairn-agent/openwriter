@@ -91,6 +91,8 @@ export interface NodeChange {
   nodeId?: string;
   afterNodeId?: string;
   content?: any;
+  /** Optional editorial note attached only while this change is pending. */
+  feedback?: string;
   /** When true, the change committed directly without pending decoration —
    *  client should apply it as a normal edit, not as a pending review item. */
   autoAccept?: boolean;
@@ -1080,6 +1082,7 @@ function transferPendingAttrs(source: PadDocument, target: PadDocument): void {
         if (node.attrs.pendingOriginalContent != null) entry.pendingOriginalContent = node.attrs.pendingOriginalContent;
         if (node.attrs.pendingTextEdits != null) entry.pendingTextEdits = node.attrs.pendingTextEdits;
         if (node.attrs.pendingGroupId != null) entry.pendingGroupId = node.attrs.pendingGroupId;
+        if (node.attrs.pendingFeedback != null) entry.pendingFeedback = node.attrs.pendingFeedback;
         if (node.attrs.pendingSelectionFrom != null) entry.pendingSelectionFrom = node.attrs.pendingSelectionFrom;
         if (node.attrs.pendingSelectionTo != null) entry.pendingSelectionTo = node.attrs.pendingSelectionTo;
         if (node.attrs.pendingOriginalFrom != null) entry.pendingOriginalFrom = node.attrs.pendingOriginalFrom;
@@ -2833,6 +2836,7 @@ export function stripPendingAttrsFromFile(filename: string, _legacyClearAgentCre
         if (node.attrs?.pendingStatus) {
           delete node.attrs.pendingStatus;
           delete node.attrs.pendingOriginalContent;
+          delete node.attrs.pendingFeedback;
           delete node.attrs.pendingTextEdits;
         }
         if (node.content) strip(node.content);

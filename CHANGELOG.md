@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Added
+- Optional agent notes explain substantial edits beside their review controls, including Focus mode. Notes survive reloads while pending and disappear when the edit is accepted or rejected. Adapted from Zach Hammer's contribution (PR #10).
+- Embedded editing guidance teaches agents when an explanation helps and when routine edits need none.
+
 ## [0.47.0] - 2026-10-14
 
 ### Added

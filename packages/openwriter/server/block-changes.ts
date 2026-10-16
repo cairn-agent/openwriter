@@ -2,6 +2,7 @@
  * adr: adr/pending-overlay-model.md
  */
 import { generateNodeId, LEAF_BLOCK_TYPES } from './helpers.js';
+import { stripPendingAttrs } from './pending-overlay.js';
 import type { PadDocument, NodeChange } from './state.js';
 
 export function extractText(nodes: any[]): string {
@@ -203,6 +204,7 @@ export function applyChangesToDoc(doc: PadDocument, changes: NodeChange[], autoA
       if (!found) continue;
 
       let contentArray = Array.isArray(change.content) ? change.content : [change.content];
+      if (autoAccept) contentArray = contentArray.map(stripPendingAttrs);
       const originalNode = structuredClone(found.parent[found.index]);
 
       // Preserve target node type when plain text would otherwise demote it.
@@ -278,6 +280,7 @@ export function applyChangesToDoc(doc: PadDocument, changes: NodeChange[], autoA
             ...innerLeaf.attrs,
             id: innerLeaf.attrs?.id || generateNodeId(),
             pendingStatus: isEmptyNode ? 'insert' : 'rewrite',
+            pendingFeedback: change.feedback?.trim() || null,
             ...(isEmptyNode ? {} : { pendingOriginalContent: baseline }),
             ...(partialRange ? {
               pendingSelectionFrom: partialRange.selectionFrom,
@@ -302,6 +305,7 @@ export function applyChangesToDoc(doc: PadDocument, changes: NodeChange[], autoA
             ...contentArray[0].attrs,
             id: change.nodeId,
             pendingStatus: isEmptyNode ? 'insert' : 'rewrite',
+            pendingFeedback: change.feedback?.trim() || null,
             ...(isEmptyNode ? {} : { pendingOriginalContent: baseline }),
             ...(partialRange ? {
               pendingSelectionFrom: partialRange.selectionFrom,
@@ -322,7 +326,12 @@ export function applyChangesToDoc(doc: PadDocument, changes: NodeChange[], autoA
           id: node.attrs?.id || generateNodeId(),
         },
       }));
-      if (!autoAccept) markLeafBlocksAsPending(extraNodes, 'insert');
+      if (!autoAccept) markLeafBlocksAsPending(extraNodes, 'insert', change.feedback);
+
+      // Direct commits must not inherit an earlier proposal's review attributes.
+      if (autoAccept) {
+        firstNode = stripPendingAttrs(firstNode);
+      }
 
       found.parent.splice(found.index, 1, firstNode, ...extraNodes);
 
@@ -334,7 +343,8 @@ export function applyChangesToDoc(doc: PadDocument, changes: NodeChange[], autoA
     }
 
     else if (change.operation === 'insert' && change.content) {
-      const contentArray = Array.isArray(change.content) ? change.content : [change.content];
+      const supplied = Array.isArray(change.content) ? change.content : [change.content];
+      const contentArray = autoAccept ? supplied.map(stripPendingAttrs) : supplied;
 
       // Assign IDs to all new nodes before broadcast
       const contentWithIds = contentArray.map((node: any, i: number) => ({
@@ -346,7 +356,7 @@ export function applyChangesToDoc(doc: PadDocument, changes: NodeChange[], autoA
       }));
       // Mark leaf blocks as pending (not containers) — skipped in autoAccept mode
       // so inserts commit as plain content without decoration.
-      if (!autoAccept) markLeafBlocksAsPending(contentWithIds, 'insert');
+      if (!autoAccept) markLeafBlocksAsPending(contentWithIds, 'insert', change.feedback);
 
       let resolvedAfterId: string | undefined;
 
@@ -431,7 +441,7 @@ export function applyChangesToDoc(doc: PadDocument, changes: NodeChange[], autoA
         if (canonicalNode) {
           found.parent[found.index] = {
             ...canonicalNode,
-            attrs: { ...canonicalNode.attrs, pendingStatus: 'delete' },
+            attrs: { ...canonicalNode.attrs, pendingStatus: 'delete', pendingFeedback: change.feedback?.trim() || null },
           };
         } else {
           found.parent.splice(found.index, 1);
@@ -445,7 +455,7 @@ export function applyChangesToDoc(doc: PadDocument, changes: NodeChange[], autoA
 }
 
 export function cloneWithPendingReverted(doc: PadDocument): PadDocument {
-  const PENDING_KEYS = ['pendingStatus', 'pendingOriginalContent', 'pendingGroupId', 'pendingTextEdits', 'pendingSelectionFrom', 'pendingSelectionTo', 'pendingOriginalFrom', 'pendingOriginalTo', 'pendingOrphan', 'pendingStaleBaseline'];
+  const PENDING_KEYS = ['pendingStatus', 'pendingOriginalContent', 'pendingGroupId', 'pendingFeedback', 'pendingTextEdits', 'pendingSelectionFrom', 'pendingSelectionTo', 'pendingOriginalFrom', 'pendingOriginalTo', 'pendingOrphan', 'pendingStaleBaseline'];
   function clean(node: any): any {
     const clone = JSON.parse(JSON.stringify(node));
     if (clone.attrs) {
@@ -480,16 +490,16 @@ export function cloneWithPendingReverted(doc: PadDocument): PadDocument {
  * Used by `applyChangesToDoc` for write_to_pad inserts where containers
  * are handled by the explicit firstNode top-level mark.
  */
-function markLeafBlocksAsPending(nodes: any[], status: string): void {
+function markLeafBlocksAsPending(nodes: any[], status: string, feedback?: string): void {
   if (!nodes) return;
   for (const node of nodes) {
     if (node.type && LEAF_BLOCK_TYPES.has(node.type)) {
-      node.attrs = { ...node.attrs, pendingStatus: status };
+      node.attrs = { ...node.attrs, pendingStatus: status, pendingFeedback: feedback?.trim() || null };
       if (!node.attrs.id) {
         node.attrs.id = generateNodeId();
       }
     } else if (node.content) {
-      markLeafBlocksAsPending(node.content, status);
+      markLeafBlocksAsPending(node.content, status, feedback);
     }
   }
 }

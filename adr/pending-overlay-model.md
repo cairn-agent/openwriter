@@ -1437,3 +1437,18 @@ update so intentional large chapter removals pass the shared fidelity check;
 pending merges, revision checks and sidecar writes retain their existing path.
 A save barrier verifies canonical Markdown and overlay persistence before a
 build proceeds. See [outline-editor.md](outline-editor.md).
+
+### 2026-10-15 — Notes belong to a pending proposal
+
+Adapted Zach Hammer's optional feedback contribution (PR #10). Each pending entry
+may carry `feedback`; merged editor nodes carry `pendingFeedback`. Serialization,
+baseline capture and individual/bulk resolution strip it. A replacement proposal
+assigns its new note explicitly, including null when omitted, so type-preserving
+rewrites cannot inherit the reason for an older edit. Direct commits strip all
+review attributes while keeping the proposed content. Original/Modified preview
+preserves the current note; the shared editing contract explains when notes help.
+
+The block edit engine was extracted from state without behavior changes before
+the note adaptation. Service tests cover active and background writes, disk reload,
+replacement and resolution; browser verification covers Review and Focus, preview,
+restart recovery, ordinary typing and individual/bulk decisions.

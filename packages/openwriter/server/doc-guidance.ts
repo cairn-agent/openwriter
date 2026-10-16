@@ -20,7 +20,7 @@ const CONTRACTS: Record<string, { names: string[]; noun: string }> = {
 };
 
 /** For the MCP server instructions. */
-export const GUIDANCE_NOTICE = 'X documents (content_type tweet, reply, quote, article), blog posts and newsletter issues have format contracts. The first tool result in a session that touches one carries its contract in full, later ones a one-line reminder; the contract describes how that document is written and published.';
+export const GUIDANCE_NOTICE = 'Every document carries editing guidance, including when an optional review note helps. X documents, blog posts and newsletter issues also have format contracts. The first document touch in an agent session delivers unseen contracts in full; later touches carry a one-line reminder.';
 
 interface Contract { name: string; version: number; body: string }
 
@@ -43,21 +43,20 @@ const delivered = new Map<string, Set<string>>();
 
 /**
  * The guidance for one touch of a document by one agent session: the contracts not yet sent in
- * this session in full, or a one-line reminder when all were; null for a type without contracts.
+ * this session in full, or a one-line reminder when all were. Editing applies to every type.
  */
 export function guidanceFor(session: string, docId: string, contentType: string | undefined): string | null {
-  const entry = contentType ? CONTRACTS[contentType] : undefined;
-  if (!entry) return null;
-  const contracts = entry.names.map(contract);
+  const entry = (contentType ? CONTRACTS[contentType] : undefined) ?? { names: [], noun: 'a document' };
+  const contracts = [...entry.names, 'editing'].map(contract);
   let sent = delivered.get(session);
   if (!sent) delivered.set(session, sent = new Set());
   const fresh = contracts.filter((c) => !sent.has(`${c.name}@${c.version}`));
   for (const c of fresh) sent.add(`${c.name}@${c.version}`);
   const label = contracts.map((c) => `${c.name} v${c.version}`).join(', ');
   if (fresh.length === 0) {
-    return `[OpenWriter: ${docId} is ${entry.noun}. Its format contract (${label}) arrived earlier in this session and applies.]`;
+    return `[OpenWriter: ${docId} is ${entry.noun}. Its guidance (${label}) arrived earlier in this session and applies.]`;
   }
   const earlier = contracts.filter((c) => !fresh.includes(c)).map((c) => `${c.name} v${c.version}`);
-  const header = `[OpenWriter format contract for ${docId}, ${entry.noun}: ${label}.${earlier.length ? ` Sent earlier in this session: ${earlier.join(', ')}.` : ''}]`;
+  const header = `[OpenWriter guidance for ${docId}, ${entry.noun}: ${label}.${earlier.length ? ` Sent earlier in this session: ${earlier.join(', ')}.` : ''}]`;
   return [header, ...fresh.map((c) => c.body)].join('\n\n');
 }

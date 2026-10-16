@@ -39,6 +39,15 @@
   gap: 6px;
 }
 
+.review-tab__feedback {
+  margin: 0;
+  color: var(--ink-body);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 
 /* Arrow rows: prev/next sit adjacent, counter trails to their right. */
 .review-tab__row .review-panel__counter {

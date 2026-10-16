@@ -21,6 +21,7 @@ export interface PendingNodeInfo {
   pos: number;
   pendingStatus: PendingStatus;
   groupId?: string;
+  feedback?: string;
   editor: Editor;
 }
 
@@ -50,7 +51,7 @@ export function derivePendingState(editor: Editor): PendingNodeInfo[] {
         seenGroups.add(groupId);
       }
 
-      nodes.push({ nodeId: node.attrs.id, pos, pendingStatus: status, groupId, editor });
+      nodes.push({ nodeId: node.attrs.id, pos, pendingStatus: status, groupId, feedback: node.attrs?.pendingFeedback || undefined, editor });
     }
     return true;
   });

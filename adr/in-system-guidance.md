@@ -21,7 +21,7 @@ any longer.
   `build:guidance`. `server/doc-guidance.ts` maps a content_type to its contracts: tweet,
   reply and quote get their own plus `x-post` (the post body) and `thread`; article gets
   `article`; blog and newsletter get their own plus `long-form` (the body and what leaves
-  OpenWriter when it is published). Other types get none.
+  OpenWriter when it is published). Every type also receives the shared `editing` contract.
 - **Written as facts about the document**, not commands: what the document is, how its parts
   are stored and rendered, and what each tool does to it. A fact is only written after it is
   checked against the current code; the contract changes with the code it describes, and its
@@ -68,3 +68,10 @@ any longer.
   on both views queues a social post. Still without contracts: linkedin (linkedinContext,
   post length and formatting on LinkedIn, how schedule_post sends it) and manuscript
   (chapter binding, compile and export).
+
+- **2026-10-15** — A shared `editing` contract applies to every document, including plain
+  documents and manuscripts. It explains optional per-block review notes, useful editorial
+  reasons, omission for routine cleanup, and note replacement/removal. The tool field itself
+  carries short guidance so an agent's first write can already use it correctly. The existing
+  session/version envelope deduplicates editing independently of each format contract;
+  internal calls still receive nothing and do not consume delivery.
