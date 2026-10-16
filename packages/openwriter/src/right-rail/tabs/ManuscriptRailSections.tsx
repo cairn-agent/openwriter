@@ -1,12 +1,11 @@
 /**
- * Book sections inside the Review tab. A book is an Outline plus the
+ * Manuscript controls inside the Review tab. A book is an Outline plus the
  * Manuscript built from it; the manuscript is the book.
  *
- *   - "Book" (the open doc is an outline or a manuscript): an outline shows its
+ *   - "Manuscript" (the open doc is an outline or a manuscript): an outline shows its
  *     manuscript, or Build manuscript; a manuscript shows its outline and every
  *     outline chapter it doesn't have yet, each with Add.
- *   - "Books" — always shown: every book, opening its manuscript (or its
- *     outline before one is built).
+ * Book navigation lives in the left sidebar's SidebarBooks component.
  *
  * Styling reuses the review-tab design tokens + classes so it matches the
  * pending UI in both light and dark mode.
@@ -17,8 +16,6 @@ import { useEffect, useState } from 'react';
 import { showToast } from '../../utils/toast';
 import { useBookStatus, type BookDoc } from '../../hooks/useBookStatus';
 import './ManuscriptRailSections.css';
-
-interface BookItem { title: string; outline: BookDoc; manuscript: BookDoc | null }
 
 interface Props {
   docId: string | null;
@@ -35,24 +32,10 @@ async function post(url: string, body: Record<string, unknown>): Promise<any> {
 }
 
 export default function ManuscriptRailSections({ docId, refreshKey, onSwitchDocument }: Props) {
-  const [books, setBooks] = useState<BookItem[]>([]);
   const [book, reload] = useBookStatus(docId, refreshKey);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmAnother, setConfirmAnother] = useState(false);
   useEffect(() => { setConfirmAnother(false); }, [docId]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = () => {
-      fetch('/api/books')
-        .then((r) => r.json())
-        .then((d) => { if (!cancelled) setBooks(d.books || []); })
-        .catch(() => {});
-    };
-    load();
-    window.addEventListener('ow-documents-changed', load);
-    return () => { cancelled = true; window.removeEventListener('ow-documents-changed', load); };
-  }, []);
 
   const run = async (key: string, action: () => Promise<void>) => {
     setBusy(key);
@@ -82,7 +65,7 @@ export default function ManuscriptRailSections({ docId, refreshKey, onSwitchDocu
     <>
       {book?.role === 'outline' && (
         <div className="review-tab__section">
-          <div className="review-tab__section-label">Book</div>
+          <div className="review-tab__section-label">Manuscript</div>
           {book.manuscripts?.length ? (
             <>
               {book.manuscripts.map((m) => (
@@ -121,7 +104,7 @@ export default function ManuscriptRailSections({ docId, refreshKey, onSwitchDocu
 
       {book?.role === 'manuscript' && (
         <div className="review-tab__section">
-          <div className="review-tab__section-label">Book</div>
+          <div className="review-tab__section-label">Manuscript</div>
           {book.outline && (
             <div className="ms-row">
               <span className="ms-row__title" title={book.outline.title}>Built from {book.outline.title}</span>
@@ -149,31 +132,6 @@ export default function ManuscriptRailSections({ docId, refreshKey, onSwitchDocu
         </div>
       )}
 
-      <div className="review-tab__section">
-        <div className="review-tab__section-label">Books</div>
-        {books.length === 0 ? (
-          <div className="ms-empty">None yet. Create a book outline from the “+” menu.</div>
-        ) : (
-          <ul className="ms-list">
-            {books.map((b) => {
-              const open = b.manuscript ?? b.outline;
-              const here = docId === b.outline.docId || docId === b.manuscript?.docId;
-              return (
-                <li key={b.outline.docId}>
-                  <button
-                    type="button"
-                    className={here ? 'ms-item ms-item--active' : 'ms-item'}
-                    onClick={() => onSwitchDocument(open.filename)}
-                    title={b.manuscript ? b.manuscript.title : `${b.outline.title} (no manuscript yet)`}
-                  >
-                    {b.title}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
     </>
   );
 }

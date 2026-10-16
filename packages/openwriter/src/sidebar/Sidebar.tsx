@@ -9,6 +9,7 @@ import SidebarBoard from './SidebarBoard';
 import SidebarFiles from './SidebarFiles';
 import SidebarSchedule from './SidebarSchedule';
 import SidebarTasks from './SidebarTasks';
+import SidebarBooks from './SidebarBooks';
 import ProfileSwitcher from './ProfileSwitcher';
 import LayoutMenu from '../themes/LayoutMenu';
 import './Sidebar.css';
@@ -206,6 +207,8 @@ export default function Sidebar({ open, onSwitchDocument, onCreateDocument, refr
     }
   };
 
+  const booksNavigation = <SidebarBooks activeFilename={shownFilename} refreshKey={refreshKey} onSwitchDocument={optimisticSwitchDocument} />;
+
   const searchBar = (
     <div className="sidebar-search">
       <svg className="sidebar-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -246,6 +249,7 @@ export default function Sidebar({ open, onSwitchDocument, onCreateDocument, refr
   if (mode === 'board') {
     return (
       <div ref={panelRef} aria-hidden={!open} onKeyDown={moveSidebarFocus} className={`sidebar sidebar-board-mode ${open ? 'open' : ''}`} style={sidebarStyle}>
+        {booksNavigation}
         {renderMode()}
         <LayoutMenu className="layout-menu-btn board-layout-btn" />
         {resizeHandle}
@@ -309,6 +313,7 @@ export default function Sidebar({ open, onSwitchDocument, onCreateDocument, refr
       ) : (
         <>
           {searchBar}
+          {booksNavigation}
           {renderMode()}
         </>
       )}

@@ -1,6 +1,6 @@
 /* Book sections in the Review tab — same design tokens as the pending UI, so
  * light + dark mode and button feel match exactly. Section/label wrappers
- * reuse review-tab classes; only the rows, buttons and launcher list need
+ * reuse review-tab classes; only the rows and buttons need
  * their own rules below. */
 
 .ms-row {
@@ -48,8 +48,7 @@
   border-color: rgba(255, 255, 255, 0.08);
 }
 
-.ms-note,
-.ms-empty {
+.ms-note {
   margin: 4px 0 6px;
 }
 
@@ -72,32 +71,4 @@
   gap: 6px;
   font-size: 12px;
   color: var(--ink-body);
-}
-
-.ms-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.ms-item {
-  width: 100%;
-  text-align: left;
-  border: none;
-  background: transparent;
-  font-family: var(--font-body);
-  padding: 4px 8px;
-  border-radius: 5px;
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: background 0.12s ease;
-}
-.ms-item:hover { background: color-mix(in srgb, var(--ink-body) 6%, transparent); }
-.ms-item.ms-item--active {
-  background: color-mix(in srgb, var(--ink-body) 10%, transparent);
-  font-weight: 600;
 }

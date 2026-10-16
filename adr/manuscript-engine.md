@@ -164,3 +164,12 @@ containers and calls them chapters), the engine doesn't know what a "book" is.
   format and independently built manuscript remain unchanged. Preflight uses
   the existing accepted-text compiler and binds build confirmation to its input
   revision. Detailed invariants: [outline-editor.md](outline-editor.md).
+
+- **2026-10-16 — Book navigation belongs in the left sidebar.** A writer
+  selects a book under Books, opening its manuscript or, before the first
+  build, its outline. The right rail's contextual heading is now Manuscript;
+  its build/open/adopt/chapter actions are unchanged. The sidebar highlights
+  the book for either its outline or its manuscript and refreshes with the
+  existing document-list signal. The same navigation is available in Files,
+  Timeline and Board layouts. The list is collapsible and bounded so books
+  do not crowd all document navigation out of the panel.

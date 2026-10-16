@@ -1,0 +1,36 @@
+.sidebar-books {
+  flex: 0 1 auto;
+  min-height: 32px;
+  max-height: 35%;
+  overflow-y: auto;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-books__heading,
+.sidebar-books__item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-dark);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar-books__heading { padding: 4px var(--rail-inset); font-weight: 600; }
+.sidebar-books__list { list-style: none; padding: 0; margin: 0; }
+.sidebar-books__item { min-height: var(--rail-row); padding: 4px var(--rail-inset); }
+.sidebar-books__item > span:first-child { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-books__draft { color: var(--ink-body); font-size: 10px; }
+.sidebar-books__item:hover,
+.sidebar-books__heading:hover { background: var(--bg-hover); }
+.sidebar-books__item[aria-current="page"] { background: var(--bg-hover); font-weight: 600; }
+.sidebar-books button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.sidebar-books__note { margin: 4px var(--rail-inset); color: var(--ink-body); font-size: 12px; line-height: 1.5; }
+.sidebar-books__note button { color: inherit; background: none; border: 0; text-decoration: underline; cursor: pointer; font: inherit; }
+.sidebar-board-mode > .sidebar-books { flex: 0 0 220px; max-height: 200px; border-bottom: 0; border-right: 1px solid var(--border); }
