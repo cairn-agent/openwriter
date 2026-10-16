@@ -1,10 +1,16 @@
 // Synthetic fixtures only. Actual MCP handlers, canonical files and persisted sidecars.
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, symlinkSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 const fixture = mkdtempSync(join(tmpdir(), 'ow-feedback-service-'));
-process.env.OW_DATA_DIR = fixture;
+// Exercise a real alias on every host. CI temp paths can use a different
+// spelling from realpath; review must still recognize its active document.
+const physicalData = join(fixture, 'physical');
+const aliasData = join(fixture, 'alias');
+mkdirSync(physicalData);
+symlinkSync(physicalData, aliasData, process.platform === 'win32' ? 'junction' : 'dir');
+process.env.OW_DATA_DIR = aliasData;
 const helpers = await import('../dist/server/helpers.js');
 const state = await import('../dist/server/state.js');
 const docs = await import('../dist/server/documents.js');
@@ -35,6 +41,9 @@ try {
   const active = create('Synthetic active review');
   const background = create('Synthetic background review');
   docs.switchDocument(active.filename);
+  assert.equal(helpers.resolveDocPath(active.filename), state.getFilePath());
+  assert.equal(helpers.resolveDocPath(join(helpers.getDataDir(), active.filename)), state.getFilePath());
+  assert.throws(() => helpers.resolveDocPath('../outside.md'), /Path traversal blocked/);
   const first = await call('read_pad', { docId: active.docId });
   assert.match(first.content[1].text, /## Editing and review notes/);
   for (const record of [active, background]) {
@@ -55,6 +64,7 @@ try {
     assert.equal(loaded(record).content[0].attrs.pendingFeedback, null);
     await write('Final proposed heading', 'A different editorial reason.');
     const result = docs.batchResolve([record.filename], 'accept');
+    assert.equal(result.activeResolved, record === active, 'Review identifies the physical active document through an alias');
     assert.equal(result.docsResolved, 1);
     assert.match(disk(record), /Final proposed heading/);
     assert.doesNotMatch(disk(record), /editorial reason|pendingFeedback/);
@@ -78,8 +88,13 @@ try {
   assert.match(beforeReject, /Original paragraph/);
   assert.throws(() => z.object(tool('write_to_pad').schema).parse({ docId: active.docId,
     changes: [{ operation: 'delete', nodeId: paragraph.attrs.id, feedback: 'x'.repeat(501) }] }));
+  const newPath = helpers.resolveDocPath('New alias document.md');
+  docs.createDocument('New alias document', 'Fresh accepted text.');
+  assert.equal(state.getFilePath(), newPath, 'A new document keeps its canonical identity across creation');
+  assert.equal(helpers.resolveDocPath('New alias document.md'), newPath);
   console.log('PASS: real MCP active/background replacement, disk reload, bulk accept/reject, canonical separation and bounded notes.');
 } finally {
   state.cancelDebouncedSave();
+  state.clearAllCaches();
   rmSync(fixture, { recursive: true, force: true });
 }

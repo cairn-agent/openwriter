@@ -138,11 +138,9 @@ export type CanonPath = string & { readonly __canon: unique symbol };
  *
  * On Unix: resolves symlinks and normalizes relative segments.
  *
- * Falls back to `path.resolve` (absolute path with platform separators)
- * when the file doesn't exist yet. That's a weaker form — it won't
- * catch drive-letter case mismatches on a path to a not-yet-created
- * file — but every openwriter identity boundary hits an existing file,
- * so the fallback is a safety net rather than a primary path.
+ * For a new file, resolve the nearest existing ancestor and append the
+ * not-yet-created suffix. Its identity then stays the same after creation,
+ * including when the data directory was reached through a junction or alias.
  *
  * adr: adr/path-canonicalization.md
  */
@@ -151,22 +149,26 @@ export function canonicalizePath(p: string): CanonPath {
   try {
     return realpathSync.native(p) as CanonPath;
   } catch {
-    return resolve(p) as CanonPath;
+    const absolute = resolve(p);
+    const parent = dirname(absolute);
+    return (parent === absolute ? absolute : join(canonicalizePath(parent), basename(absolute))) as CanonPath;
   }
 }
 
-/** Resolve a filename to a full path. Basenames resolve to DATA_DIR; absolute paths pass through. */
-export function resolveDocPath(filename: string): string {
+/** Resolve a document identifier to its canonical physical identity.
+ * Basenames remain confined to DATA_DIR before identity resolution.
+ * adr: adr/path-canonicalization.md */
+export function resolveDocPath(filename: string): CanonPath {
   const dataDir = getDataDir();
-  // External docs use absolute paths as identifiers — pass through
-  if (isAbsolute(filename)) return filename;
+  // External docs can arrive through aliases too.
+  if (isAbsolute(filename)) return canonicalizePath(filename);
   // Internal docs must resolve within DATA_DIR — block path traversal
   const resolved = resolve(dataDir, filename);
   const dataDirResolved = resolve(dataDir);
   if (resolved !== dataDirResolved && !resolved.startsWith(dataDirResolved + sep)) {
     throw new Error(`Path traversal blocked: ${filename}`);
   }
-  return resolved;
+  return canonicalizePath(resolved);
 }
 
 /**

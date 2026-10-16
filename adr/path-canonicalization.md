@@ -39,10 +39,12 @@ form, mis-classifying it as external.
   the canonical path, which resolves symlinks, normalizes
   drive-letter case, separator direction, and 8.3 short names on
   Windows. Authoritative.
-- Falls back to `path.resolve(p)` when the file doesn't exist (e.g., a
-  not-yet-created file). Weaker — won't catch drive-letter case
-  mismatches — but every openwriter identity boundary hits an existing
-  file by the time it's used as identity.
+- When the file does not exist, canonicalize its nearest existing ancestor
+  and append the missing suffix. Identity remains stable across file creation.
+- `resolveDocPath` resolves basenames and absolute document identifiers to
+  `CanonPath`. Active/background routing compares the same physical identity,
+  including when a profile's data root uses a junction or Windows alias.
+  Basename traversal containment is checked before canonicalization.
 - `CanonPath` is a branded string type
   (`string & { readonly __canon: unique symbol }`). The compiler
   refuses raw string assignment to slots typed `CanonPath` — every
@@ -82,13 +84,25 @@ form, mis-classifying it as external.
 - `isExternalDoc(filename)` canonicalizes both sides of the comparison
   (the filename and `getDataDir()`) before `startsWith`. Same physical
   file via any spelling now classifies consistently.
-- Paths used only for fs operations (read, write, exists checks) are
-  NOT canonicalized — every Node fs API accepts any valid
-  representation and resolves internally. Canonicalization is for
-  identity (comparison, storage as map key), not for the OS call
-  itself.
+- Standalone filesystem operations do not need canonical paths. Document
+  resolution does, because its result is also used for identity and routing.
 
 ## Decision log (append-only)
+
+### 2026-10-16 — Document resolution shares the identity contract
+
+GitHub's review-service regression exposed active/background routing comparing
+the raw result of resolveDocPath with the canonical active path. Under a data
+directory alias, accepting an active edit took the background write path: disk
+was resolved while memory kept the proposal, and a later save appeared to be an
+external-write conflict. A junction fixture reproduces this on every host.
+
+resolveDocPath now returns CanonPath for both internal and absolute identifiers.
+This repairs the shared boundary used by review, rename, delete and archive,
+without weakening the external-write guard or adding waits/retries. Resolving
+a new file canonicalizes its existing ancestors so creation cannot introduce
+the reverse mismatch. The service test asserts active resolution, disk/memory
+agreement, rejection, traversal containment and stable identity across creation.
 
 ### 2026-05-17 — initial implementation
 - Bug: opening the same external file via forward-slash vs backslash
