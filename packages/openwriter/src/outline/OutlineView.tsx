@@ -23,6 +23,9 @@ type Action = Parameters<typeof outlineTransaction>[1];
 type Form = { kind: 'add' | 'rename'; key?: string; title: string } | { kind: 'remove'; key: string; title: string };
 type Drag = { kind: 'chapter' | 'reference'; key: string };
 
+const Chevron = ({ open }: { open: boolean }) => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"
+  style={{ transform: open ? undefined : 'rotate(-90deg)' }}><path d="M3 6l5 5 5-5" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" /></svg>;
+
 function OutlineDialog({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -198,7 +201,7 @@ export default function OutlineView({ editor, docId, filename, title, connected,
               const next = new Set(current);
               if (next.has(section.key)) next.delete(section.key); else next.add(section.key);
               return next;
-            })}>{collapsed.has(section.key) ? '›' : '⌄'}</button>
+            })}><Chevron open={!collapsed.has(section.key)} /></button>
           <div className="outline-grow">
             <small>{section.key === 'intro' ? 'Opening material' : `Chapter ${index + 1}`} · {section.references.length} {section.references.length === 1 ? 'document' : 'documents'}{allWordsKnown && ` · ${words.toLocaleString()} words`}</small>
             <h2>{section.title || 'Untitled chapter'}</h2>
