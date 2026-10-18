@@ -11,6 +11,46 @@ function Assert-True {
   Write-Host "  [$state] $Name"
 }
 
+# The real done check, through the real npm and node, against a local done link
+# that answers as the registry does once an approval is given: the token to
+# the logged-in account, 404 to a request without its login. Runs before the
+# stand-ins below replace the check.
+$probe = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+$probe.Start(); $port = $probe.LocalEndpoint.Port; $probe.Stop()
+$listener = [Net.HttpListener]::new()
+$listener.Prefixes.Add("http://127.0.0.1:$port/")
+$listener.Start()
+$seen = [hashtable]::Synchronized(@{})
+$server = [powershell]::Create().AddScript({
+  param($listener, $seen)
+  while ($listener.IsListening) {
+    try { $context = $listener.GetContext() } catch { return }
+    $seen.auth = $context.Request.Headers['Authorization']
+    $approved = $seen.auth -eq 'Bearer stand-in-login'
+    $context.Response.StatusCode = if ($approved) { 200 } else { 404 }
+    $body = [Text.Encoding]::UTF8.GetBytes($(if ($approved) { '{"token":"one-time-token"}' } else { '{}' }))
+    $context.Response.ContentType = 'application/json'
+    $context.Response.OutputStream.Write($body, 0, $body.Length)
+    $context.Response.Close()
+  }
+}).AddArgument($listener).AddArgument($seen)
+$serving = $server.BeginInvoke()
+$npmrc = Join-Path ([IO.Path]::GetTempPath()) "ow-npm-approval-$PID.npmrc"
+[IO.File]::WriteAllText($npmrc, "//127.0.0.1:$port/:_authToken=stand-in-login`n")
+$priorUserConfig = $env:NPM_CONFIG_USERCONFIG
+$env:NPM_CONFIG_USERCONFIG = $npmrc
+try {
+  $token = $null
+  try { $token = Get-DeliveryNpmApprovalToken -DoneUrl "http://127.0.0.1:$port/-/v1/done?authId=0f1e2d3c" } catch { Write-Host "    $($_.Exception.Message)" }
+  Assert-True 'the done link is checked with the account login, as npm checks it' ($seen.auth -eq 'Bearer stand-in-login')
+  Assert-True 'an approved done link hands back its one-time token' ($token -eq 'one-time-token')
+} finally {
+  $env:NPM_CONFIG_USERCONFIG = $priorUserConfig
+  Remove-Item $npmrc -ErrorAction SilentlyContinue
+  $listener.Stop(); $listener.Close()
+  [void]$serving.AsyncWaitHandle.WaitOne(5000); $server.Dispose()
+}
+
 # Stand-ins, found before the real commands because functions resolve first.
 $fakeAuthUrl = 'https://www.npmjs.com/auth/cli/0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0'
 $fakeDoneUrl = 'https://registry.npmjs.org/-/v1/done?authId=0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0'
@@ -36,10 +76,10 @@ function npm {
   }
 }
 function Start-Process { param($FilePath) $script:opened += , $FilePath }
-function Invoke-WebRequest {
+function Invoke-DeliveryNpmDoneCheck {
   $script:polls++
-  if ($script:polls -lt $script:approvedAfter) { return [pscustomobject]@{ StatusCode = 202; Content = '{}' } }
-  return [pscustomobject]@{ StatusCode = 200; Content = '{"token":"one-time-token"}' }
+  if ($script:polls -lt $script:approvedAfter) { return [pscustomobject]@{ status = 202 } }
+  return [pscustomobject]@{ status = 200; token = 'one-time-token' }
 }
 function Reset-StandIns {
   param([string]$Behaviour, [int]$ApprovedAfter = 2)

@@ -224,3 +224,27 @@ Checked against the real npm 11.16 with a harmless challenge (a dist-tag add
 left unapproved): the real link opened, the done link was captured, and a
 pending approval read as not yet given. scripts/test-npm-approval.ps1 locks the
 flow with a stand-in npm, browser and done link.
+
+### 2026-10-18 — the approval check carries the account's login
+
+The v0.48.0 release stopped twice after the operator approved the publish in
+the browser: the done link answered 202 while pending, then 404, and the run
+read that as expired or refused. The 2026-10-14 entry's "it needs no
+credentials" was wrong. It had been checked only in the pending state, where a
+bare request also reads 202. npm's own check (npm-profile's webAuthCheckLogin)
+goes through npm-registry-fetch, which sends the logged-in account's bearer
+token to the registry host, and the registry hands an approved token only to
+that account.
+
+The wrapper no longer makes its own request. scripts/npm-done-check.cjs loads
+the configuration and registry client of the npm the release runs (found next
+to npm on PATH) and makes one check exactly as npm does, so the login, its
+location and every other request detail come from npm itself and cannot drift
+from it. The token is never read or printed by the wrapper; npm protects it
+from `npm config get` anyway. The PowerShell side keeps the wait, its bound and
+its progress messages.
+
+scripts/test-npm-approval.ps1 now runs the real check through the real npm
+against a local done link that, like the registry after approval, answers 404
+to a request without the account's login. The previous code fails it with the
+same message the release printed.

@@ -30,8 +30,9 @@ function Invoke-DeliveryCommand {
 # as soon as it appears. Publish does not wait: without a terminal npm 11.16
 # fails at once with EOTP, and its plain error text masks the link. Its --json
 # error keeps the approval link and a done link intact, so the page is opened
-# here, the done link is polled until the approval hands back a one-time
-# token, and the same command runs once more with that token.
+# here, the done link is polled as npm polls it (with the account's login)
+# until the approval hands back a one-time token, and the same command runs
+# once more with that token.
 function Invoke-DeliveryNpmWithBrowser {
   param([string[]]$Arguments, [int]$ApprovalTimeoutSeconds = 300, [int]$PollSeconds = 5)
   $run = Invoke-DeliveryNpmStreaming -Arguments $Arguments
@@ -70,16 +71,27 @@ function Invoke-DeliveryNpmStreaming {
 }
 
 # The done link answers 202 while the approval is pending and 200 with the
-# one-time token once it is given. Anything else means it expired or was
-# refused, and waiting longer cannot help.
+# one-time token once it is given, but only to the account that asked for it.
+# A bare request reads 202 and then 404 once approved, so the check is made by
+# npm's own client with npm's own configuration (npm-done-check.cjs), exactly
+# as npm makes it in a terminal. Anything else means it expired or was refused,
+# and waiting longer cannot help.
 function Get-DeliveryNpmApprovalToken {
   param([string]$DoneUrl)
-  try { $response = Invoke-WebRequest -Uri $DoneUrl -UseBasicParsing }
-  catch { throw "npm's approval link stopped answering, so the approval expired or was refused: $($_.Exception.Message)" }
-  if ($response.StatusCode -ne 200) { return $null }
-  $token = ($response.Content | ConvertFrom-Json).token
-  if (!$token) { throw "npm's approval link answered without a token." }
-  return $token
+  $check = Invoke-DeliveryNpmDoneCheck -DoneUrl $DoneUrl
+  if ($check.status -eq 202) { return $null }
+  if ($check.status -ne 200) { throw "npm's approval link answered $($check.status), so the approval expired or was refused." }
+  if (!$check.token) { throw "npm's approval link answered without a token." }
+  return $check.token
+}
+
+function Invoke-DeliveryNpmDoneCheck {
+  param([string]$DoneUrl)
+  # The npm this script runs, not whichever copy node would find first.
+  $npm = Get-Command npm -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  $npmRoot = if ($npm) { Join-Path (Split-Path $npm.Source) 'node_modules/npm' }
+  if (!$npmRoot -or !(Test-Path (Join-Path $npmRoot 'package.json'))) { throw "npm's own files were not found next to $($npm.Source), so its approval cannot be checked." }
+  return (Invoke-DeliveryCommand -File node -Arguments @("$PSScriptRoot/npm-done-check.cjs", $npmRoot, $DoneUrl)) | ConvertFrom-Json
 }
 
 function Get-DeliveryCommandOutput {
