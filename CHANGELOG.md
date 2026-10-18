@@ -6,9 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.48.0] - 2026-10-18
+
 ### Added
+- Book workspaces. Any workspace can be switched to Book from its menu. The book's Outline, Manuscript and Brief are pinned at the top of the workspace, while your folders and documents stay where they are. An empty book offers Create outline, then Build manuscript. Switching back to General keeps every document.
+- Visual book outlines. Chapters, their linked documents and word counts appear as cards you can reorder, rename and collapse, and you can build a manuscript from them.
+- Agents receive the attached book brief when they work in the book, and they see changes to it within the same session.
+- Several X accounts. Connections lists every connected X account and has an Add X account button. Tweet and article compose ask which account to post from when more than one is connected, and scheduled posts use the account chosen for that document.
 - Optional agent notes explain substantial edits beside their review controls, including Focus mode. Notes survive reloads while pending and disappear when the edit is accepted or rejected. Adapted from Zach Hammer's contribution (PR #10).
 - Embedded editing guidance teaches agents when an explanation helps and when routine edits need none.
+
+### Changed
+- The Books launcher now lives in the sidebar in every layout, and the review section for a book is named Manuscript.
+
+### Fixed
+- Outline chapters show a proper expand and collapse arrow instead of a letter "v".
+- When the side panels leave too little room, the formatting toolbar starts at the left edge and scrolls, instead of being cut off on both sides.
+- Accepting or rejecting a change works when the document was opened through a path alias.
+- Publishing a release no longer stalls at npm's approval step on npm 11.16.
 
 ## [0.47.0] - 2026-10-14
 
