@@ -395,3 +395,15 @@ as the writer has not picked one yet. Saved state is restored as before. The emp
 of Review and Activity, the Activity tip, the Plugins setup hint and the Connections setup hint
 read through `useUiText`, so a plugin presenting the app without an agent can reword or hide
 them; with no plugin doing so they show exactly today's text.
+
+### 2026-10-22 — Nothing shows first and then changes when plugins load
+
+Plugin client modules load after the first paint, so a new browser saw Activity, and every
+browser saw the default copy, for a moment before the plugin's tab and wording arrived. The
+plugin registry now says when every client module has run (`settled`, set by
+`loadClientPlugins` however it ends). Until then the first-run rail shows no tab (the context
+hands out `activeTab: null`; the persisted state is untouched) and `useUiText` returns nothing;
+the switch to the `openOnFirstRun` tab is a layout effect, so Activity is never painted first.
+Locally that wait is one `/api/plugins` read, after which everything shows as before. Rendering
+was not held back until plugins load: a module's `activate` would then run before the app
+mounts, which changes what plugins see.

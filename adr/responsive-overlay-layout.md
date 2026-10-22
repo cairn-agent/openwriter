@@ -74,3 +74,9 @@ mounted editor are preserved. Compact sidebar styling is unchanged.
 A plugin tab marked `openOnFirstRun` replaces Activity as the active tab on the rail's first
 run. It sets `activeTab` alone: `open` intent and the overlay drawer are untouched, so a first
 run in a narrow window still starts with the drawer closed.
+
+### 2026-10-22 — The first-run tab is held, not the drawer
+
+Until plugin client modules have run, the first-run rail hands out `activeTab: null`
+(adr/right-rail.md). Only the tab shown is held: `open` intent, the overlay drawer and the
+persisted state are untouched.

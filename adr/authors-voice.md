@@ -140,3 +140,6 @@ The prompts are the refined part and are copied, never paraphrased:
   exported for an `aiClient` that wraps the real client. The balance panel names a new account's
   starting credit while that entry is among the recent ones, read from the ledger rather than a
   fixed amount, since the server sets it.
+- **2026-10-22 — The no-key sign-in line in Settings > Claude is rewordable.** It reads through
+  `useUiText('claude.signInHint', …)` (adr/open-source-boundary.md), so an embedder whose writers
+  sign in to OpenWriter some other way can reword or hide it; locally it reads as before.

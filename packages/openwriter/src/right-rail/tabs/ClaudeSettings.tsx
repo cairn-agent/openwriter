@@ -7,7 +7,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import ClaudeBalance from './ClaudeBalance';
-import { PluginMount, useClientPlugins } from '../../plugins/client-plugins';
+import { PluginMount, useClientPlugins, useUiText } from '../../plugins/client-plugins';
 
 interface ClaudeSettingsState {
   managed: boolean;
@@ -26,6 +26,7 @@ export default function ClaudeSettings() {
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const panels = useClientPlugins().settingsPanels.filter((p) => p.section === 'claude');
+  const signInHint = useUiText('claude.signInHint', 'No key? Sign in to OpenWriter (ask your agent to sign you in) for free Haiku rewrites and a prepaid balance.');
 
   const load = useCallback(() => {
     fetch('/api/voice/settings').then((r) => r.json()).then(setState).catch(() => {});
@@ -57,10 +58,8 @@ export default function ClaudeSettings() {
       </p>
       {panels.map((p) => <PluginMount key={p.id} mount={p.mount} ctx={panelCtx} />)}
       {state.balance && <ClaudeBalance />}
-      {!state.saved && !state.signedIn && (
-        <p className="claude-settings-note">
-          No key? Sign in to OpenWriter (ask your agent to sign you in) for free Haiku rewrites and a prepaid balance.
-        </p>
+      {!state.saved && !state.signedIn && signInHint && (
+        <p className="claude-settings-note">{signInHint}</p>
       )}
       {!state.managed && (
         <div className="plugin-config-field">

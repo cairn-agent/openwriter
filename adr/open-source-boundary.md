@@ -63,7 +63,7 @@ them stay in the public history; that cannot be undone and they hold no secrets.
     the app's ProseMirror classes (`pm`) for its editor plugins and decorations, and `tabId`.
     A rail tab may ask to be the one showing on the rail's first run (`openOnFirstRun`), and
     `setUiText` rewords or hides (null) named lines of the app's own copy (`UiTextSlot`), read
-    through `useUiText(slot, default)`.
+    through `useUiText(slot, default)`, which shows nothing until the client modules have run.
   - **First-run documents**: `firstRunDocuments` are written once into a profile folder with no
     documents (`server/first-run.ts`); a `.first-run` marker there means never again.
 
@@ -175,3 +175,9 @@ the rail. Generic: any plugin with its own screens needs a way in that does not 
   is exported so an embedder's `aiClient` can wrap the real client (to watch for a key Anthropic
   refuses) instead of copying how it is built. Generic: none of it says what the embedder shows,
   and the local app, which registers no panel, looks as before.
+- **2026-10-22 — Rewordable copy waits for plugins; Settings > Claude's sign-in line is a slot.**
+  `useUiText` shows nothing until every plugin client module has run (the registry's `settled`),
+  and the first-run rail shows no tab until then (adr/right-rail.md), so an embedder's wording and
+  first tab replace nothing on screen. The Settings > Claude line for a writer with no key and no
+  OpenWriter sign-in ("ask your agent to sign you in") is the `claude.signInHint` slot, for an
+  embedder whose writers sign in some other way. Defaults unchanged: the local app reads as before.

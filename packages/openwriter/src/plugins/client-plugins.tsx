@@ -72,6 +72,8 @@ export type UiTextSlot =
   | 'connections.setupHint'
   /** The Workspace type dialog, Book: who receives the brief and book guidance. */
   | 'workspace.bookGuidance'
+  /** Settings > Claude with no key and no OpenWriter sign-in: how to get free rewrites. */
+  | 'claude.signInHint'
   /** The profile menu's create, delete and restore controls. */
   | 'profiles.new'
   | 'profiles.delete'
@@ -202,8 +204,10 @@ interface Registry {
   topbarButtons: PluginTopbarButton[];
   settingsPanels: PluginSettingsPanel[];
   uiText: Partial<Record<UiTextSlot, string | null>>;
+  /** Every plugin's client module has run (or failed): what plugins register at load is in. */
+  settled: boolean;
 }
-let registry: Registry = { railTabs: [], menuPanels: [], topbarButtons: [], settingsPanels: [], uiText: {} };
+let registry: Registry = { railTabs: [], menuPanels: [], topbarButtons: [], settingsPanels: [], uiText: {}, settled: false };
 const listeners = new Set<() => void>();
 
 function update(next: Partial<Registry>): void {
@@ -221,10 +225,16 @@ export function useClientPlugins(): Registry {
   return useSyncExternalStore(subscribe, () => registry);
 }
 
-/** A line of the app's copy: a plugin's wording, null when a plugin hid it, else the default. */
+/**
+ * A line of the app's copy: a plugin's wording, null when a plugin hid it, else the default.
+ * Nothing (null) until the plugins' client modules have run, so the default never shows first
+ * and then changes to a plugin's wording.
+ */
 export function useUiText<T extends ReactNode>(slot: UiTextSlot, fallback: T): T | string | null {
-  const text = useClientPlugins().uiText[slot];
-  return text === undefined ? fallback : text;
+  const { uiText, settled } = useClientPlugins();
+  const text = uiText[slot];
+  if (text !== undefined) return text;
+  return settled ? fallback : null;
 }
 
 /** Rail tab ids for plugin tabs are namespaced so they never collide with built-in ones. */
@@ -315,8 +325,19 @@ const api: ClientPluginApi = {
   get tabId() { return TAB_ID; },
 };
 
-/** Import every enabled plugin's client module. A module that fails is logged and skipped. */
+/**
+ * Import every enabled plugin's client module. A module that fails is logged and skipped.
+ * Settles the registry when done, however it ends.
+ */
 export async function loadClientPlugins(): Promise<void> {
+  try {
+    await importClientModules();
+  } finally {
+    update({ settled: true });
+  }
+}
+
+async function importClientModules(): Promise<void> {
   let plugins: Array<{ name: string; clientModule?: string }> = [];
   try {
     const res = await fetch('/api/plugins');

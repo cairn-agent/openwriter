@@ -5,7 +5,7 @@
  * adr: adr/right-rail.md
  * adr: adr/responsive-overlay-layout.md
  */
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { canonicalTabId, type TabId } from './types';
 import { pluginTabId, setRailOpener, useClientPlugins } from '../plugins/client-plugins';
@@ -106,10 +106,13 @@ export function RightRailProvider({ children }: { children: ReactNode }) {
   }, [openTab]);
 
   // On the first run, a plugin tab that asks to (openOnFirstRun) replaces Activity as the tab
-  // showing, unless the writer has already picked one. Plugin modules load after this mounts.
-  const { railTabs } = useClientPlugins();
+  // showing, unless the writer has already picked one. Plugin modules load after this mounts,
+  // so until they have run the first-run rail shows no tab rather than Activity for a moment;
+  // the switch is a layout effect, so Activity is never painted before it.
+  const { railTabs, settled } = useClientPlugins();
+  const holdFirstTab = FIRST_RUN_PAGE && !settled;
   const firstRunTab = FIRST_RUN_PAGE ? railTabs.find((t) => t.openOnFirstRun) : undefined;
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!firstRunTab) return;
     const id = pluginTabId(firstRunTab.id) as TabId;
     setState((s) => (s.activeTab === 'activity' ? { ...s, activeTab: id } : s));
@@ -142,8 +145,11 @@ export function RightRailProvider({ children }: { children: ReactNode }) {
   const visible = overlay ? drawerOpen : state.open;
 
   const value = useMemo<RightRailContextValue>(
-    () => ({ ...state, overlay, drawerOpen, visible, openTab, closeRail, toggleRail, setWidth, setOverlay }),
-    [state, overlay, drawerOpen, visible, openTab, closeRail, toggleRail, setWidth, setOverlay],
+    () => ({
+      ...state, activeTab: holdFirstTab ? null : state.activeTab,
+      overlay, drawerOpen, visible, openTab, closeRail, toggleRail, setWidth, setOverlay,
+    }),
+    [state, holdFirstTab, overlay, drawerOpen, visible, openTab, closeRail, toggleRail, setWidth, setOverlay],
   );
 
   return <RightRailContext.Provider value={value}>{children}</RightRailContext.Provider>;
