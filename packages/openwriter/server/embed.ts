@@ -16,8 +16,9 @@ import { readConfig, setActiveProfile } from './helpers.js';
 import { TOOL_REGISTRY } from './mcp.js';
 import { load } from './state.js';
 import { startHttpServer } from './index.js';
+import { seedFirstRunDocuments } from './first-run.js';
 
-export type { EmbedOptions, GateRefusal } from './embed-options.js';
+export type { EmbedOptions, GateRefusal, FirstRunDocument } from './embed-options.js';
 export type { OpenWriterPlugin, PluginHost, PluginRouteContext, PluginMcpTool, PluginConfigField } from './plugin-types.js';
 // For an embedder running OpenWriter's tools for its own agent: pass each result through with
 // that agent's session so it gets the documents' format contracts. adr: adr/in-system-guidance.md
@@ -65,6 +66,7 @@ export async function startOpenWriter(options: StartOptions = {}): Promise<Runni
   });
   const boundPort = (server.address() as AddressInfo).port;
 
+  if (embed.firstRunDocuments?.length) seedFirstRunDocuments(embed.firstRunDocuments);
   load();
   await startHttpServer({ server, port: boundPort, noOpen: true, plugins: enable });
 

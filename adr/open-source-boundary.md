@@ -59,6 +59,11 @@ them stay in the public history; that cannot be undone and they hold no secrets.
     documents), the app's own actions (`app`: switch, create, flush, rename, and review's
     accept/reject, focus and original preview, through the same code the Review tab uses),
     the app's ProseMirror classes (`pm`) for its editor plugins and decorations, and `tabId`.
+    A rail tab may ask to be the one showing on the rail's first run (`openOnFirstRun`), and
+    `setUiText` rewords or hides (null) named lines of the app's own copy (`UiTextSlot`), read
+    through `useUiText(slot, default)`.
+  - **First-run documents**: `firstRunDocuments` are written once into a profile folder with no
+    documents (`server/first-run.ts`); a `.first-run` marker there means never again.
 
 ## Decision log
 
@@ -150,3 +155,12 @@ the rail. Generic: any plugin with its own screens needs a way in that does not 
   sent every plugin item to `/api/voice/apply-editor`, so a third-party item would have run a voice
   rewrite. Only `voice:` actions go there now; a plugin adds its own editor actions as a client menu
   panel (`registerMenuPanel`), which already has its own handler.
+- **2026-10-22 — First-run documents, a first-run rail tab, and rewordable copy.** Three generic
+  extension points for an embedder that presents OpenWriter to people who have no agent of
+  their own. `firstRunDocuments` writes welcome documents once into an empty profile folder; the
+  `.first-run` marker keeps a deleted one from coming back, and a folder that already has
+  documents only gets the marker. `openOnFirstRun` lets a plugin's rail tab, rather than
+  Activity, be what a new browser sees first; a saved rail state is left alone. `setUiText`
+  rewords or hides the lines of copy that tell the writer to ask their agent or set up a
+  plugin, each a named slot whose default is today's text, so the local app reads exactly as
+  before. The copy itself stays with the embedder.

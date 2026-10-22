@@ -24,6 +24,7 @@ import ManuscriptRailSections from './ManuscriptRailSections';
 import BookmarksSection, { BookmarkReturn } from './BookmarksSection';
 import { jumpToBlock } from '../../bookmarks/bookmark-plugin';
 import CommentsSection from './CommentsSection';
+import { useUiText } from '../../plugins/client-plugins';
 
 /** Scope filter — which subset of pending docs the navigator cycles through.
  *  Persisted to localStorage so the choice survives reloads.
@@ -89,6 +90,7 @@ export default function ReviewTab({
   docVersionRef,
   focusReviewTarget,
 }: RightRailTabProps & { focusReviewTarget?: HTMLElement | null }) {
+  const emptyNote = useUiText('review.empty', 'No pending agent changes. New writes from agents will land here for review.');
   const {
     counts,
     currentNode,
@@ -502,7 +504,7 @@ export default function ReviewTab({
         <BookmarkReturn editors={editors} filename={currentFilename} />
         <div className="review-tab__empty">
           <div className="review-tab__empty-title">All caught up</div>
-          <div className="review-tab__empty-note">No pending agent changes. New writes from agents will land here for review.</div>
+          {emptyNote && <div className="review-tab__empty-note">{emptyNote}</div>}
         </div>
         <div className="review-tab">
           <CommentsSection editors={editors} filename={currentFilename} />

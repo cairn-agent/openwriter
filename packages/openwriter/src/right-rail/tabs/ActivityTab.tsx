@@ -18,6 +18,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { RightRailTabProps } from '../types';
 import { useActivity, eventKey, type ActivityEvent } from '../activity-store';
 import './ActivityTab.css';
+import { useUiText } from '../../plugins/client-plugins';
 
 interface DocsIndex {
   byDocId: Map<string, string>;
@@ -78,6 +79,7 @@ function relativeTime(ts: number, now: number): string {
 export default function ActivityTab({ onSwitchDocument }: RightRailTabProps) {
   const { entries, freshKeys } = useActivity();
   const docs = useDocsIndex();
+  const emptyNote = useUiText('activity.empty', 'Agent actions — writes, enrichment, backlink propagation — will appear here as they happen.');
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -91,7 +93,7 @@ export default function ActivityTab({ onSwitchDocument }: RightRailTabProps) {
     return (
       <div className="activity-tab__empty">
         <div className="activity-tab__empty-title">No activity yet</div>
-        <div className="activity-tab__empty-note">Agent actions — writes, enrichment, backlink propagation — will appear here as they happen.</div>
+        {emptyNote && <div className="activity-tab__empty-note">{emptyNote}</div>}
       </div>
     );
   }

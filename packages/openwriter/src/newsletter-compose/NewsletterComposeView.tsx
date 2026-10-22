@@ -7,6 +7,7 @@
 
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import SchedulePostModal from '../sidebar/SchedulePostModal';
+import { useUiText } from '../plugins/client-plugins';
 import './NewsletterComposeView.css';
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -51,6 +52,7 @@ export function TextNewsletterView({ children, newsletterContext, filename, titl
   const [previewText, setPreviewText] = useState(ctx.previewText || '');
   const [connections, setConnections] = useState<NewsletterConnection[]>([]);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const publishHint = useUiText('newsletter.publishHint', 'To email your readers, ask your agent to publish this to your site.');
   // Sends made with the retired old newsletter send, kept in the doc's metadata.
   const lastSend = ctx.lastSend?.sentAt ? ctx.lastSend : null;
   // Track last subject value we auto-synced to the title
@@ -176,8 +178,8 @@ export function TextNewsletterView({ children, newsletterContext, filename, titl
 
       {filename && (
         <div className="nl-compose-footer">
-          {connections.length > 0 && (
-            <span className="nl-footer-hint">To email your readers, ask your agent to publish this to your site.</span>
+          {connections.length > 0 && publishHint && (
+            <span className="nl-footer-hint">{publishHint}</span>
           )}
           <button className="nl-footer-btn" onClick={() => setShowScheduleModal(true)}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -68,3 +68,9 @@ Removed editing-draft sidebar overrides and their Board-mode exception. Revision
 placement uses the existing variant tree. A focus=1 URL request is consumed once
 and enters the existing Focus transition; panel intent/restoration and the
 mounted editor are preserved. Compact sidebar styling is unchanged.
+
+### 2026-10-22 — First-run rail tab changes only activeTab
+
+A plugin tab marked `openOnFirstRun` replaces Activity as the active tab on the rail's first
+run. It sets `activeTab` alone: `open` intent and the overlay drawer are untouched, so a first
+run in a narrow window still starts with the drawer closed.

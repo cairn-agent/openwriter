@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useUiText } from '../plugins/client-plugins';
 
 interface ProfileSwitcherProps {
   profiles: string[];
@@ -17,6 +18,9 @@ export default function ProfileSwitcher({ profiles, activeProfile, trashedProfil
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const newLabel = useUiText('profiles.new', 'New Profile');
+  const deleteLabel = useUiText('profiles.delete', 'Delete profile');
+  const restoreLabel = useUiText('profiles.restore', 'Restore');
 
   useEffect(() => {
     if (!open) return;
@@ -75,16 +79,16 @@ export default function ProfileSwitcher({ profiles, activeProfile, trashedProfil
                   </button>
                 </>
               )}
-              {p !== 'Default' && p !== activeProfile && confirmDelete !== p && (
+              {p !== 'Default' && p !== activeProfile && confirmDelete !== p && deleteLabel && (
                 <button
                   className="sidebar-profile-delete-btn"
                   onClick={(e) => { e.stopPropagation(); setConfirmDelete(p); }}
-                  title="Delete profile"
+                  title={deleteLabel}
                 >&times;</button>
               )}
             </div>
           ))}
-          {trashedProfiles.length > 0 && (
+          {trashedProfiles.length > 0 && restoreLabel && (
             <>
               <div className="sidebar-profile-divider" />
               <div className="sidebar-profile-trash-label">Trash</div>
@@ -94,13 +98,13 @@ export default function ProfileSwitcher({ profiles, activeProfile, trashedProfil
                   <button
                     className="sidebar-profile-restore-btn"
                     onClick={() => onRestore(p)}
-                  >Restore</button>
+                  >{restoreLabel}</button>
                 </div>
               ))}
             </>
           )}
-          <div className="sidebar-profile-divider" />
-          {adding ? (
+          {newLabel && <div className="sidebar-profile-divider" />}
+          {!newLabel ? null : adding ? (
             <div className="sidebar-profile-add-input">
               <input
                 ref={inputRef}
@@ -114,7 +118,7 @@ export default function ProfileSwitcher({ profiles, activeProfile, trashedProfil
           ) : (
             <button className="sidebar-profile-option sidebar-profile-add" onClick={() => setAdding(true)}>
               <span className="sidebar-profile-check">+</span>
-              <span>New Profile</span>
+              <span>{newLabel}</span>
             </button>
           )}
         </div>

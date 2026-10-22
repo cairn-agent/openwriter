@@ -38,6 +38,17 @@ export interface EmbedOptions {
   aiKey?: () => string | null;
   /** Stands in for Anthropic (tests). */
   aiClient?: ClientFactory;
+  /**
+   * Documents written once into a new data folder (one with no documents yet), the first one
+   * opening first. Never written again, even after the writer deletes them (server/first-run.ts).
+   */
+  firstRunDocuments?: FirstRunDocument[];
+}
+
+/** A document for `firstRunDocuments`: its title and its body as Markdown. */
+export interface FirstRunDocument {
+  title: string;
+  markdown: string;
 }
 
 let current: EmbedOptions = {};

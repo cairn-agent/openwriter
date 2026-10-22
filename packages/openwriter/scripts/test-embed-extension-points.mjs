@@ -1,7 +1,7 @@
 /**
  * The extension points for programs embedding OpenWriter (openwriter/server): the data folder,
  * the request gate, the public origin, the tool and plugin filters, in-process plugins, the
- * plugin host and plugin client modules. adr: adr/open-source-boundary.md
+ * plugin host, plugin client modules and first-run documents. adr: adr/open-source-boundary.md
  *
  * Throwaway data folder (OW_DATA_DIR in the temp dir), never ~/.openwriter. Listens on a free
  * loopback port.
@@ -9,7 +9,7 @@
  * Run: `node scripts/test-embed-extension-points.mjs` (after `npm run build`)
  */
 
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
@@ -22,6 +22,7 @@ writeFileSync(join(clientDir, 'main.js'), 'export default function activate() {}
 
 const { startOpenWriter } = await import('../dist/server/embed.js');
 const { ROOT_DIR } = await import('../dist/server/helpers.js');
+const { seedFirstRunDocuments } = await import('../dist/server/first-run.js');
 
 let passed = 0;
 let failed = 0;
@@ -53,6 +54,7 @@ const ow = await startOpenWriter({
   toolFilter: ({ name }) => name !== 'open_file' && name !== 'demo_hidden',
   pluginFilter: ({ name }) => name !== '@openwriter/plugin-x-api',
   plugins: [plugin],
+  firstRunDocuments: [{ title: 'Welcome', markdown: 'Hello there.\n\n## Next\n\nA second paragraph.' }],
 });
 const base = `http://127.0.0.1:${ow.port}`;
 const get = (path, headers = { 'x-demo': 'yes' }) => fetch(base + path, { headers });
@@ -88,6 +90,14 @@ const disable = await fetch(`${base}/api/plugins/disable`, {
   method: 'POST', headers: { 'x-demo': 'yes', 'Content-Type': 'application/json', Origin: 'https://writer.example' }, body: JSON.stringify({ name: 'demo-plugin' }),
 });
 assert((await disable.json()).success === false && (await get('/api/demo')).status === 200, 'it cannot be disabled');
+
+console.log('\nFirst-run documents:');
+const opened = await (await get('/api/document')).json();
+assert(opened.title === 'Welcome' && JSON.stringify(opened.document).includes('A second paragraph.'), 'a new data folder opens on the first-run document');
+const welcome = join(dataDir, 'profiles', 'Default', 'Welcome.md');
+rmSync(welcome);
+seedFirstRunDocuments([{ title: 'Welcome', markdown: 'Hello again.' }]);
+assert(!existsSync(welcome), 'a deleted first-run document is never written again');
 
 await ow.close();
 console.log(`\n${passed} passed, ${failed} failed`);

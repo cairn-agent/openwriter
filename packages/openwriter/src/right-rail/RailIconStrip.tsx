@@ -20,6 +20,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRightRail } from './RightRailContext';
 import { useRailTabs } from './tabs';
 import type { PendingDocsPayload } from '../ws/client';
+import { useUiText } from '../plugins/client-plugins';
 
 interface RailIconStripProps {
   pendingDocs: PendingDocsPayload;
@@ -40,6 +41,7 @@ export default function RailIconStrip({ pendingDocs, autoReveal }: RailIconStrip
   const { visible, activeTab, openTab } = useRightRail();
   const [pulsingActivity, setPulsingActivity] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const activityHint = useUiText('activity.hint', 'Agent activity lives here.');
   const tabs = useRailTabs();
   // Focus has its own visible review controls; arrivals must not open a panel.
   // Nor while a plugin tab that asks to hold the rail is showing.
@@ -110,9 +112,9 @@ export default function RailIconStrip({ pendingDocs, autoReveal }: RailIconStrip
             aria-label={tab.label}
           >
             {tab.icon}
-            {isActivity && showOnboarding && (
+            {isActivity && showOnboarding && activityHint && (
               <div className="rail-icon-hint" role="tooltip">
-                <span>Agent activity lives here.</span>
+                <span>{activityHint}</span>
                 <button
                   type="button"
                   className="rail-icon-hint-close"

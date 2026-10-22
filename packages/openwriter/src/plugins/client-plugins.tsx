@@ -12,7 +12,7 @@
  * (`getApp`, `onAppChange`), drives it through `app`, and decorates the editor with the app's
  * own ProseMirror classes (`pm`). adr: adr/open-source-boundary.md
  */
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import type { Editor } from '@tiptap/react';
 import { Plugin, PluginKey, TextSelection, NodeSelection } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
@@ -48,8 +48,34 @@ export interface PluginRailTab {
   titlebarToggle?: boolean;
   /** While this tab is showing, new pending changes do not switch the rail to Review. */
   holdOpenOnPending?: boolean;
+  /** The tab the rail shows on its first run in this browser, instead of Activity. */
+  openOnFirstRun?: boolean;
   mount(el: HTMLElement, ctx: RailTabContext): MountedView<RailTabContext>;
 }
+
+/**
+ * Lines of the app's own copy a plugin may reword for the way it presents the app (its own
+ * agent, its own place to publish from), or hide with null. Unset, each shows its default.
+ */
+export type UiTextSlot =
+  /** Review with nothing pending: the note under "All caught up". */
+  | 'review.empty'
+  /** Activity with no entries: the note under "No activity yet". */
+  | 'activity.empty'
+  /** The one-time tip on the Activity icon when the first entry arrives. */
+  | 'activity.hint'
+  /** A newsletter's footer, with a publish connection: how to email it to readers. */
+  | 'newsletter.publishHint'
+  /** A plugin missing a required setting; `{name}` becomes the plugin's name. */
+  | 'plugins.setupHint'
+  /** Settings > Connections with no publish account: how to get started. */
+  | 'connections.setupHint'
+  /** The Workspace type dialog, Book: who receives the brief and book guidance. */
+  | 'workspace.bookGuidance'
+  /** The profile menu's create, delete and restore controls. */
+  | 'profiles.new'
+  | 'profiles.delete'
+  | 'profiles.restore';
 
 export interface MenuPanelContext {
   editor: Editor;
@@ -133,6 +159,8 @@ export interface ClientPluginApi {
   registerRailTab(tab: PluginRailTab): void;
   registerMenuPanel(panel: PluginMenuPanel): void;
   registerTopbarButton(button: PluginTopbarButton): void;
+  /** Reword (a string) or hide (null) lines of the app's own copy. */
+  setUiText(text: Partial<Record<UiTextSlot, string | null>>): void;
   /** Open a rail tab: a built-in id or a plugin tab's own id. */
   openRailTab(id: string): void;
   showToast: typeof showToast;
@@ -152,8 +180,13 @@ export const CONNECTION_LOST_EVENT = 'ow-connection-lost';
 
 // ---- Registry ----
 
-interface Registry { railTabs: PluginRailTab[]; menuPanels: PluginMenuPanel[]; topbarButtons: PluginTopbarButton[] }
-let registry: Registry = { railTabs: [], menuPanels: [], topbarButtons: [] };
+interface Registry {
+  railTabs: PluginRailTab[];
+  menuPanels: PluginMenuPanel[];
+  topbarButtons: PluginTopbarButton[];
+  uiText: Partial<Record<UiTextSlot, string | null>>;
+}
+let registry: Registry = { railTabs: [], menuPanels: [], topbarButtons: [], uiText: {} };
 const listeners = new Set<() => void>();
 
 function update(next: Partial<Registry>): void {
@@ -169,6 +202,12 @@ function subscribe(fn: () => void): () => void {
 /** The registered plugin UI, re-rendering when a plugin registers more. */
 export function useClientPlugins(): Registry {
   return useSyncExternalStore(subscribe, () => registry);
+}
+
+/** A line of the app's copy: a plugin's wording, null when a plugin hid it, else the default. */
+export function useUiText<T extends ReactNode>(slot: UiTextSlot, fallback: T): T | string | null {
+  const text = useClientPlugins().uiText[slot];
+  return text === undefined ? fallback : text;
 }
 
 /** Rail tab ids for plugin tabs are namespaced so they never collide with built-in ones. */
@@ -225,6 +264,9 @@ const api: ClientPluginApi = {
   },
   registerTopbarButton(button) {
     update({ topbarButtons: [...registry.topbarButtons.filter((b) => b.id !== button.id), button] });
+  },
+  setUiText(text) {
+    update({ uiText: { ...registry.uiText, ...text } });
   },
   openRailTab(id) {
     railOpener?.(resolveTabId(id));

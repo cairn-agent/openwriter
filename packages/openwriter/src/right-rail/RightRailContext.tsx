@@ -8,9 +8,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { canonicalTabId, type TabId } from './types';
-import { setRailOpener } from '../plugins/client-plugins';
+import { pluginTabId, setRailOpener, useClientPlugins } from '../plugins/client-plugins';
 
 const STORAGE_KEY = 'ow-right-rail';
+
+/** No saved rail state when this page loaded: the rail's first run in this browser. */
+const FIRST_RUN_PAGE = (() => {
+  try { return !localStorage.getItem(STORAGE_KEY); } catch { return true; }
+})();
 const DEFAULT_WIDTH = 280;
 const MIN_WIDTH = 220;
 const MAX_WIDTH = 520;
@@ -99,6 +104,16 @@ export function RightRailProvider({ children }: { children: ReactNode }) {
     setRailOpener((id) => openTab(id as TabId));
     return () => setRailOpener(null);
   }, [openTab]);
+
+  // On the first run, a plugin tab that asks to (openOnFirstRun) replaces Activity as the tab
+  // showing, unless the writer has already picked one. Plugin modules load after this mounts.
+  const { railTabs } = useClientPlugins();
+  const firstRunTab = FIRST_RUN_PAGE ? railTabs.find((t) => t.openOnFirstRun) : undefined;
+  useEffect(() => {
+    if (!firstRunTab) return;
+    const id = pluginTabId(firstRunTab.id) as TabId;
+    setState((s) => (s.activeTab === 'activity' ? { ...s, activeTab: id } : s));
+  }, [firstRunTab]);
 
   const closeRail = useCallback(() => {
     if (overlayRef.current) setDrawerOpen(false);

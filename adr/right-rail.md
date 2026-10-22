@@ -386,3 +386,12 @@ whichever account is signed in there). A connect that returns an account already
 shows a notice instead of silently refreshing it. The empty `MULTI_PROVIDERS` set became
 `MULTI_ADD_LABEL`; a multi provider with no connections keeps the ordinary Connect row.
 See `adr/x-accounts.md`.
+
+### 2026-10-22 — First-run tab from a plugin; rewordable empty states
+
+With no saved rail state when the page loads (`FIRST_RUN_PAGE` in `RightRailContext.tsx`), a
+plugin tab registered with `openOnFirstRun` becomes the active tab instead of Activity, as long
+as the writer has not picked one yet. Saved state is restored as before. The empty-state notes
+of Review and Activity, the Activity tip, the Plugins setup hint and the Connections setup hint
+read through `useUiText`, so a plugin presenting the app without an agent can reword or hide
+them; with no plugin doing so they show exactly today's text.

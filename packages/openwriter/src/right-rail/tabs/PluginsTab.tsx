@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { RightRailTabProps } from '../types';
 import GithubPluginSettings from './plugin-panels/GithubPluginSettings';
+import { useUiText } from '../../plugins/client-plugins';
 import './PluginsTab.css';
 
 interface ConfigField {
@@ -74,6 +75,7 @@ export default function PluginsTab(_props: RightRailTabProps) {
   const [expandedConfigs, setExpandedConfigs] = useState<Set<string>>(new Set());
   // Per-field save state, keyed `${pluginName}:${configKey}`. Drives the inline ✓/✗ indicator.
   const [saveStatus, setSaveStatus] = useState<Record<string, SaveStatus>>({});
+  const setupHint = useUiText('plugins.setupHint', 'Ask your agent: “set up {name}”');
 
   const fetchPlugins = useCallback(() => {
     fetch('/api/available-plugins')
@@ -208,9 +210,9 @@ export default function PluginsTab(_props: RightRailTabProps) {
 
               return (
                 <div className="plugin-config-section">
-                  {needsSetup && (
+                  {needsSetup && setupHint && (
                     <div className="plugin-setup-hint">
-                      Ask your agent: &ldquo;set up {displayName(p.name, p.displayName)}&rdquo;
+                      {setupHint.replace('{name}', displayName(p.name, p.displayName))}
                     </div>
                   )}
                   {topLevel.length > 0 && (

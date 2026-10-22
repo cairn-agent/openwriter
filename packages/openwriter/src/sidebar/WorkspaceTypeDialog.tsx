@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { DocumentInfo, WorkspaceWithData } from './sidebar-types';
 import { bookWorkspaceView } from '../../server/book-workspace-model';
 import { checkedFetch, jsonRequest } from '../utils/request';
+import { useUiText } from '../plugins/client-plugins';
 import './BookWorkspace.css';
 
 export default function WorkspaceTypeDialog({ workspace, docs, onClose, onSaved }: {
@@ -15,6 +16,7 @@ export default function WorkspaceTypeDialog({ workspace, docs, onClose, onSaved 
   const [briefId, setBriefId] = useState(ws.book?.briefDocId ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const guidanceNote = useUiText('workspace.bookGuidance', 'Agents receive the brief and book guidance when working with this workspace.');
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const trigger = document.activeElement as HTMLElement | null;
@@ -54,7 +56,7 @@ export default function WorkspaceTypeDialog({ workspace, docs, onClose, onSaved 
         <label>Attached brief<select value={briefId} disabled={busy} onChange={e => setBriefId(e.target.value)}>
           <option value="">Create or attach later</option>{view.members.filter(d => d.docId && d.contentType !== 'manuscript' && d.variantType !== 'manuscript').map(d => <option value={d.docId} key={d.docId}>{d.title}</option>)}
         </select></label>
-        <p>Agents receive the brief and book guidance when working with this workspace. Your documents and folders keep their current contents and locations.</p>
+        <p>{guidanceNote ? `${guidanceNote} ` : ''}Your documents and folders keep their current contents and locations.</p>
       </> : <p>General keeps all documents and folders. Existing book attachments are remembered if you switch back.</p>}
       {error && <p role="alert" className="book-workspace-error">{error}</p>}
       <footer><button type="button" disabled={busy} onClick={onClose}>Cancel</button><button type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button></footer>

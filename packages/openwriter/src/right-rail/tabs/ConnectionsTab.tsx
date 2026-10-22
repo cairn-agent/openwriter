@@ -13,6 +13,7 @@ import NewsletterSetupModal from '../../connections/NewsletterSetupModal';
 import ConnectionConfigModal from '../../connections/ConnectionConfigModal';
 import type { RightRailTabProps } from '../types';
 import './ConnectionsTab.css';
+import { useUiText } from '../../plugins/client-plugins';
 
 interface Connection {
   id: string;
@@ -79,6 +80,7 @@ export default function ConnectionsTab(_props: RightRailTabProps) {
   const [showSetup, setShowSetup] = useState<'new' | 'edit' | null>(null);
   const [configConnection, setConfigConnection] = useState<{ id: string; provider: string; display_name: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const setupHint = useUiText('connections.setupHint', <>Set up the <strong>Publish</strong> plugin to get started.</>);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function fetchConnections(): Promise<Connection[]> {
@@ -193,7 +195,7 @@ export default function ConnectionsTab(_props: RightRailTabProps) {
       {isDisabled ? (
         <div className="connections-dropdown__upsell">
           <p>Connect your X, LinkedIn, and other accounts to publish directly from OpenWriter.</p>
-          <p>Set up the <strong>Publish</strong> plugin to get started.</p>
+          {setupHint && <p>{setupHint}</p>}
         </div>
       ) : (
         <div className="connections-dropdown__list">
