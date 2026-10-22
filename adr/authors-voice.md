@@ -132,3 +132,11 @@ The prompts are the refined part and are copied, never paraphrased:
   the 5.5 rates instead of falling back to Opus 4.6 rates. The prompt-debug inspector works again:
   `runEditor` returns the prompts it sent and `/api/voice/apply-editor` includes them as `debug`
   only while `OW_PROMPT_DEBUG` is on, which the editor already saves as a `_prompt-*` doc.
+- **2026-10-22 — Settings > Claude hosts an embedder's key controls; the starting credit shows.**
+  With `aiKey` set the key field stays hidden, but a plugin's settings panels for the Claude
+  section now show above the balance (`registerSettingsPanel`, adr/open-source-boundary.md), so
+  an embedder that keeps the key can show and change it where the writer looks for it; the panel
+  asks the section to reread its settings after a change. `defaultClientFactory` (`host.ts`) is
+  exported for an `aiClient` that wraps the real client. The balance panel names a new account's
+  starting credit while that entry is among the recent ones, read from the ledger rather than a
+  fixed amount, since the server sets it.

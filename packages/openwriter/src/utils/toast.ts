@@ -52,7 +52,9 @@ export interface ToastAction {
   onClick: () => void;
 }
 
-export function showToast(message: string, kind: ToastKind = 'info', durationMs = 3500, action?: ToastAction): void {
+/** One action, or several (the first drawn as the main one, e.g. "Top up" then "Use free Haiku"). */
+export function showToast(message: string, kind: ToastKind = 'info', durationMs = 3500, action?: ToastAction | ToastAction[]): void {
+  const actions = action ? (Array.isArray(action) ? action : [action]) : [];
   const root = ensureContainer();
   const el = document.createElement('div');
   el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
@@ -70,27 +72,29 @@ export function showToast(message: string, kind: ToastKind = 'info', durationMs 
     'opacity:0', 'transition:opacity 160ms ease, transform 160ms ease',
     'transform:translateY(6px)',
     // Action button needs the message + button laid out in a row.
-    action ? 'display:flex;align-items:center;gap:12px' : '',
+    actions.length ? 'display:flex;align-items:center;gap:12px' : '',
   ].filter(Boolean).join(';');
 
   const text = document.createElement('span');
   text.textContent = message;
   el.appendChild(text);
 
-  if (action) {
+  actions.forEach((a, i) => {
     const btn = document.createElement('button');
-    btn.textContent = action.label;
+    btn.textContent = a.label;
     // Token-styled accent button — no hardcoded colors. Mirrors the right-rail upgrade button.
+    // Any further action is outlined, so the first reads as the main one.
     btn.style.cssText = [
       'flex-shrink:0', 'padding:4px 12px', 'border-radius:6px',
-      'border:1px solid var(--accent)', 'background:var(--accent)', 'color:var(--bg-surface)',
+      'border:1px solid var(--accent)', i === 0 ? 'background:var(--accent)' : 'background:transparent',
+      i === 0 ? 'color:var(--bg-surface)' : 'color:var(--accent)',
       'font-family:var(--font-body)', 'font-size:12px', 'font-weight:600', 'cursor:pointer',
     ].join(';');
     btn.addEventListener('click', () => {
-      try { action.onClick(); } finally { removeToast(); }
+      try { a.onClick(); } finally { removeToast(); }
     });
     el.appendChild(btn);
-  }
+  });
 
   function removeToast() {
     el.style.opacity = '0';

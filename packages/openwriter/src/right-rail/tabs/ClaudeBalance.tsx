@@ -74,6 +74,8 @@ export default function ClaudeBalance() {
   }, [send, load]);
 
   if (!b) return error ? <div className="claude-settings-error">{error}</div> : null;
+  // A new account's starting credit, while it is still among the recent entries.
+  const starting = b.recent.find((r) => r.kind === 'starting');
 
   return (
     <div className="claude-balance">
@@ -81,6 +83,9 @@ export default function ClaudeBalance() {
         <span className="plugin-config-label">OpenWriter balance</span>
         <span className="claude-balance-value">{money(b.balance_hc)}</span>
       </div>
+      {starting && (
+        <p className="claude-settings-note">Your account started with {money(starting.price_hc)} of credit from OpenWriter.</p>
+      )}
       <p className="claude-settings-note">
         Free: {b.free_rewrites_left} of {b.free_rewrites_per_day} Haiku rewrites left today
         {b.free_learn_words_left > 0 ? `, and Learn my voice for ${b.free_learn_words_left.toLocaleString()} more words` : ''}.

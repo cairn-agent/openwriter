@@ -109,7 +109,8 @@ export type MessagesClient = Pick<Anthropic, 'messages'>;
 export interface BalanceRoute { baseURL: string; headers: Record<string, string> }
 export type ClientFactory = (apiKey: string, balance?: BalanceRoute) => MessagesClient;
 
-const defaultClientFactory: ClientFactory = (apiKey, balance) => (balance
+/** Anthropic itself, or OpenWriter's server on the balance. An embedder watching calls wraps this. */
+export const defaultClientFactory: ClientFactory = (apiKey, balance) => (balance
   ? new Anthropic({ apiKey: null, authToken: apiKey, baseURL: balance.baseURL, defaultHeaders: balance.headers, maxRetries: 2 })
   : new Anthropic({ apiKey, maxRetries: 2 }));
 

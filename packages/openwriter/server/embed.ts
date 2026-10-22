@@ -26,7 +26,7 @@ export { appendDocGuidance } from './mcp.js';
 export { GUIDANCE_NOTICE } from './doc-guidance.js';
 // Writing in the writer's voice, for an embedder with its own Rewrite UI. adr: adr/authors-voice.md
 export {
-  runEditor, defaultEditorModel, type EditorRequest, LENGTH_HINTS, type LengthHint, MAX_SELECTION_WORDS, VoiceError, explainApiError, redactKey, type ClientFactory, usingBalance,
+  runEditor, defaultEditorModel, type EditorRequest, LENGTH_HINTS, type LengthHint, MAX_SELECTION_WORDS, VoiceError, explainApiError, redactKey, type ClientFactory, defaultClientFactory, usingBalance,
   MODELS, DEFAULT_REWRITE_MODEL, DEFAULT_CHAT_MODEL, modelFor, resolveChoice, type ModelChoice, type LiveModel,
 } from './voice/index.js';
 

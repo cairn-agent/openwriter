@@ -39,8 +39,10 @@ them stay in the public history; that cannot be undone and they hold no secrets.
     part of the embedding program: the plugin list shows their `displayName` and no switch, and
     `disable()` refuses them.
   - **Claude key**: `aiKey()` hands OpenWriter the writer's Claude key from the embedding
-    program, which then keeps it (Settings > Claude shows no key field); `aiClient` stands in
-    for Anthropic in tests. See `adr/authors-voice.md`.
+    program, which then keeps it (Settings > Claude shows no key field; the embedder's client
+    module may put its own key controls there with `registerSettingsPanel`); `aiClient` replaces
+    the Claude client, building on the exported `defaultClientFactory` to watch calls, or
+    standing in for Anthropic in tests. See `adr/authors-voice.md`.
   - **Format contracts for an embedder's agent**: `appendDocGuidance(session, args, result)` and
     `GUIDANCE_NOTICE` (package export `openwriter/server`) give an embedder's own agent the same
     per-session document format contracts the stdio and client-mode servers deliver
@@ -52,8 +54,8 @@ them stay in the public history; that cannot be undone and they hold no secrets.
     `/plugin-client/<plugin>/` and imported by the browser at page load. Its default export
     receives the client plugin API (`src/plugins/client-plugins.tsx`): right-rail tabs
     (optionally with a titlebar toggle, optionally holding the rail open while pending changes
-    arrive), context-menu panels over a text selection, `openRailTab`, `showToast` and
-    `onConnectionLost`. A client module mounts its own UI into the element it is given.
+    arrive), context-menu panels over a text selection, panels in a Settings section,
+    `openRailTab`, `showToast` (one action button or several) and `onConnectionLost`. A client module mounts its own UI into the element it is given.
     A module presenting the app its own way also gets what the app shows (`getApp`,
     `onAppChange`: the editor, the open document, the connection, unsent edits, pending
     documents), the app's own actions (`app`: switch, create, flush, rename, and review's
@@ -164,3 +166,12 @@ the rail. Generic: any plugin with its own screens needs a way in that does not 
   rewords or hides the lines of copy that tell the writer to ask their agent or set up a
   plugin, each a named slot whose default is today's text, so the local app reads exactly as
   before. The copy itself stays with the embedder.
+- **2026-10-22 — Settings panels, several toast actions, the default Claude client.** An embedder
+  that keeps the writer's key (`aiKey`) had no way to let the writer see or change it in
+  Settings > Claude, which hides the key field for it. `registerSettingsPanel({ id, section:
+  'claude', mount })` mounts a plugin's own controls there, above the balance, with a `refresh()`
+  that rereads the section after the panel changes the key. `showToast` takes several actions
+  (the first drawn as the main one), for a failure with two ways forward. `defaultClientFactory`
+  is exported so an embedder's `aiClient` can wrap the real client (to watch for a key Anthropic
+  refuses) instead of copying how it is built. Generic: none of it says what the embedder shows,
+  and the local app, which registers no panel, looks as before.

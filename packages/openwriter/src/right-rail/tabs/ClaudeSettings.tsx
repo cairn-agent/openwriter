@@ -5,8 +5,9 @@
  * a writer signed in to OpenWriter sees their OpenWriter balance instead (ClaudeBalance).
  * adr: adr/authors-voice.md
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import ClaudeBalance from './ClaudeBalance';
+import { PluginMount, useClientPlugins } from '../../plugins/client-plugins';
 
 interface ClaudeSettingsState {
   managed: boolean;
@@ -24,10 +25,14 @@ export default function ClaudeSettings() {
   const [state, setState] = useState<ClaudeSettingsState | null>(null);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const panels = useClientPlugins().settingsPanels.filter((p) => p.section === 'claude');
 
-  useEffect(() => {
+  const load = useCallback(() => {
     fetch('/api/voice/settings').then((r) => r.json()).then(setState).catch(() => {});
   }, []);
+  useEffect(load, [load]);
+  // A plugin's panel (an embedder's own key controls) asks for a fresh read when it changes the key.
+  const panelCtx = useMemo(() => ({ refresh: load }), [load]);
 
   const save = useCallback(async (body: { key?: string | null; model?: string }) => {
     setError(null);
@@ -50,6 +55,7 @@ export default function ClaudeSettings() {
         Enhance and the other right-click writing actions, Learn my voice, and the transforms run on
         your own Claude API key, from the Anthropic console, or without one on your OpenWriter balance.
       </p>
+      {panels.map((p) => <PluginMount key={p.id} mount={p.mount} ctx={panelCtx} />)}
       {state.balance && <ClaudeBalance />}
       {!state.saved && !state.signedIn && (
         <p className="claude-settings-note">

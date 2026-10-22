@@ -155,10 +155,26 @@ export interface PluginTopbarButton {
   onClick(): void;
 }
 
+export interface SettingsPanelContext {
+  /** Read the section's own settings again, after the panel changed something they show. */
+  refresh(): void;
+}
+
+/**
+ * A plugin's own controls inside a Settings section. In Claude they show above the balance, where
+ * a program that keeps the writer's Claude key itself (`aiKey`) puts its key controls.
+ */
+export interface PluginSettingsPanel {
+  id: string;
+  section: 'claude';
+  mount(el: HTMLElement, ctx: SettingsPanelContext): MountedView<SettingsPanelContext>;
+}
+
 export interface ClientPluginApi {
   registerRailTab(tab: PluginRailTab): void;
   registerMenuPanel(panel: PluginMenuPanel): void;
   registerTopbarButton(button: PluginTopbarButton): void;
+  registerSettingsPanel(panel: PluginSettingsPanel): void;
   /** Reword (a string) or hide (null) lines of the app's own copy. */
   setUiText(text: Partial<Record<UiTextSlot, string | null>>): void;
   /** Open a rail tab: a built-in id or a plugin tab's own id. */
@@ -184,9 +200,10 @@ interface Registry {
   railTabs: PluginRailTab[];
   menuPanels: PluginMenuPanel[];
   topbarButtons: PluginTopbarButton[];
+  settingsPanels: PluginSettingsPanel[];
   uiText: Partial<Record<UiTextSlot, string | null>>;
 }
-let registry: Registry = { railTabs: [], menuPanels: [], topbarButtons: [], uiText: {} };
+let registry: Registry = { railTabs: [], menuPanels: [], topbarButtons: [], settingsPanels: [], uiText: {} };
 const listeners = new Set<() => void>();
 
 function update(next: Partial<Registry>): void {
@@ -264,6 +281,9 @@ const api: ClientPluginApi = {
   },
   registerTopbarButton(button) {
     update({ topbarButtons: [...registry.topbarButtons.filter((b) => b.id !== button.id), button] });
+  },
+  registerSettingsPanel(panel) {
+    update({ settingsPanels: [...registry.settingsPanels.filter((p) => p.id !== panel.id), panel] });
   },
   setUiText(text) {
     update({ uiText: { ...registry.uiText, ...text } });
