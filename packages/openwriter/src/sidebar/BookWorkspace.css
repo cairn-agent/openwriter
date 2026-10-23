@@ -23,5 +23,14 @@
 .workspace-menu-button { background: transparent; border: 0; color: var(--ink-body); min-width: 26px; min-height: 26px; cursor: pointer; font: inherit; }
 .workspace-type-badge { color: var(--ink-body); font-size: 10px; margin-left: 6px; font-weight: 400; }
 .tl-workspace-filter { display: flex; align-items: center; gap: 4px; padding: 0 var(--rail-inset) 8px; }
-.tl-workspace-filter select { min-width: 0; flex: 1; color: var(--ink-body); background: var(--bg-paper); border: 1px solid var(--border); border-radius: 4px; padding: 5px; font: inherit; font-size: 12px; }
+.ws-filter { position: relative; min-width: 0; flex: 1; }
+.ws-filter-button { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; min-height: 28px; padding: 4px 8px; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--ink-body); font: inherit; font-size: 12px; cursor: pointer; text-align: left; }
+.ws-filter-button:hover { background: var(--bg-hover); color: var(--ink-dark); }
+.ws-filter-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ws-filter-button[aria-expanded="true"] { background: var(--bg-hover); color: var(--ink-dark); }
+.ws-filter-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-filter-menu { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 2000; padding: 4px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15); max-height: 260px; overflow-y: auto; }
+.ws-filter-item { padding: 7px 10px; border-radius: 4px; color: var(--ink); font-size: 12px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-filter-item.active { background: var(--bg-hover); }
+.ws-filter-item.selected { color: var(--ink-dark); font-weight: 600; }
 .board-workspace-entry { display: inline-flex; align-items: center; flex: 0 0 auto; }

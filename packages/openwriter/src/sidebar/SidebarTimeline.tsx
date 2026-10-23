@@ -7,6 +7,7 @@ import DocContextMenu, { docMenuTarget, useSidebarPlugins, type DocMenuTarget } 
 import './SidebarTimeline.css';
 import { sidebarRowProps } from './sidebar-keyboard';
 import BookWorkspacePins from './BookWorkspacePins';
+import WorkspaceFilter from './WorkspaceFilter';
 import { workspaceDocuments } from '../../server/book-workspace-model';
 
 export default function SidebarTimeline({ docs, docsLoaded, workspaces, assignedFiles, pendingDocs, onSwitchDocument, onCreateDocument, onWorkspaceSettings, actions, scrollRef, searchQuery, searchResults, searchLoading, searchError }: SidebarModeProps) {
@@ -68,9 +69,8 @@ export default function SidebarTimeline({ docs, docsLoaded, workspaces, assigned
         <span className="tl-title">Timeline</span>
         <button className="sidebar-new-btn" onClick={() => selectedWorkspace ? actions.handleCreateInWorkspace(selectedWorkspace.filename, null) : onCreateDocument()} title="New document">+</button>
       </div>
-      <div className="tl-workspace-filter"><select aria-label="Timeline workspace" value={selectedWorkspace?.filename ?? ''} onChange={e => setWorkspaceFile(e.target.value)}>
-        <option value="">All workspaces</option>{workspaces.map(w => <option value={w.filename} key={w.filename}>{w.title}</option>)}
-      </select>{selectedWorkspace && <button type="button" className="workspace-menu-button" aria-label={`Workspace type for ${selectedWorkspace.title}`} onClick={() => onWorkspaceSettings(selectedWorkspace.filename)}>⋯</button>}</div>
+      {workspaces.length > 0 && <div className="tl-workspace-filter"><WorkspaceFilter workspaces={workspaces} value={selectedWorkspace?.filename ?? ''} onChange={setWorkspaceFile} />
+        {selectedWorkspace && <button type="button" className="workspace-menu-button" aria-label={`Workspace type for ${selectedWorkspace.title}`} onClick={() => onWorkspaceSettings(selectedWorkspace.filename)}>⋯</button>}</div>}
       {selectedWorkspace && <BookWorkspacePins workspace={selectedWorkspace} docs={docs} onOpen={onSwitchDocument} onSettings={() => onWorkspaceSettings(selectedWorkspace.filename)} />}
 
       {groups.map((group) => (
