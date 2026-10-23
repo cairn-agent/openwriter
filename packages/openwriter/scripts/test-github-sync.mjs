@@ -344,6 +344,37 @@ assert(sync.describeSyncError('fatal: unable to access https://github.com/x/y.gi
 const auth = sync.describeSyncError("remote: Invalid username or password.\nfatal: Authentication failed for 'https://github.com/x/y.git/'");
 assert(auth.error === 'GitHub sign-in expired' && auth.fix === 'signin', 'a refused sign-in says so and offers sign-in');
 
+console.log('\nHistory from every device, with restore:');
+A = side('A');
+switchDocument('Scratch A.md');
+await sync.syncNow(noop);
+const hist = await sync.docHistory('0e7e0001');
+assert(hist.length >= 3 && hist.some((v) => v.device === 'Web') && hist.some((v) => v.device === "Maya's laptop"), `history names each version's device (${hist.length} versions)`);
+const older = hist.find((v) => git(A, 'show', `${v.sha}:Notes.md`).includes('Middle from B, offline.'));
+const headBefore = git(A, 'rev-parse', 'HEAD');
+assert((await sync.restoreDocVersion('0e7e0001', older.sha, noop)).ok, 'restore works');
+assert(read(A, 'Notes.md').includes('Middle from B, offline.'), 'the document has that version again');
+assert(git(A, 'rev-parse', 'HEAD^') === headBefore, 'restoring is a new change on top');
+
+console.log('\nRoll back everything to a time:');
+await sync.syncNow(noop);
+const mark = new Date(Date.now() + 2000);
+// Later work, after the chosen time.
+process.env.GIT_AUTHOR_DATE = `${Math.floor(mark.getTime() / 1000) + 60} +0000`;
+process.env.GIT_COMMITTER_DATE = process.env.GIT_AUTHOR_DATE;
+writeDoc(A, 'Notes.md', 'Notes', '0e7e0001', ['Rewritten later.']);
+writeDoc(A, 'Later.md', 'Later', '1a7e0001', ['Made after the chosen time.']);
+await sync.commitSaved();
+delete process.env.GIT_AUTHOR_DATE;
+delete process.env.GIT_COMMITTER_DATE;
+const preview = await sync.rollbackPreview(mark.toISOString());
+assert(preview.ok && preview.documents.length === 2 && preview.documents.includes('Notes') && preview.documents.includes('Later'), `preview lists the 2 documents that change (${JSON.stringify(preview)})`);
+const rolled = await sync.rollbackTo(mark.toISOString(), noop);
+assert(rolled.ok, 'roll back works');
+assert(!read(A, 'Notes.md').includes('Rewritten later.') && !existsSync(join(A, 'Later.md')), 'every document is as it was');
+assert(git(A, 'log', '-1', '--format=%s').startsWith('Roll back to'), 'the roll back is a new change');
+assert(git(A, 'show', 'HEAD^:Notes.md').includes('Rewritten later.'), 'so the roll back can itself be undone');
+
 console.log('\nA second device finds the documents already on GitHub (GitHub replies faked):');
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (url) => {

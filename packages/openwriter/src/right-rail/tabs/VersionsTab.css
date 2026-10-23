@@ -159,3 +159,15 @@
 }
 .commit-row__restore:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--accent); }
 .commit-row__restore:disabled { opacity: 0.4; cursor: default; }
+
+/* Synced history from every device, and rolling everything back. adr: adr/two-way-sync.md */
+.sync-history { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+.sync-history__head { font-size: 12px; font-weight: 600; color: var(--ink-light); margin-bottom: 8px; }
+.sync-history__row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; font-size: 13px; }
+.sync-history__now { font-size: 12px; color: var(--ink-light); }
+.sync-history__more { background: none; border: none; padding: 4px 0; color: var(--accent); cursor: pointer; font-size: 12px; }
+.sync-history__rollback { margin-top: 12px; }
+.sync-history__rollform { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.sync-history__rollform label { display: flex; flex-direction: column; gap: 4px; }
+.sync-history__count { margin: 4px 0; font-weight: 600; }
+.sync-history__list { margin: 0 0 8px; padding-left: 18px; color: var(--ink-light); }

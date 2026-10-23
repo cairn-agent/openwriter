@@ -124,6 +124,14 @@ failure modes with ones that never drop a word.
   (`SyncButton.tsx`) shows "Synced N min ago", "Syncing…", the offline line, or
   "<reason> · <fix>"; its click opens setup when the fix is to sign in or connect.
 
+- **History and rollback live in the app.** The Versions tab's synced section
+  (`SyncHistory.tsx`, `/api/sync/history/:docId`) lists the open document's commits
+  (`git log --follow`) as "<device> · <time>"; Restore writes that version's body
+  under the current name and id as a new commit. "Roll back everything to…" picks a
+  time, previews the documents that would change by title (`GET /api/sync/rollback`),
+  then restores every tracked file from the last commit at or before it
+  (`git restore --source`) as one new commit, so the rollback can itself be undone.
+
 ## Decision log
 
 ### 2026-10-10 — two-way sync with conflict copies
@@ -181,3 +189,10 @@ Pending changes merge by entry so a decision is never undone by a merge, and a
 decision conflict goes to the later pending-file change. Logs union-merge rather than
 splitting per device, which would change every reader. Deleting the open document now
 wins over the old "write it back" rule, which made deleted documents return.
+
+### 2026-10-23 — history and rollback in the app
+Writers had no way back inside the app once a sync changed things. The Versions tab now
+shows GitHub history per document by device and time, with Restore, and "Roll back
+everything to…" with a preview count. Both are new commits rather than resets, so
+nothing is lost and every other device receives the restore like any edit. The local
+`.versions` snapshots stay as they were; synced history sits beside them.

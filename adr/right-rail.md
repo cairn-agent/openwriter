@@ -434,3 +434,8 @@ mounts, which changes what plugins see.
 as `_pending/*.json`). It shows one always-visible line ("Synced 3 min ago", "Syncing…",
 "Offline, saved here, will sync", or a reason with its fix) and stays in the topbar.
 Sync itself is automatic (adr/two-way-sync.md); a click syncs now or opens setup.
+
+### 2026-10-23 — Versions shows synced history
+The Versions tab gains a section under the local versions, rendered by
+`sync/SyncHistory.tsx` only when sync is set up: every device's versions of the open
+document with Restore, and "Roll back everything to…" (adr/two-way-sync.md).

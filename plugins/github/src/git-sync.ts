@@ -963,6 +963,107 @@ export async function dismissNotice(id: string): Promise<void> {
   removeNotice(await dataDir(), id);
 }
 
+// ── History and rollback ────────────────────────────────────────────────────
+// Every restore is a new change on top, so it can itself be undone.
+
+export interface DocVersion { sha: string; device: string; time: string }
+
+/** A document's saved versions on GitHub, newest first, labelled by device and time. */
+export async function docHistory(docId: string): Promise<DocVersion[]> {
+  if (!(await isConfigured())) return [];
+  const dir = await dataDir();
+  const file = docPathById(dir, docId);
+  if (!file) return [];
+  const out = await exec('git', ['log', '--follow', '-n', '100', '--format=%H%x1f%an%x1f%at', '--', file], dir, LOCAL_WRITE_TIMEOUT);
+  return out.split('\n').filter(Boolean).map((l) => {
+    const [sha, device, t] = l.split('\x1f');
+    return { sha, device, time: new Date(Number(t) * 1000).toISOString() };
+  });
+}
+
+/** Restore one document to a saved version: its words then, its current name and id. */
+export function restoreDocVersion(docId: string, sha: string, onStatus: (status: SyncStatus) => void): Promise<{ ok: boolean; error?: string }> {
+  return enqueue(async () => {
+    const dir = await dataDir();
+    const file = docPathById(dir, docId);
+    if (!file || !/^[0-9a-f]{40}$/.test(sha)) return { ok: false, error: 'That version is not available' };
+    const pathThen = (await exec('git', ['log', '--follow', '-n', '1', '--format=', '--name-only', sha, '--', file], dir)).split('\n').find(Boolean) || file;
+    const raw = await readAt(dir, sha, pathThen);
+    if (raw === null) return { ok: false, error: 'That version is not available' };
+    const srv = await getServerModules();
+    srv.cancelDebouncedSave();
+    srv.save();
+    const now = splitDoc(readFileSync(join(dir, file), 'utf-8'));
+    const then = splitDoc(raw);
+    const front = then.front ? { ...then.front, docId: now.front?.docId ?? docId, title: now.front?.title ?? then.front.title } : now.front;
+    writeFileSync(join(dir, file), joinDoc(front, then.body));
+    srv.reloadChangedFiles([join(dir, file)]);
+    await commitAll(dir, `Restore ${now.front?.title || file}`);
+    srv.broadcastDocumentsChanged();
+    onStatus(await getSyncStatus());
+    schedulePush(onStatus, 2000);
+    return { ok: true };
+  });
+}
+
+/** The last change at or before `at`, or null when there is none that old. */
+async function commitAt(dir: string, at: string): Promise<string | null> {
+  const time = new Date(at);
+  if (Number.isNaN(time.getTime())) return null;
+  const sha = await exec('git', ['rev-list', '-1', `--before=${Math.floor(time.getTime() / 1000)}`, 'HEAD'], dir);
+  return sha || null;
+}
+
+/** The titles of documents that differ between `from` and now. */
+async function documentsChangedSince(dir: string, from: string): Promise<string[]> {
+  const out = await exec('git', ['diff', '--name-only', '-z', from, 'HEAD', '--', '*.md'], dir);
+  const titles: string[] = [];
+  for (const path of out.split('\0').filter(Boolean)) {
+    if (!isDocPath(path)) continue;
+    const raw = existsSync(join(dir, path)) ? readFileSync(join(dir, path), 'utf-8') : await readAt(dir, from, path);
+    titles.push(String((raw && splitDoc(raw).front?.title) || path.replace(/\.md$/, '')));
+  }
+  return titles;
+}
+
+/** What "Roll back everything to <at>" would change: the documents, by title. */
+export function rollbackPreview(at: string): Promise<{ ok: boolean; documents?: string[]; error?: string }> {
+  return enqueue(async () => {
+    if (!(await isConfigured())) return { ok: false, error: 'Sync is not set up' };
+    const dir = await dataDir();
+    await commitAll(dir, 'Edit');
+    const from = await commitAt(dir, at);
+    if (!from) return { ok: false, error: 'Nothing was saved that long ago' };
+    return { ok: true, documents: await documentsChangedSince(dir, from) };
+  });
+}
+
+/** Put every document back as it was at `at`, as one new change that can itself be rolled back. */
+export function rollbackTo(at: string, onStatus: (status: SyncStatus) => void): Promise<{ ok: boolean; documents?: string[]; error?: string }> {
+  return enqueue(async () => {
+    if (!(await isConfigured())) return { ok: false, error: 'Sync is not set up' };
+    const dir = await dataDir();
+    const srv = await getServerModules();
+    srv.cancelDebouncedSave();
+    srv.save();
+    await commitAll(dir, 'Edit');
+    const from = await commitAt(dir, at);
+    if (!from) return { ok: false, error: 'Nothing was saved that long ago' };
+    const before = await headSha(dir);
+    const documents = await documentsChangedSince(dir, from);
+    await exec('git', ['restore', `--source=${from}`, '--staged', '--worktree', '--', ':/'], dir, LOCAL_WRITE_TIMEOUT);
+    await commitAll(dir, `Roll back to ${new Date(at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`);
+    const after = await headSha(dir);
+    if (before && after && before !== after) {
+      const changed = (await exec('git', ['diff', '--name-only', '-z', before, after], dir)).split('\0').filter(Boolean).map((p) => join(dir, p));
+      await applyToServer(dir, changed, before);
+    }
+    onStatus(await getSyncStatus());
+    schedulePush(onStatus, 2000);
+    return { ok: true, documents };
+  });
+}
+
 async function pushBranch(dir: string, timeout = NETWORK_TIMEOUT): Promise<void> {
   await execGitRemote(['push', '-u', 'origin', await currentBranch(dir)], dir, timeout);
 }

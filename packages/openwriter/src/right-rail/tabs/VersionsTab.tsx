@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { RightRailTabProps } from '../types';
 import { checkedFetch, jsonRequest } from '../../utils/request';
 import { showToast } from '../../utils/toast';
+import SyncHistory from '../../sync/SyncHistory';
 import './VersionsTab.css';
 
 type Actor = 'human' | 'agent' | 'unknown';
@@ -166,6 +167,7 @@ export default function VersionsTab({ docId }: RightRailTabProps) {
           ))
         )}
       </div>
+      <SyncHistory docId={docId} />
     </div>
   );
 }

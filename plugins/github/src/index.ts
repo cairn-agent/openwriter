@@ -25,6 +25,10 @@ import {
   startAutoSync,
   undoNotice,
   dismissNotice,
+  docHistory,
+  restoreDocVersion,
+  rollbackPreview,
+  rollbackTo,
   saveDeviceName,
   suggestDeviceName,
   syncNow,
@@ -180,6 +184,27 @@ const plugin: OpenWriterPlugin = {
         onStatus(status);
         res.json(status);
       } catch (err: any) { fail(res, 'sync/notices/dismiss', err); }
+    });
+
+    // History on GitHub for the Versions tab, and rolling everything back to a time.
+    ctx.app.get('/api/sync/history/:docId', async (req: Request, res: Response) => {
+      try { res.json({ versions: await docHistory(String(req.params.docId)) }); }
+      catch (err: any) { fail(res, 'sync/history', err); }
+    });
+
+    ctx.app.post('/api/sync/history/restore', async (req: Request, res: Response) => {
+      try { res.json(await restoreDocVersion(String(req.body?.docId || ''), String(req.body?.sha || ''), onStatus)); }
+      catch (err: any) { fail(res, 'sync/history/restore', err); }
+    });
+
+    ctx.app.get('/api/sync/rollback', async (req: Request, res: Response) => {
+      try { res.json(await rollbackPreview(String(req.query.at || ''))); }
+      catch (err: any) { fail(res, 'sync/rollback preview', err); }
+    });
+
+    ctx.app.post('/api/sync/rollback', async (req: Request, res: Response) => {
+      try { res.json(await rollbackTo(String(req.body?.at || ''), onStatus)); }
+      catch (err: any) { fail(res, 'sync/rollback', err); }
     });
 
     // Every save is committed here and sent after the writer pauses.
