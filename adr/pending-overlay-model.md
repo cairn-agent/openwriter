@@ -30,16 +30,11 @@ through their own pathway.
   `server/block-changes.ts`; state retains its public exports and passes the
   existing tweet context. This move preserves behavior before adding edit notes.
 
-- Focus mode uses the same ReviewTab title/body cursor, preview restoration,
-  resolution handlers, and WebSocket persistence as the full review panel.
-
-- **A pending change is actionable where it is.** With the caret in a pending
-  block, `src/editor/PendingChangeBar.tsx` shows "Suggested change · Accept ·
-  Reject" under it (keyboard reachable, Escape back to the editor), resolving
-  through the same path as `app.resolvePending`. Changes the writer asked for
-  from the editor (right-click Enhance and the rest, or a plugin through
-  `app.showPending(nodeIds)`) put the caret at their end when they land and are
-  resolved together. Review stays the place to step through every change.
+- The floating review bar (shown whenever the Review tab is not on screen,
+  Focus included) uses the same ReviewTab title/body cursor, preview
+  restoration, resolution handlers, and WebSocket persistence as the full
+  review panel. There is one review controller; nothing else accepts or rejects
+  from the editor surface.
 
 
 - **Disk = canonical only.** No `pending:` or `meta.pending` field in
@@ -1473,3 +1468,17 @@ arrives, so its bar shows without a click; the right-click actions name their
 node ids on `ow-pending-write-applied`, and a plugin's own action does the same
 through `app.showPending`. Agent edits elsewhere are untouched: they show the
 bar only when the writer clicks into them, and the rail's auto-open is as before.
+
+### 2026-10-23 — The floating review bar replaces the bar under the change
+
+The bar under the caret's pending block (entry above) was a second set of Accept
+and Reject next to the Review tab's, with its own idea of which change was
+current. The operator ruled it out and asked for the floating review bar the
+editor had before the rail (removed 2026-05-22). `PendingChangeBar` is deleted;
+ReviewTab's compact presentation now floats over the bottom of the document
+whenever the Review tab is not on screen (rail closed, another tab such as the
+web chat holding the rail, or Focus). It is the same controller, so the cursor,
+preview, notes and resolution are shared with the panel. `ow-pending-write-applied`
+and `app.showPending` keep their one job: telling the rail a requested change
+landed. Browser-verified on the Test profile: insert and rewrite, Accept,
+Reject, Original/Modified, agent note, Review tab hides the bar, phone width.

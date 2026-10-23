@@ -151,7 +151,7 @@ export default function RightRail(props: RightRailProps) {
         </div>
       </div>
       <RailIconStrip pendingDocs={tabProps.pendingDocs} autoReveal={!focusMode} />
-      <RailBody {...tabProps} focusMode={focusMode && !visible} />
+      <RailBody {...tabProps} railVisible={visible} />
     </aside>
   );
 }

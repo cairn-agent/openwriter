@@ -12,7 +12,6 @@ import ContextMenu from './context-menu/ContextMenu';
 import BackToTop from './editor/BackToTop';
 import HeadingTickRail from './editor/HeadingTickRail';
 import CommentPopover from './comment-popover/CommentPopover';
-import PendingChangeBar, { PENDING_REQUESTED_EVENT } from './editor/PendingChangeBar';
 import Sidebar, { SIDEBAR_MIN_WIDTH, SIDEBAR_MAX_WIDTH, SIDEBAR_DEFAULT_WIDTH } from './sidebar/Sidebar';
 import { useRightRail } from './right-rail/RightRailContext';
 import RightRail from './right-rail/RightRail';
@@ -1172,9 +1171,8 @@ export default function App() {
   pendingTitleRef.current = pendingTitle;
   const appActionsRef = useRef({ handleSwitchDocument, handleCreateDocument, flushCurrentDoc, handleTitleChange, sendMessage });
   appActionsRef.current = { handleSwitchDocument, handleCreateDocument, flushCurrentDoc, handleTitleChange, sendMessage };
-  // One accept/reject path for plugins (app.resolvePending) and the bar under a pending change.
+  // The accept/reject path plugins use (app.resolvePending).
   const resolvePendingRef = useRef<(action: 'accept' | 'reject', nodeId?: string) => void>(() => {});
-  const resolveFromBar = useCallback((action: 'accept' | 'reject', nodeId: string) => resolvePendingRef.current(action, nodeId), []);
   useEffect(() => {
     const liveEditors = () => (allEditorsRef.current.length ? allEditorsRef.current : editorRef.current ? [editorRef.current] : [])
       .filter((e) => e && !e.isDestroyed);
@@ -1208,7 +1206,7 @@ export default function App() {
       setTitle: (t) => appActionsRef.current.handleTitleChange(t),
       resolvePending,
       showPending: (nodeIds) => {
-        window.dispatchEvent(new CustomEvent(PENDING_REQUESTED_EVENT, { detail: { nodeIds } }));
+        window.dispatchEvent(new CustomEvent('ow-pending-write-applied', { detail: { nodeIds } }));
       },
       focusPending: (nodeId) => {
         const editor = nodeId ? editorHolding(nodeId) : liveEditors()[0];
@@ -1443,8 +1441,9 @@ export default function App() {
               onLinkClick={handleLinkClick}
             />
           )}
-          <PendingChangeBar editor={editorInstance} onResolve={resolveFromBar} />
         </div>
+        {/* The Review controls float here while the Review tab is not on screen (RailBody). */}
+        <div id="floating-review" className="floating-review-slot" />
       </div>
       {overlay && (sidebarDrawer || railVisible) && (
         <div

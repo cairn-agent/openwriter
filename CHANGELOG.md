@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Changed
+- The floating review bar is back. While the Review tab is not open (the panel is closed, another tab is showing, or Focus is on), pending changes get a bar near the bottom of the document: step through changes, see the original of a rewrite, Accept, Reject, Accept all, Reject all, and read the agent's note. It replaces the small Accept and Reject bar under the change and the Focus titlebar strip.
+
 ## [0.48.0] - 2026-10-18
 
 ### Added

@@ -19,6 +19,18 @@ The right rail consolidates every contextual surface into a single tabbed sideba
 
 ## Decision log (append-only)
 
+### 2026-10-23 — Floating review bar
+
+The Focus strip below becomes the general case. While the Review tab is not on
+screen (rail closed, another tab holding the rail, or Focus), RailBody portals
+the ReviewTab controller into `#floating-review`, a slot centred near the bottom
+of `.app-main`: change arrows and count, document arrows when several documents
+wait, Original/Modified for a rewrite, Accept, Reject, Accept all, Reject all,
+and the agent note. With the Review tab showing, the slot is empty. Only one
+ReviewTab is mounted at a time, so there is still one cursor. The titlebar slot
+is gone. At phone width the bar shows icons only and drops the bulk buttons and
+the Original/Modified switch, which stay in the Review tab.
+
 ### 2026-09-08 — Focus review strip
 
 Focus mode renders the existing ReviewTab controller as a compact titlebar portal:

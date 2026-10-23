@@ -1,13 +1,13 @@
 /* ─── Review tab ───────────────────────────────────────────────────── */
 
 .review-tab,
-.focus-review {
+.floating-review {
   --review-note-border: #9e7b0c;
   --review-note-tint: rgba(214, 181, 72, 0.08);
 }
 
 [data-mode="dark"] .review-tab,
-[data-mode="dark"] .focus-review {
+[data-mode="dark"] .floating-review {
   --review-note-border: #d6b548;
 }
 

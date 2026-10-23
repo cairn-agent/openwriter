@@ -183,7 +183,6 @@ export default function Titlebar({ title, onTitleChange, onToggleSidebar, canGoB
         )}
       </div>
       <div className="titlebar-right">
-        {focusMode && <div id="focus-review-controls" />}
         {/* Plugin buttons with words (a way into a plugin's own screens): always here. */}
         {topbarButtons.map((b) => (
           <button key={b.id} type="button" className="titlebar-text-btn" onClick={() => b.onClick()} title={b.title ?? b.label}>

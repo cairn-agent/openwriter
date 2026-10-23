@@ -11,7 +11,6 @@ import { formatLinkHref, linkHrefIdentifier } from '../editor/link-href';
 import { showToast } from '../utils/toast';
 import { useBookmarks, getBookmarks, addBookmark, editBookmark, removeBookmark } from '../bookmarks/bookmarks-store';
 import { PluginMount, useClientPlugins, type MenuPanelContext, type PluginMenuPanel } from '../plugins/client-plugins';
-import { PENDING_REQUESTED_EVENT } from '../editor/PendingChangeBar';
 import { markMenuTarget, targetRect } from './menu-target';
 
 /** Client-side selection cap — mirrors the server's apply-editor guard. Toast + cancel
@@ -673,9 +672,7 @@ export default function ContextMenu({ editorRef, allEditors, documentId, docId }
         // Signal the right rail to switch to Review — pending changes landed in the
         // editor directly (client-side), so the server's pending-docs-changed event
         // hasn't fired yet and the RailIconStrip 0→>0 guard won't catch this.
-        // The changes carry the selection's node ids: the bar under them (PendingChangeBar)
-        // puts the caret there and accepts or rejects them together.
-        window.dispatchEvent(new CustomEvent(PENDING_REQUESTED_EVENT, { detail: { nodeIds } }));
+        window.dispatchEvent(new CustomEvent('ow-pending-write-applied', { detail: { nodeIds } }));
 
         // Prompt debug inspector: persist the realized AV prompt as a timestamped
         // sidebar doc for hand review. The server no-ops unless OW_PROMPT_DEBUG is on,
