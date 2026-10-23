@@ -724,6 +724,12 @@ img.pending-delete {
   min-width: 180px;
 }
 
+/* The text a context-menu panel or prompt will act on, as the selection showed it
+   (context-menu/menu-target.ts). */
+.context-menu-target {
+  background: rgba(37, 99, 235, 0.15);
+}
+
 .context-menu-item {
   display: flex;
   justify-content: space-between;

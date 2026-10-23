@@ -11,6 +11,8 @@ import { formatLinkHref, linkHrefIdentifier } from '../editor/link-href';
 import { showToast } from '../utils/toast';
 import { useBookmarks, getBookmarks, addBookmark, editBookmark, removeBookmark } from '../bookmarks/bookmarks-store';
 import { PluginMount, useClientPlugins, type MenuPanelContext, type PluginMenuPanel } from '../plugins/client-plugins';
+import { PENDING_REQUESTED_EVENT } from '../editor/PendingChangeBar';
+import { markMenuTarget, targetRect } from './menu-target';
 
 /** Client-side selection cap — mirrors the server's apply-editor guard. Toast + cancel
  *  before the request so the user gets instant feedback (not a 413 round-trip). */
@@ -149,6 +151,18 @@ export default function ContextMenu({ editorRef, allEditors, documentId, docId }
     return null;
   }, [allEditors, editorRef]);
 
+  // While a panel or a prompt holds the menu, its text stays marked and the menu sits beside it
+  // (below, or above when there is no room), never over it.
+  const holdsInput = visible && (!!activePanel || showCustom);
+  const [anchor, setAnchor] = useState<ReturnType<typeof targetRect>>(null);
+  useEffect(() => {
+    const editor = activeEditorRef.current || editorRef.current;
+    const sel = capturedSelection.current;
+    if (!holdsInput || !editor || !sel || sel.from === sel.to) { setAnchor(null); return; }
+    setAnchor(targetRect(editor, sel.from, sel.to));
+    return markMenuTarget(editor, sel.from, sel.to);
+  }, [holdsInput, editorRef]);
+
   // Adjust position to keep menu within viewport, again whenever it changes size (a plugin's
   // menu panel replacing the menu body is usually taller, and renders after this runs).
   useLayoutEffect(() => {
@@ -158,8 +172,15 @@ export default function ContextMenu({ editorRef, allEditors, documentId, docId }
       const rect = menu.getBoundingClientRect();
       const pad = 8;
       let { x, y } = position;
-      if (y + rect.height + pad > window.innerHeight) y = window.innerHeight - rect.height - pad;
-      if (x + rect.width + pad > window.innerWidth) x = position.x - rect.width;
+      if (anchor) {
+        x = anchor.left;
+        y = anchor.bottom + pad;
+        if (y + rect.height + pad > window.innerHeight) y = anchor.top - rect.height - pad;
+        if (x + rect.width + pad > window.innerWidth) x = window.innerWidth - rect.width - pad;
+      } else {
+        if (y + rect.height + pad > window.innerHeight) y = window.innerHeight - rect.height - pad;
+        if (x + rect.width + pad > window.innerWidth) x = position.x - rect.width;
+      }
       if (y < pad) y = pad;
       if (x < pad) x = pad;
       if (x !== position.x || y !== position.y) setPosition({ x, y });
@@ -168,7 +189,7 @@ export default function ContextMenu({ editorRef, allEditors, documentId, docId }
     const observer = new ResizeObserver(fit);
     observer.observe(menu);
     return () => observer.disconnect();
-  }, [visible, position]);
+  }, [visible, position, anchor]);
 
   // Fetch plugin menu items
   const fetchPluginItems = useCallback(() => {
@@ -652,7 +673,9 @@ export default function ContextMenu({ editorRef, allEditors, documentId, docId }
         // Signal the right rail to switch to Review — pending changes landed in the
         // editor directly (client-side), so the server's pending-docs-changed event
         // hasn't fired yet and the RailIconStrip 0→>0 guard won't catch this.
-        window.dispatchEvent(new CustomEvent('ow-pending-write-applied'));
+        // The changes carry the selection's node ids: the bar under them (PendingChangeBar)
+        // puts the caret there and accepts or rejects them together.
+        window.dispatchEvent(new CustomEvent(PENDING_REQUESTED_EVENT, { detail: { nodeIds } }));
 
         // Prompt debug inspector: persist the realized AV prompt as a timestamped
         // sidebar doc for hand review. The server no-ops unless OW_PROMPT_DEBUG is on,

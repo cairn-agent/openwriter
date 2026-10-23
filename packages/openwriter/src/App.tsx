@@ -12,6 +12,7 @@ import ContextMenu from './context-menu/ContextMenu';
 import BackToTop from './editor/BackToTop';
 import HeadingTickRail from './editor/HeadingTickRail';
 import CommentPopover from './comment-popover/CommentPopover';
+import PendingChangeBar, { PENDING_REQUESTED_EVENT } from './editor/PendingChangeBar';
 import Sidebar, { SIDEBAR_MIN_WIDTH, SIDEBAR_MAX_WIDTH, SIDEBAR_DEFAULT_WIDTH } from './sidebar/Sidebar';
 import { useRightRail } from './right-rail/RightRailContext';
 import RightRail from './right-rail/RightRail';
@@ -1171,6 +1172,9 @@ export default function App() {
   pendingTitleRef.current = pendingTitle;
   const appActionsRef = useRef({ handleSwitchDocument, handleCreateDocument, flushCurrentDoc, handleTitleChange, sendMessage });
   appActionsRef.current = { handleSwitchDocument, handleCreateDocument, flushCurrentDoc, handleTitleChange, sendMessage };
+  // One accept/reject path for plugins (app.resolvePending) and the bar under a pending change.
+  const resolvePendingRef = useRef<(action: 'accept' | 'reject', nodeId?: string) => void>(() => {});
+  const resolveFromBar = useCallback((action: 'accept' | 'reject', nodeId: string) => resolvePendingRef.current(action, nodeId), []);
   useEffect(() => {
     const liveEditors = () => (allEditorsRef.current.length ? allEditorsRef.current : editorRef.current ? [editorRef.current] : [])
       .filter((e) => e && !e.isDestroyed);
@@ -1180,26 +1184,31 @@ export default function App() {
       const editor = id ? editorHolding(id) : undefined;
       if (isPreviewActive() && editor) showModified(editor, id);
     };
+    const resolvePending = (action: 'accept' | 'reject', nodeId?: string) => {
+      const editors = liveEditors();
+      if (editors.length === 0) return;
+      endPreview();
+      const send = appActionsRef.current.sendMessage;
+      if (nodeId) {
+        const editor = editorHolding(nodeId);
+        if (!editor) return;
+        if (action === 'accept') acceptChange(editor, nodeId); else rejectChange(editor, nodeId);
+      } else {
+        for (const editor of editors) { if (action === 'accept') acceptAllChanges(editor); else rejectAllChanges(editor); }
+        const docId = metadata?.docId as string | undefined;
+        if (pendingTitleRef.current && docId) send({ type: action === 'accept' ? 'accept-pending-title' : 'reject-pending-title', docId });
+      }
+      settleIfResolved({ editors, filename: currentFilename.current, action, getDocument: () => lastDocJson.current, sendMessage: send, version: docVersionRef.current });
+    };
+    resolvePendingRef.current = resolvePending;
     setAppActions({
       switchDocument: (filename) => appActionsRef.current.handleSwitchDocument(filename),
       createDocument: () => appActionsRef.current.handleCreateDocument(),
       flush: () => appActionsRef.current.flushCurrentDoc(),
       setTitle: (t) => appActionsRef.current.handleTitleChange(t),
-      resolvePending: (action, nodeId) => {
-        const editors = liveEditors();
-        if (editors.length === 0) return;
-        endPreview();
-        const send = appActionsRef.current.sendMessage;
-        if (nodeId) {
-          const editor = editorHolding(nodeId);
-          if (!editor) return;
-          if (action === 'accept') acceptChange(editor, nodeId); else rejectChange(editor, nodeId);
-        } else {
-          for (const editor of editors) { if (action === 'accept') acceptAllChanges(editor); else rejectAllChanges(editor); }
-          const docId = metadata?.docId as string | undefined;
-          if (pendingTitleRef.current && docId) send({ type: action === 'accept' ? 'accept-pending-title' : 'reject-pending-title', docId });
-        }
-        settleIfResolved({ editors, filename: currentFilename.current, action, getDocument: () => lastDocJson.current, sendMessage: send, version: docVersionRef.current });
+      resolvePending,
+      showPending: (nodeIds) => {
+        window.dispatchEvent(new CustomEvent(PENDING_REQUESTED_EVENT, { detail: { nodeIds } }));
       },
       focusPending: (nodeId) => {
         const editor = nodeId ? editorHolding(nodeId) : liveEditors()[0];
@@ -1434,6 +1443,7 @@ export default function App() {
               onLinkClick={handleLinkClick}
             />
           )}
+          <PendingChangeBar editor={editorInstance} onResolve={resolveFromBar} />
         </div>
       </div>
       {overlay && (sidebarDrawer || railVisible) && (

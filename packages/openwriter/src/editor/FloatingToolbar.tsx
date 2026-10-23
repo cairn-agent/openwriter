@@ -45,10 +45,17 @@ export default function FloatingToolbar({ editor }: { editor: Editor }) {
   const lastTo = useRef(-1);
   const dragging = useRef(false);
 
-  // Track mouse-down on the editor so we don't show during drag-select
+  // Track mouse-down on the editor so we don't show during drag-select. A right-click opens the
+  // context menu instead, which the toolbar stays out of the way of until it closes.
   useEffect(() => {
     const el = editor.view.dom;
-    const onDown = () => { dragging.current = true; };
+    const onDown = (e: MouseEvent) => { if (e.button === 0) dragging.current = true; };
+    const onMenu = () => {
+      dragging.current = false;
+      setVisible(false);
+      lastFrom.current = -1;
+      lastTo.current = -1;
+    };
     const onUp = () => {
       if (!dragging.current) return; // ignore clicks outside editor (e.g. toolbar buttons)
       dragging.current = false;
@@ -70,9 +77,11 @@ export default function FloatingToolbar({ editor }: { editor: Editor }) {
       }
     };
     el.addEventListener('mousedown', onDown);
+    el.addEventListener('contextmenu', onMenu);
     document.addEventListener('mouseup', onUp);
     return () => {
       el.removeEventListener('mousedown', onDown);
+      el.removeEventListener('contextmenu', onMenu);
       document.removeEventListener('mouseup', onUp);
     };
   }, [editor]);

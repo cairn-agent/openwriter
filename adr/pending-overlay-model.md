@@ -33,6 +33,14 @@ through their own pathway.
 - Focus mode uses the same ReviewTab title/body cursor, preview restoration,
   resolution handlers, and WebSocket persistence as the full review panel.
 
+- **A pending change is actionable where it is.** With the caret in a pending
+  block, `src/editor/PendingChangeBar.tsx` shows "Suggested change · Accept ·
+  Reject" under it (keyboard reachable, Escape back to the editor), resolving
+  through the same path as `app.resolvePending`. Changes the writer asked for
+  from the editor (right-click Enhance and the rest, or a plugin through
+  `app.showPending(nodeIds)`) put the caret at their end when they land and are
+  resolved together. Review stays the place to step through every change.
+
 
 - **Disk = canonical only.** No `pending:` or `meta.pending` field in
   frontmatter. The body holds only accepted content. `tiptapToMarkdown`
@@ -1452,3 +1460,16 @@ The block edit engine was extracted from state without behavior changes before
 the note adaptation. Service tests cover active and background writes, disk reload,
 replacement and resolution; browser verification covers Review and Focus, preview,
 restart recovery, ordinary typing and individual/bulk decisions.
+
+### 2026-10-23 — Accept and Reject under the change the caret is in
+
+A new writer's first Rewrite on the web landed as blue text with nothing near it
+saying it was pending; Accept and Reject lived only in the Review tab, which the
+chat tab holds closed. The fix is a presentation, not a second review state: a
+small bar under the pending block the caret is in, calling the app's own
+resolve path (the one `app.resolvePending` uses, so settling and saving are
+shared). A change the writer just asked for moves the caret to its end once it
+arrives, so its bar shows without a click; the right-click actions name their
+node ids on `ow-pending-write-applied`, and a plugin's own action does the same
+through `app.showPending`. Agent edits elsewhere are untouched: they show the
+bar only when the writer clicks into them, and the rail's auto-open is as before.

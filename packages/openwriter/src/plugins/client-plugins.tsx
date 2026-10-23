@@ -74,6 +74,8 @@ export type UiTextSlot =
   | 'workspace.bookGuidance'
   /** Settings > Claude with no key and no OpenWriter sign-in: how to get free rewrites. */
   | 'claude.signInHint'
+  /** Settings > Claude, first line: what runs on the Claude key or the balance. */
+  | 'claude.intro'
   /** The profile menu's create, delete and restore controls. */
   | 'profiles.new'
   | 'profiles.delete'
@@ -145,6 +147,12 @@ export interface AppActions {
   focusPending(nodeId: string | null): void;
   /** Show a pending rewrite's original text in its place, or (null) its proposed text again. */
   previewOriginal(nodeId: string | null): void;
+  /**
+   * Point the writer at changes they just asked for (a plugin's own writing action), as after a
+   * right-click Enhance: once they arrive, the caret goes to them and their Accept · Reject bar
+   * shows, accepting or rejecting them together, and Review opens unless a tab holds the rail.
+   */
+  showPending(nodeIds: string[]): void;
 }
 
 /** A labelled button in the rail's top bar, beside Sync: a way into a plugin's own screens. */
@@ -320,6 +328,7 @@ const api: ClientPluginApi = {
     resolvePending: (action, nodeId) => appActions?.resolvePending(action, nodeId),
     focusPending: (nodeId) => appActions?.focusPending(nodeId),
     previewOriginal: (nodeId) => appActions?.previewOriginal(nodeId),
+    showPending: (nodeIds) => appActions?.showPending(nodeIds),
   },
   // A getter: ws/client imports this module, so TAB_ID may not exist yet when it loads.
   get tabId() { return TAB_ID; },

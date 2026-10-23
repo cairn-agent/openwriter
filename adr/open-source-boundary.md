@@ -59,7 +59,8 @@ them stay in the public history; that cannot be undone and they hold no secrets.
     A module presenting the app its own way also gets what the app shows (`getApp`,
     `onAppChange`: the editor, the open document, the connection, unsent edits, pending
     documents), the app's own actions (`app`: switch, create, flush, rename, and review's
-    accept/reject, focus and original preview, through the same code the Review tab uses),
+    accept/reject, focus and original preview, through the same code the Review tab uses, and
+    `showPending` to point the writer at changes from the plugin's own writing action),
     the app's ProseMirror classes (`pm`) for its editor plugins and decorations, and `tabId`.
     A rail tab may ask to be the one showing on the rail's first run (`openOnFirstRun`), and
     `setUiText` rewords or hides (null) named lines of the app's own copy (`UiTextSlot`), read
@@ -181,3 +182,10 @@ the rail. Generic: any plugin with its own screens needs a way in that does not 
   first tab replace nothing on screen. The Settings > Claude line for a writer with no key and no
   OpenWriter sign-in ("ask your agent to sign you in") is the `claude.signInHint` slot, for an
   embedder whose writers sign in some other way. Defaults unchanged: the local app reads as before.
+- **2026-10-23 — `app.showPending` and the `claude.intro` slot.** A plugin offering its own writing
+  action calls `app.showPending(nodeIds)` once the server has written the change, which then gets
+  what a right-click Enhance gets: the caret at its end, an Accept · Reject bar under it, and Review
+  unless a tab holds the rail (adr/pending-overlay-model.md). The first line of Settings > Claude
+  is the `claude.intro` slot. Context-menu panels keep the text they act on marked and sit beside
+  it, never over it. Generic: the local app's own Enhance uses the same path, and with no plugin
+  the app reads and behaves as before apart from the bar.
