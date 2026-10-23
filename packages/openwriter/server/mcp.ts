@@ -172,6 +172,8 @@ export interface ToolDef {
   description: string;
   schema: Record<string, z.ZodTypeAny>;
   handler: (args: any) => Promise<ToolResult>;
+  /** The plugin that added the tool; unset for OpenWriter's own. */
+  plugin?: string;
 }
 
 /** Human-friendly relative time for ISO timestamps. */
@@ -2211,7 +2213,7 @@ function jsonSchemaToZodShape(inputSchema: Record<string, unknown>): Record<stri
 }
 
 /** Register MCP tools from plugins. Dynamically adds to the live MCP session. */
-export function registerPluginTools(tools: import('./plugin-types.js').PluginMcpTool[]): void {
+export function registerPluginTools(tools: import('./plugin-types.js').PluginMcpTool[], plugin?: string): void {
   for (const tool of tools) {
     // Skip if already in TOOL_REGISTRY (e.g. called twice due to a bug)
     if (TOOL_REGISTRY.some((t) => t.name === tool.name)) {
@@ -2227,6 +2229,7 @@ export function registerPluginTools(tools: import('./plugin-types.js').PluginMcp
         const result = await tool.handler(args);
         return { content: [{ type: 'text', text: JSON.stringify(result) }] };
       },
+      ...(plugin ? { plugin } : {}),
     };
     TOOL_REGISTRY.push(toolDef);
 

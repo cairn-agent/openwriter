@@ -184,7 +184,7 @@ export class PluginManager {
       const { toolFilter } = embedOptions();
       const tools = plugin.mcpTools(resolvedConfig, host).filter((t) => !toolFilter || toolFilter({ name: t.name, plugin: name }));
       managed.toolNames = tools.map((t) => t.name);
-      registerPluginTools(tools);
+      registerPluginTools(tools, name);
     }
 
     managed.enabled = true;

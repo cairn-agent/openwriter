@@ -197,3 +197,7 @@ the rail. Generic: any plugin with its own screens needs a way in that does not 
   `balanceAccess(call)` returns the route (`<server>/ai`, the job header) and the account's
   credential, or null when not signed in; `claude()` now uses it, so the two cannot drift. A
   call's job may be any name the server prices. Generic: the local app's calls are unchanged.
+- **2026-10-23 — A tool names the plugin that added it.** `ToolDef.plugin` (seen through
+  `host.tools()`) is set for every plugin tool and unset for OpenWriter's own, so an embedder's
+  agent can choose to offer only OpenWriter's document tools (a smaller request) without keeping a
+  list of names. Generic: nothing in the local app reads it.
