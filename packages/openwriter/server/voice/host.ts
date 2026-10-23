@@ -123,8 +123,26 @@ export const NO_KEY_MESSAGE = 'This runs on Claude. Add your Claude API key in S
 /**
  * What a call is for, so OpenWriter's server can price it: a rewrite (free on Haiku, 30 a day),
  * Learn my voice (free for the first 10,000 words; `words` is the paragraph's count) or a transform.
+ * An embedder calling Claude for its own feature names that feature's job; the server prices it.
  */
-export interface AiCall { job?: 'rewrite' | 'learn' | 'transform'; words?: number }
+export interface AiCall { job?: 'rewrite' | 'learn' | 'transform' | (string & {}); words?: number }
+
+/**
+ * Where a call goes on the OpenWriter balance, and the credential it carries (the writer's
+ * OpenWriter account key, sent only to the pinned OpenWriter server); null when not signed in.
+ * For an embedder that needs more of Anthropic's client than `claude()` gives.
+ */
+export function balanceAccess(call: AiCall = {}): { authToken: string; route: BalanceRoute } | null {
+  const account = publishAccount();
+  if (!account) return null;
+  return {
+    authToken: account.apiKey,
+    route: {
+      baseURL: `${account.apiUrl}/ai`,
+      headers: { 'x-openwriter-job': call.job ?? 'other', 'x-openwriter-words': String(call.words ?? 0) },
+    },
+  };
+}
 
 /**
  * A Claude client on the writer's key; without one, through OpenWriter's server on the writer's
@@ -134,12 +152,9 @@ export function claude(call: AiCall = {}): MessagesClient {
   const factory = embedOptions().aiClient ?? defaultClientFactory;
   const key = loadKey();
   if (key) return factory(key);
-  const account = publishAccount();
-  if (!account) throw new VoiceError(409, 'no_key', NO_KEY_MESSAGE);
-  return factory(account.apiKey, {
-    baseURL: `${account.apiUrl}/ai`,
-    headers: { 'x-openwriter-job': call.job ?? 'other', 'x-openwriter-words': String(call.words ?? 0) },
-  });
+  const access = balanceAccess(call);
+  if (!access) throw new VoiceError(409, 'no_key', NO_KEY_MESSAGE);
+  return factory(access.authToken, access.route);
 }
 
 /** Never show a key in an error the writer reads. */

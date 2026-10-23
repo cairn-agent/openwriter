@@ -42,7 +42,9 @@ them stay in the public history; that cannot be undone and they hold no secrets.
     program, which then keeps it (Settings > Claude shows no key field; the embedder's client
     module may put its own key controls there with `registerSettingsPanel`); `aiClient` replaces
     the Claude client, building on the exported `defaultClientFactory` to watch calls, or
-    standing in for Anthropic in tests. See `adr/authors-voice.md`.
+    standing in for Anthropic in tests. `balanceAccess(call)` says where a call on the
+    OpenWriter balance goes (the pinned server, the job header) and its credential, for an
+    embedder that builds its own Anthropic client. See `adr/authors-voice.md`.
   - **Format contracts for an embedder's agent**: `appendDocGuidance(session, args, result)` and
     `GUIDANCE_NOTICE` (package export `openwriter/server`) give an embedder's own agent the same
     per-session document format contracts the stdio and client-mode servers deliver
@@ -189,3 +191,9 @@ the rail. Generic: any plugin with its own screens needs a way in that does not 
   is the `claude.intro` slot. Context-menu panels keep the text they act on marked and sit beside
   it, never over it. Generic: the local app's own Enhance uses the same path, and with no plugin
   the app reads and behaves as before apart from the bar.
+- **2026-10-23 — `balanceAccess`: where a call on the balance goes.** An embedder that needs
+  more of Anthropic's client than `claude()` returns (its tool runner, say) had no way to reach
+  the OpenWriter balance without copying how the account key and pinned server are read.
+  `balanceAccess(call)` returns the route (`<server>/ai`, the job header) and the account's
+  credential, or null when not signed in; `claude()` now uses it, so the two cannot drift. A
+  call's job may be any name the server prices. Generic: the local app's calls are unchanged.

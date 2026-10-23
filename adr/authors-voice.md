@@ -149,3 +149,7 @@ The prompts are the refined part and are copied, never paraphrased:
   free today and how the rest is charged in one note, and its email and auto top-up settings read
   as one line each, words then control. The key input keeps its mask and carries the attributes
   that keep browsers' and password managers' save offers off it.
+- **2026-10-23 — The balance route is one function.** `claude()` builds its balance client from
+  `balanceAccess(call)` (exported, adr/open-source-boundary.md), which holds the pinned server,
+  the job headers and the account key; `AiCall.job` takes any job name the server prices besides
+  rewrite, learn and transform. Behaviour of every local call is unchanged.
