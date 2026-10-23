@@ -44,9 +44,26 @@
 
 /* Settings > Claude: the OpenWriter balance (ClaudeBalance.tsx). */
 .claude-balance {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   margin-bottom: 10px;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--border);
+}
+.claude-balance .claude-settings-note { margin: 0; }
+/* A setting that reads as one line: its words, then its control. */
+.claude-balance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--ink-dark);
+}
+.claude-balance-row .plugin-config-input {
+  width: auto;
+  flex: 0 0 auto;
 }
 .claude-balance-amount {
   display: flex;

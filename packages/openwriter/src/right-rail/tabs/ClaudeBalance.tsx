@@ -83,13 +83,11 @@ export default function ClaudeBalance() {
         <span className="plugin-config-label">OpenWriter balance</span>
         <span className="claude-balance-value">{money(b.balance_hc)}</span>
       </div>
-      {starting && (
-        <p className="claude-settings-note">Your account started with {money(starting.price_hc)} of credit from OpenWriter.</p>
-      )}
       <p className="claude-settings-note">
-        Free: {b.free_rewrites_left} of {b.free_rewrites_per_day} Haiku rewrites left today
+        Free today: {b.free_rewrites_left} of {b.free_rewrites_per_day} Haiku rewrites
         {b.free_learn_words_left > 0 ? `, and Learn my voice for ${b.free_learn_words_left.toLocaleString()} more words` : ''}.
-        Everything else is paid from your balance, at twice what it costs OpenWriter.
+        Anything else comes from your balance, at twice what it costs OpenWriter.
+        {starting && ` You started with ${money(starting.price_hc)} free.`}
       </p>
 
       <div className="plugin-config-field">
@@ -107,8 +105,8 @@ export default function ClaudeBalance() {
         )}
       </div>
 
-      <div className="plugin-config-field">
-        <label className="plugin-config-label" htmlFor="claude-threshold">Email me when it falls below</label>
+      <div className="claude-balance-row">
+        <label htmlFor="claude-threshold">Email me when it falls below</label>
         <select id="claude-threshold" className="plugin-config-input" value={Math.round(b.threshold_hc / 100)}
           onChange={(e) => settings({ threshold_cents: Number(e.target.value) })}>
           {[100, 200, 500, 1000].map((c) => <option key={c} value={c}>${c / 100}</option>)}
@@ -116,12 +114,14 @@ export default function ClaudeBalance() {
       </div>
 
       <div className="plugin-config-field">
-        <label className="plugin-config-label" htmlFor="claude-auto">Auto top-up</label>
-        <select id="claude-auto" className="plugin-config-input" value={b.auto_topup_cents ?? ''} disabled={!b.card}
-          onChange={(e) => settings({ auto_topup_cents: e.target.value ? Number(e.target.value) : null })}>
-          <option value="">Off</option>
-          {b.topup_amounts_cents.map((c) => <option key={c} value={c}>Add ${c / 100} when it falls below</option>)}
-        </select>
+        <div className="claude-balance-row">
+          <label htmlFor="claude-auto">Auto top-up</label>
+          <select id="claude-auto" className="plugin-config-input" value={b.auto_topup_cents ?? ''} disabled={!b.card}
+            onChange={(e) => settings({ auto_topup_cents: e.target.value ? Number(e.target.value) : null })}>
+            <option value="">Off</option>
+            {b.topup_amounts_cents.map((c) => <option key={c} value={c}>Add ${c / 100} when low</option>)}
+          </select>
+        </div>
         {b.card ? (
           <div className="claude-settings-saved">
             <span>{b.card.brand ? `${b.card.brand[0].toUpperCase()}${b.card.brand.slice(1)}` : 'Card'} ending {b.card.last4}</span>

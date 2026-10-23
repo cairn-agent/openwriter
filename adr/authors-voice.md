@@ -143,3 +143,9 @@ The prompts are the refined part and are copied, never paraphrased:
 - **2026-10-22 — The no-key sign-in line in Settings > Claude is rewordable.** It reads through
   `useUiText('claude.signInHint', …)` (adr/open-source-boundary.md), so an embedder whose writers
   sign in to OpenWriter some other way can reword or hide it; locally it reads as before.
+- **2026-10-23 — Settings > Claude reads shorter; the key field is not a password.** The first
+  line is the `claude.intro` slot (adr/open-source-boundary.md), so an embedder that explains the
+  key in its own panel can reword or hide it; locally it reads as before. The balance says what is
+  free today and how the rest is charged in one note, and its email and auto top-up settings read
+  as one line each, words then control. The key input keeps its mask and carries the attributes
+  that keep browsers' and password managers' save offers off it.

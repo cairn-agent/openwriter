@@ -9,6 +9,19 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import ClaudeBalance from './ClaudeBalance';
 import { PluginMount, useClientPlugins, useUiText } from '../../plugins/client-plugins';
 
+/**
+ * A Claude key is masked like a password but is not one: these keep browsers' and password
+ * managers' save-and-fill offers (1Password, LastPass, Bitwarden, Dashlane and the like) off it.
+ */
+const NOT_A_PASSWORD = {
+  autoComplete: 'off',
+  spellCheck: false,
+  'data-1p-ignore': 'true',
+  'data-lpignore': 'true',
+  'data-bwignore': 'true',
+  'data-form-type': 'other',
+} as const;
+
 interface ClaudeSettingsState {
   managed: boolean;
   saved: boolean;
@@ -27,6 +40,7 @@ export default function ClaudeSettings() {
   const [error, setError] = useState<string | null>(null);
   const panels = useClientPlugins().settingsPanels.filter((p) => p.section === 'claude');
   const signInHint = useUiText('claude.signInHint', 'No key? Sign in to OpenWriter (ask your agent to sign you in) for free Haiku rewrites and a prepaid balance.');
+  const intro = useUiText('claude.intro', 'Enhance and the other right-click writing actions, Learn my voice, and the transforms run on your own Claude API key, from the Anthropic console, or without one on your OpenWriter balance.');
 
   const load = useCallback(() => {
     fetch('/api/voice/settings').then((r) => r.json()).then(setState).catch(() => {});
@@ -52,10 +66,7 @@ export default function ClaudeSettings() {
 
   return (
     <div className="claude-settings plugin-config">
-      <p className="claude-settings-note">
-        Enhance and the other right-click writing actions, Learn my voice, and the transforms run on
-        your own Claude API key, from the Anthropic console, or without one on your OpenWriter balance.
-      </p>
+      {intro && <p className="claude-settings-note">{intro}</p>}
       {panels.map((p) => <PluginMount key={p.id} mount={p.mount} ctx={panelCtx} />)}
       {state.balance && <ClaudeBalance />}
       {!state.saved && !state.signedIn && signInHint && (
@@ -74,7 +85,7 @@ export default function ClaudeSettings() {
               id="claude-key"
               className="plugin-config-input"
               type="password"
-              autoComplete="off"
+              {...NOT_A_PASSWORD}
               placeholder="sk-ant-..."
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -94,7 +105,7 @@ export default function ClaudeSettings() {
         >
           <option value="">
             {state.balance
-              ? `Default (${state.models.find((m) => m.choice === 'haiku')?.name ?? 'Haiku'}, free for 30 rewrites a day)`
+              ? `Default (${state.models.find((m) => m.choice === 'haiku')?.name ?? 'Haiku'}, 30 free a day)`
               : `Default (${state.models.find((m) => m.choice === 'opus')?.name ?? 'Opus'})`}
           </option>
           {state.models.map((m) => <option key={m.choice} value={m.choice}>{m.name}</option>)}
