@@ -18,26 +18,49 @@ failure modes with ones that never drop a word.
 - **Sync is commit, fetch, merge, push** (`runSync`). This side's work is saved
   (`save()`) and committed before anything is fetched, so every local edit is in a
   commit before a merge can touch the folder.
-- **A file both sides changed that git cannot merge keeps this side's version in
-  place.** GitHub's version is written next to it and committed:
-  - a document `Name.md` becomes `Name (from GitHub YYYY-MM-DD HHMM).md`, with a new
-    `docId` and the same suffix on its title, so it opens as its own document and
-    never shares the original's id, pending sidecar or history;
-  - any other file (workspace manifests, images) goes under
-    `.sync-conflicts/<stamp>/<path>`, so the app never loads it as a second
-    workspace or doc.
-  The sync result and `/api/sync/status` carry the copies in `conflicts`; the Sync
-  button lists them.
-- **Edits beat deletes.** A file deleted on one side and changed on the other is kept
-  with the change (git's modify/delete conflict, settled to the side that has it).
-  A file deleted on one side and untouched on the other follows git and is deleted,
-  except the document open in the editor: it is written back from memory and
-  recommitted (`reloadChangedFiles` returns it as `restoredActive`).
+- **Every merge stops before its commit** (`git merge --no-commit`), so the rules
+  below run on it; a fast-forward needs none of them.
+- **A document both sides changed merges paragraph by paragraph, newest edit wins**
+  (`mergeDocument`, `doc-merge.ts`). Frontmatter merges key by key (a key both changed
+  takes the side whose file changed last). The body goes through
+  `git merge-file --diff3`; each hunk both sides changed is settled by edit time:
+  `git blame` of each side gives every line's author time (commit-on-save makes that
+  the edit time, offline edits included), a hunk with equal line counts is settled
+  line by line, any other hunk goes to the side with the newer line, ties keep this
+  side. Push order never matters. No conflict copies are made for documents.
+- **A replaced paragraph is never silent.** Each one is written into the merge
+  commit as an `OpenWriter-Replaced: {json}` line (doc, kept lines, earlier lines,
+  winning device and time, losing device id). After every merge or fast-forward,
+  the device whose id lost turns those lines into notices (`sync-notices.ts`, in
+  `.git/openwriter-notices.json`, never synced), shown on the paragraph as "Updated
+  from <device>, <time> · Undo · See earlier version" (`sync-notice-plugin.ts`).
+  Undo (`undoNotice`) writes the earlier lines back as a new edit; the other version
+  stays in history. A paragraph being typed in is never replaced: pulls wait while
+  the writer types.
+- **Pending changes merge entry by entry** (`mergePending`): an entry that existed at
+  the merge base and is gone on either side was decided and stays gone, new entries
+  from both sides are kept, an entry both changed takes the newer side. This runs on
+  every `_pending/*.json` both sides changed, conflicted or not, and a missing file
+  counts as no entries. When the two devices decided the same change differently,
+  the side whose pending file changed later wins (`settleDecisions`): a later reject
+  puts the original paragraph back, a later accept puts the suggested one.
+- **Append-only logs union-merge.** The synced `.gitattributes` has
+  `_history/*.jsonl`, `_commits/*.jsonl` and `*.log` as `merge=union`, so both
+  devices' lines are kept and these never clash. Union, not per-device files,
+  because readers already handle one file per document.
+- **Any other file both sides changed keeps this side's version**; GitHub's is saved
+  under `.sync-conflicts/<stamp>/<path>`, which the app never loads.
+- **Deletes.** A delete wins unless the other device edited that document since
+  (git's modify/delete conflict, settled to the side that has it). An open document
+  deleted elsewhere closes (`reloadChangedFiles` returns `deletedActive`; the plugin
+  calls `deleteDocument`, which moves to a neighbour) with a notice "“Title” was
+  deleted on <device> · Undo"; Undo restores it from the commit before the merge.
+  Only when it is the last document is it kept.
 - **First connection.** Connecting a repo merges with
   `--allow-unrelated-histories`. When the data folder has no writing yet (every
-  `.md` body is empty), GitHub's files win outright (`-X theirs`), so the app's own
-  starter files never shadow the writer's. A folder with writing merges normally and
-  conflicts become copies. Nothing is overwritten.
+  `.md` body is empty, first-run documents aside), GitHub's files win outright
+  (`-X theirs`). A folder with writing merges by the rules above with an empty base,
+  so a document on both goes to the newer side and the other stays in history.
 - **The running server picks up a pull without a restart.** `reloadChangedFiles` in
   `server/state.ts` drops the cache entry of every changed file, reloads the active
   doc like an external write (`document-reloaded` to its tabs), pushes other docs to
@@ -144,3 +167,17 @@ internal paths, is gone. Configured state and the last sync time moved from the 
 config into the folder, because a pinned profile never writes the config and every
 profile shares it. `.git/info/exclude` keeps this copy's own files out of the repo
 without a synced rule that would also hide them on another copy.
+
+### 2026-10-23 — newest edit wins per paragraph, with notices; no conflict copies for documents
+Conflict copies piled up: every doc both devices edited conflicted on its one-line JSON
+frontmatter (`nodes` changes on every save), and the writer had to merge copies by
+hand. Documents now merge per paragraph and per frontmatter key, and a paragraph both
+changed goes to the newer edit by blame author time, which commit-on-save makes the
+edit time. Push order was rejected as the rule: an offline device that sends late
+would lose newer writing. The loser is told by a notice with Undo, carried in the merge
+commit message so the device that loses is told even when the other device did the
+merge; a synced notices file was rejected because it would itself need merging.
+Pending changes merge by entry so a decision is never undone by a merge, and a
+decision conflict goes to the later pending-file change. Logs union-merge rather than
+splitting per device, which would change every reader. Deleting the open document now
+wins over the old "write it back" rule, which made deleted documents return.

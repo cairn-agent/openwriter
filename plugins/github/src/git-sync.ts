@@ -18,11 +18,13 @@
  */
 
 import { execFile } from 'child_process';
-import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, watch, writeFileSync } from 'fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, watch, writeFileSync } from 'fs';
 import { randomBytes } from 'crypto';
 import { dirname, extname, join } from 'path';
 import { getServerModules } from './helpers.js';
 import { deviceFlowClientId } from './device-flow.js';
+import { joinDoc, MARKER_SIZE, mergeFront, mergePending, nodeText, plainLine, resolveHunks, splitDoc, type LineInfo, type Replacement, type Side } from './doc-merge.js';
+import { addNotices, noticeId, readNotices, removeNotice, type SyncNotice } from './sync-notices.js';
 
 const GITIGNORE_CONTENT = `config.json\n.versions/\n`;
 const NETWORK_TIMEOUT = 30000;
@@ -46,6 +48,8 @@ const FIRST_RUN_MARKER = '.first-run';
  * .git/info/exclude, which is never synced; the first-run documents join them.
  */
 const LOCAL_ONLY = ['config.json', '.versions/', DEVICE_FILE, FIRST_RUN_MARKER, 'server.lock'];
+/** Per-document append-only logs: merged by keeping both sides' lines (.gitattributes, synced). */
+const UNION_MERGED = ['_history/*.jsonl merge=union', '_commits/*.jsonl merge=union', '*.log merge=union'];
 /** When this copy last synced. Inside .git, so it is never synced either. */
 const SYNC_META_FILE = 'openwriter-sync.json';
 /** A pull waits while the writer typed this recently, so nothing changes under their cursor. */
@@ -67,8 +71,10 @@ export interface SyncStatus {
   fix?: 'signin' | 'setup' | 'retry';
   /** A pull that waited because the writer is typing; ask again after the pause. */
   deferred?: boolean;
-  /** Conflict copies the last sync saved: files changed on both sides. */
+  /** Conflict copies the last sync saved: non-document files changed on both sides. */
   conflicts?: string[];
+  /** What syncs changed under the writer: replaced paragraphs, a deleted open document. */
+  notices?: SyncNotice[];
 }
 
 export interface SyncCapabilities {
@@ -314,10 +320,16 @@ export async function isGitRepo(): Promise<boolean> {
 }
 
 async function ensureGitignore(): Promise<void> {
-  const gitignorePath = join(await dataDir(), '.gitignore');
+  const dir = await dataDir();
+  const gitignorePath = join(dir, '.gitignore');
   if (!existsSync(gitignorePath)) {
     writeFileSync(gitignorePath, GITIGNORE_CONTENT, 'utf-8');
   }
+  // Append-only logs never clash: both devices' new lines are kept. Synced, so every copy merges alike.
+  const attributes = join(dir, '.gitattributes');
+  const current = existsSync(attributes) ? readFileSync(attributes, 'utf-8') : '';
+  const missing = UNION_MERGED.filter((l) => !current.split(/\r?\n/).includes(l));
+  if (missing.length) writeFileSync(attributes, `${current}${current && !current.endsWith('\n') ? '\n' : ''}${missing.join('\n')}\n`);
 }
 
 async function countPendingFiles(): Promise<number> {
@@ -395,7 +407,8 @@ export async function getSyncStatus(): Promise<SyncStatus> {
 
   const dir = await dataDir();
   const lastSyncTime = await readLastSync(dir);
-  const conflicts = lastConflicts.length ? { conflicts: lastConflicts } : {};
+  const notices = readNotices(dir);
+  const conflicts = { ...(lastConflicts.length ? { conflicts: lastConflicts } : {}), ...(notices.length ? { notices } : {}) };
   if ((currentSyncState === 'error' || currentSyncState === 'offline') && lastError) {
     return { state: currentSyncState, ...lastError, lastSyncTime, ...conflicts };
   }
@@ -543,28 +556,6 @@ function conflictStamp(now = new Date()): string {
   return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())} ${p(now.getHours())}${p(now.getMinutes())}`;
 }
 
-/**
- * GitHub's version of a document, renamed so it opens as its own doc: a new
- * docId (the original keeps its own) and the title marked as the GitHub copy.
- */
-function asConflictCopy(raw: string, label: string): string {
-  const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-  if (!m) return raw;
-  const newId = randomBytes(4).toString('hex');
-  let front: string;
-  try {
-    const meta = JSON.parse(m[1]);
-    meta.docId = newId;
-    if (typeof meta.title === 'string' && meta.title) meta.title = `${meta.title} (${label})`;
-    front = JSON.stringify(meta);
-  } catch {
-    front = m[1]
-      .replace(/^docId:.*$/m, `docId: ${newId}`)
-      .replace(/^title:\s*(.+)$/m, (_l, t: string) => `title: ${JSON.stringify(`${t.replace(/^["']|["']$/g, '')} (${label})`)}`);
-  }
-  return `---\n${front}\n---${raw.slice(m[0].length)}`;
-}
-
 function freePath(path: string): string {
   if (!existsSync(path)) return path;
   const ext = extname(path);
@@ -572,14 +563,109 @@ function freePath(path: string): string {
   for (let i = 2; ; i++) if (!existsSync(`${stem} ${i}${ext}`)) return `${stem} ${i}${ext}`;
 }
 
-/**
- * Settle every file git could not merge, keeping all writing:
- *   both changed  → ours stays, GitHub's saved next to it as a conflict copy
- *   one deleted   → the side that still has the file wins (edits beat deletes)
- *   both deleted  → gone
- * Returns the conflict copies, relative to the data folder.
- */
-async function settleConflicts(dir: string): Promise<string[]> {
+/** A document the writer sees: a `.md` file outside the app's `_` and `.` folders. */
+function isDocPath(path: string): boolean {
+  return path.endsWith('.md') && !path.split('/').some((p) => p.startsWith('_') || p.startsWith('.'));
+}
+
+/** A document's pending (suggested) changes file. */
+function isPendingPath(path: string): boolean {
+  return /^_pending\/[^/]+\.json$/.test(path);
+}
+
+/** A file's bytes at a commit, or null when it is not there. */
+async function readAt(dir: string, rev: string, path: string): Promise<string | null> {
+  try { return (await gitBlob(`${rev}:${path}`, dir)).toString('utf-8'); } catch { return null; }
+}
+
+function deviceOf(email: string): string {
+  return email.replace(/^<|>$/g, '').replace(/@device\.openwriter$/, '');
+}
+
+/** When one side last changed a file (unix seconds), and on which device. */
+async function lastChange(dir: string, rev: string, path: string, since?: string | null): Promise<LineInfo> {
+  const range = since ? `${since}..${rev}` : rev;
+  try {
+    const out = await exec('git', ['log', '-1', '--format=%at%x1f%an%x1f%ae', range, '--', path], dir);
+    const [t, name, email] = (out || await exec('git', ['log', '-1', '--format=%at%x1f%an%x1f%ae', rev], dir)).split('\x1f');
+    return { time: Number(t) || 0, device: name || 'another device', deviceId: deviceOf(email || '') };
+  } catch { return { time: 0, device: 'another device', deviceId: '' }; }
+}
+
+/** Each line's last edit on one side (git blame), keyed by the line's text. */
+async function sideOf(dir: string, rev: string, path: string, base: string | null): Promise<Side> {
+  const fallback = await lastChange(dir, rev, path, base);
+  const byText = new Map<string, LineInfo>();
+  try {
+    const out = await exec('git', ['blame', '--line-porcelain', rev, '--', path], dir, LOCAL_WRITE_TIMEOUT);
+    let cur: LineInfo = { ...fallback };
+    for (const l of out.split('\n')) {
+      if (l.startsWith('\t')) {
+        const text = l.slice(1);
+        const had = byText.get(text);
+        if (!had || cur.time > had.time) byText.set(text, cur);
+      } else if (/^[0-9a-f]{40} /.test(l)) cur = { ...fallback };
+      else if (l.startsWith('author-time ')) cur.time = Number(l.slice(12));
+      else if (l.startsWith('author ')) cur.device = l.slice(7);
+      else if (l.startsWith('author-mail ')) cur.deviceId = deviceOf(l.slice(12));
+    }
+  } catch { /* new on this side: every line takes the fallback */ }
+  return { line: (text) => byText.get(text), fallback };
+}
+
+/** `git merge-file --diff3` of three texts: the merge, with marked hunks where both sides changed. */
+async function mergeFileText(dir: string, ours: string, base: string, theirs: string): Promise<string> {
+  const tmp = join(dir, '.git', 'ow-merge');
+  mkdirSync(tmp, { recursive: true });
+  const [o, b, t] = ['ours', 'base', 'theirs'].map((n) => join(tmp, n));
+  writeFileSync(o, ours); writeFileSync(b, base); writeFileSync(t, theirs);
+  return new Promise((resolve, reject) => {
+    execFile('git', ['merge-file', '-p', '--diff3', `--marker-size=${MARKER_SIZE}`, '-L', 'ours', '-L', 'base', '-L', 'theirs', o, b, t],
+      { cwd: dir, maxBuffer: 64 * 1024 * 1024 }, (err, stdout) => {
+        // A positive exit code is the number of conflicts, not a failure.
+        const code = (err as any)?.code;
+        if (err && !(typeof code === 'number' && code > 0 && code < 128)) reject(err);
+        else resolve(stdout);
+      });
+  });
+}
+
+interface MergeContext {
+  dir: string;
+  /** The last commit both sides share; null for unrelated histories (a first connection). */
+  base: string | null;
+  replacements: (Replacement & { file: string; docId?: string; title?: string })[];
+}
+
+/** A document both sides changed: paragraph by paragraph, newest edit wins, replacements reported. */
+async function mergeDocument(ctx: MergeContext, path: string, s: Map<number, string>): Promise<void> {
+  const text = async (sha?: string) => (sha ? (await gitBlob(sha, ctx.dir)).toString('utf-8') : '');
+  const [b, o, t] = await Promise.all([text(s.get(1)), text(s.get(2)), text(s.get(3))]);
+  const [ours, theirs] = await Promise.all([sideOf(ctx.dir, 'HEAD', path, ctx.base), sideOf(ctx.dir, 'MERGE_HEAD', path, ctx.base)]);
+  const B = splitDoc(b); const O = splitDoc(o); const T = splitDoc(t);
+  const front = mergeFront(B.front, O.front, T.front, ours.fallback.time >= theirs.fallback.time);
+  const body = resolveHunks(await mergeFileText(ctx.dir, O.body, B.body, T.body), ours, theirs);
+  writeFileSync(join(ctx.dir, path), joinDoc(front, body.text));
+  await exec('git', ['add', '--', path], ctx.dir);
+  for (const r of body.replacements) ctx.replacements.push({ ...r, file: path, docId: front?.docId, title: front?.title });
+}
+
+/** A pending-changes file changed on both sides: entry by entry; a decided change never comes back. */
+async function mergePendingFile(ctx: MergeContext, path: string, base: string | null, ours: string | null, theirs: string | null): Promise<void> {
+  const [o, t] = await Promise.all([lastChange(ctx.dir, 'HEAD', path, ctx.base), lastChange(ctx.dir, 'MERGE_HEAD', path, ctx.base)]);
+  const merged = mergePending(base, ours, theirs, o.time >= t.time);
+  const file = join(ctx.dir, path);
+  if (merged === null) {
+    if (existsSync(file)) unlinkSync(file);
+    await exec('git', ['rm', '-q', '--cached', '--ignore-unmatch', '--', path], ctx.dir);
+  } else {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, merged);
+    await exec('git', ['add', '--', path], ctx.dir);
+  }
+}
+
+async function unmergedStages(dir: string): Promise<Map<string, Map<number, string>>> {
   const out = await exec('git', ['ls-files', '-u', '-z'], dir);
   const stages = new Map<string, Map<number, string>>();
   for (const entry of out.split('\0').filter(Boolean)) {
@@ -589,21 +675,36 @@ async function settleConflicts(dir: string): Promise<string[]> {
     if (!stages.has(path)) stages.set(path, new Map());
     stages.get(path)!.set(Number(stage), sha);
   }
+  return stages;
+}
 
+/**
+ * Settle every file git could not merge, keeping all writing:
+ *   a document both changed   → paragraph merge, the newest edit of each paragraph wins
+ *   pending changes           → entry merge, decided changes stay decided
+ *   any other file both changed → ours stays, GitHub's saved under .sync-conflicts/
+ *   one side deleted          → the side that still has the file wins (an edit since beats a delete)
+ *   both deleted              → gone
+ * Returns the non-document conflict copies, relative to the data folder.
+ */
+async function settleConflicts(ctx: MergeContext, stages: Map<string, Map<number, string>>): Promise<string[]> {
+  const { dir } = ctx;
   const label = `from GitHub ${conflictStamp()}`;
   const copies: string[] = [];
   for (const [path, s] of stages) {
     const ours = s.get(2);
     const theirs = s.get(3);
-    if (ours && theirs) {
+    if (isPendingPath(path)) {
+      const text = async (sha?: string) => (sha ? (await gitBlob(sha, dir)).toString('utf-8') : null);
+      await mergePendingFile(ctx, path, await text(s.get(1)), await text(ours), await text(theirs));
+    } else if (ours && theirs && isDocPath(path)) {
+      await mergeDocument(ctx, path, s);
+    } else if (ours && theirs) {
       await exec('git', ['checkout', '--ours', '--', path], dir);
       const blob = await gitBlob(theirs, dir);
-      const ext = extname(path);
-      const copy = ext === '.md'
-        ? freePath(join(dir, `${path.slice(0, -ext.length)} (${label})${ext}`))
-        : freePath(join(dir, CONFLICT_DIR, label.replace(/ /g, '_'), path));
+      const copy = freePath(join(dir, CONFLICT_DIR, label.replace(/ /g, '_'), path));
       mkdirSync(dirname(copy), { recursive: true });
-      writeFileSync(copy, ext === '.md' ? asConflictCopy(blob.toString('utf-8'), label) : blob);
+      writeFileSync(copy, blob);
       const rel = copy.slice(dir.length + 1).replace(/\\/g, '/');
       await exec('git', ['add', '--', path, rel], dir);
       copies.push(rel);
@@ -617,10 +718,110 @@ async function settleConflicts(dir: string): Promise<string[]> {
   return copies;
 }
 
+async function changedSince(dir: string, base: string, rev: string): Promise<Set<string>> {
+  const out = await exec('git', ['diff', '--name-only', '-z', base, rev, '--', '_pending'], dir);
+  return new Set(out.split('\0').filter(Boolean));
+}
+
+/**
+ * Pending-changes files both sides changed that git merged line by line: merge
+ * them entry by entry too, so a decided change is never brought back and the
+ * file stays valid JSON. Then settle changes the two devices decided
+ * differently (one accepted, the other rejected): the later decision wins.
+ */
+async function settlePending(ctx: MergeContext, conflicted: Set<string>): Promise<void> {
+  if (!ctx.base) return;
+  const { dir, base } = ctx;
+  const ours = await changedSince(dir, base, 'HEAD');
+  const theirs = await changedSince(dir, base, 'MERGE_HEAD');
+  for (const path of ours) {
+    if (!theirs.has(path) || !isPendingPath(path)) continue;
+    const [b, o, t] = await Promise.all([readAt(dir, base, path), readAt(dir, 'HEAD', path), readAt(dir, 'MERGE_HEAD', path)]);
+    if (!conflicted.has(path)) await mergePendingFile(ctx, path, b, o, t);
+    await settleDecisions(ctx, path, b, o, t);
+  }
+}
+
+/** The data-folder path of the document with this docId, in the merged folder. */
+function docPathById(dir: string, docId: string): string | null {
+  for (const name of readdirSync(dir)) {
+    if (!name.endsWith('.md')) continue;
+    try {
+      if (splitDoc(readFileSync(join(dir, name), 'utf-8')).front?.docId === docId) return name;
+    } catch { /* unreadable */ }
+  }
+  return null;
+}
+
+async function settleDecisions(ctx: MergeContext, path: string, base: string | null, ours: string | null, theirs: string | null): Promise<void> {
+  const entries = (raw: string | null): any[] => { try { return JSON.parse(raw || '{}').entries || []; } catch { return []; } };
+  const ids = (raw: string | null) => new Set(entries(raw).map((e) => e?.nodeId));
+  const oIds = ids(ours); const tIds = ids(theirs);
+  const decided = entries(base).filter((e) => e?.nodeId && !oIds.has(e.nodeId) && !tIds.has(e.nodeId));
+  if (decided.length === 0) return;
+  const docFile = docPathById(ctx.dir, path.slice('_pending/'.length, -'.json'.length));
+  if (!docFile) return;
+  const [baseDoc, oursDoc, theirsDoc] = await Promise.all([ctx.base!, 'HEAD', 'MERGE_HEAD'].map((rev) => readAt(ctx.dir, rev, docFile)));
+  const [oTime, tTime] = await Promise.all([lastChange(ctx.dir, 'HEAD', path, ctx.base), lastChange(ctx.dir, 'MERGE_HEAD', path, ctx.base)]);
+  const linesOf = (raw: string | null) => (raw ? splitDoc(raw).body.split('\n') : []);
+  const file = join(ctx.dir, docFile);
+  const merged = splitDoc(readFileSync(file, 'utf-8'));
+  const lines = merged.body.split('\n');
+  let changed = false;
+  for (const e of decided) {
+    const orig = plainLine(nodeText(e.originalBaseline));
+    const next = plainLine(nodeText(e.newContent));
+    if (!next || orig === next) continue;
+    const accepted = (raw: string | null) => linesOf(raw).some((l) => plainLine(l) === next);
+    const oAccepted = accepted(oursDoc);
+    if (oAccepted === accepted(theirsDoc)) continue;
+    const laterAccepted = oTime.time >= tTime.time ? oAccepted : !oAccepted;
+    const at = lines.findIndex((l) => plainLine(l) === (laterAccepted ? orig : next));
+    if (at < 0 || (laterAccepted && lines.some((l) => plainLine(l) === next))) continue;
+    if (laterAccepted) {
+      lines[at] = linesOf(oAccepted ? oursDoc : theirsDoc).find((l) => plainLine(l) === next) || next;
+    } else if (orig) {
+      lines[at] = linesOf(baseDoc).find((l) => plainLine(l) === orig) || orig;
+    } else {
+      // A rejected insert: take the inserted paragraph out again.
+      lines.splice(at, lines[at + 1] === '' ? 2 : 1);
+    }
+    changed = true;
+  }
+  if (!changed) return;
+  writeFileSync(file, joinDoc(merged.front, lines.join('\n')));
+  await exec('git', ['add', '--', docFile], ctx.dir);
+}
+
+/** Commit-message lines that carry each replaced paragraph to the device whose words were replaced. */
+const REPLACED_TRAILER = 'OpenWriter-Replaced: ';
+
+/** Notices for this device from the commits a sync brought in: paragraphs another device's newer edit replaced. */
+async function replacedNotices(dir: string, before: string, after: string): Promise<SyncNotice[]> {
+  const me = (await readDevice())?.id;
+  if (!me) return [];
+  const log = await exec('git', ['log', '--format=%B', `${before}..${after}`], dir);
+  const notices: SyncNotice[] = [];
+  for (const line of log.split('\n')) {
+    if (!line.startsWith(REPLACED_TRAILER)) continue;
+    try {
+      const r = JSON.parse(line.slice(REPLACED_TRAILER.length));
+      if (r.loser !== me) continue;
+      notices.push({
+        id: noticeId(r), kind: 'replaced', file: r.file, docId: r.docId, title: r.title,
+        device: r.device, time: new Date(r.time * 1000).toISOString(), kept: r.kept, earlier: r.earlier, anchor: r.anchor,
+      });
+    } catch { /* not ours to read */ }
+  }
+  return notices;
+}
+
 interface PullResult {
   /** Files the merge changed here, absolute paths. */
   changed: string[];
   conflicts: string[];
+  /** HEAD before the merge, for notices and Undo of a deletion. */
+  before: string | null;
 }
 
 /**
@@ -629,47 +830,137 @@ interface PullResult {
  *   'connect' — first link of a folder with writing to a repo: histories may be unrelated.
  *   'fresh'   — first link of a folder with no writing yet: GitHub's files win outright,
  *               so the app's own starter files never shadow the writer's.
+ * The merge stops before committing so every rule above runs on it; the
+ * commit carries the replaced paragraphs for the device that lost them.
  */
 async function mergeRemote(dir: string, mode: 'sync' | 'connect' | 'fresh'): Promise<PullResult> {
   const branch = await remoteBranch(dir);
-  if (!branch) return { changed: [], conflicts: [] };
-  const ref = `origin/${branch}`;
   const before = await headSha(dir);
+  if (!branch) return { changed: [], conflicts: [], before };
+  const ref = `origin/${branch}`;
 
   let conflicts: string[] = [];
-  const args = ['merge', '--no-edit', '-m', 'Sync: merge from GitHub'];
+  const args = ['merge', '--no-commit', '-m', 'Sync: merge from GitHub'];
   if (mode !== 'sync') args.push('--allow-unrelated-histories');
   if (mode === 'fresh') args.push('-X', 'theirs');
-  try {
-    await gitAs([...args, ref], dir);
-  } catch (err) {
-    // No unmerged files means the merge failed for another reason: undo it and surface it.
-    if (!(await exec('git', ['ls-files', '-u'], dir))) {
-      try { await exec('git', ['merge', '--abort'], dir); } catch { /* no merge in progress */ }
-      throw err;
-    }
-    conflicts = await settleConflicts(dir);
-    await gitAs(['commit', '--no-edit'], dir);
+  let failure: unknown = null;
+  try { await gitAs([...args, ref], dir); } catch (err) { failure = err; }
+  const merging = existsSync(join(dir, '.git', 'MERGE_HEAD'));
+  const stages = merging ? await unmergedStages(dir) : new Map();
+  // A failure with nothing to settle is a real failure: undo it and surface it.
+  if (failure && stages.size === 0) {
+    if (merging) { try { await exec('git', ['merge', '--abort'], dir); } catch { /* no merge in progress */ } }
+    throw failure;
+  }
+  if (merging) {
+    let base: string | null = null;
+    try { base = await exec('git', ['merge-base', 'HEAD', 'MERGE_HEAD'], dir); } catch { /* unrelated histories */ }
+    const ctx: MergeContext = { dir, base, replacements: [] };
+    conflicts = await settleConflicts(ctx, stages);
+    await settlePending(ctx, new Set(stages.keys()));
+    const trailers = ctx.replacements.map((r) => REPLACED_TRAILER + JSON.stringify({
+      docId: r.docId, title: r.title, file: r.file, kept: r.kept, earlier: r.earlier, anchor: r.anchor,
+      device: r.device, time: r.time, loser: r.loserId,
+    }));
+    await gitAs(['commit', '--no-edit', '-m', ['Sync: merge from GitHub', trailers.join('\n')].filter(Boolean).join('\n\n')], dir);
   }
 
   const after = await headSha(dir);
-  if (!after || before === after) return { changed: [], conflicts };
+  if (!after || before === after) return { changed: [], conflicts, before };
   const diff = before
     ? await exec('git', ['diff', '--name-only', '-z', before, after], dir)
     : await exec('git', ['ls-tree', '-r', '--name-only', '-z', after], dir);
   const changed = diff.split('\0').filter(Boolean).map((p) => join(dir, p));
-  return { changed, conflicts };
+  if (before) addNotices(dir, await replacedNotices(dir, before, after));
+  return { changed, conflicts, before };
 }
 
-/** Make the running server show what the merge changed, and recommit the open doc if the merge deleted it. */
-async function applyToServer(dir: string, changed: string[]): Promise<void> {
+/**
+ * Make the running server show what the merge changed. The open document,
+ * deleted on another device that had not seen an edit since, closes with a
+ * notice ("Deleted on Web · Undo").
+ */
+async function applyToServer(dir: string, changed: string[], before: string | null): Promise<void> {
   if (changed.length === 0) return;
   const srv = await getServerModules();
-  const { restoredActive } = srv.reloadChangedFiles(changed);
-  if (restoredActive) await commitAll(dir, 'Sync: keep the open document');
+  const title = srv.getTitle();
+  const { deletedActive } = srv.reloadChangedFiles(changed);
+  if (deletedActive) {
+    // Documents live at the top of the data folder: the file name is the path.
+    const rel = deletedActive.split(/[/\\]/).pop() || deletedActive;
+    const by = await lastDeletion(dir, before, rel);
+    try {
+      const result = await srv.deleteDocument(rel);
+      if (result.switched && result.newDoc) srv.broadcastDocumentSwitched(result.newDoc.document, result.newDoc.title, result.newDoc.filename, undefined, 'fallback');
+      if (before) addNotices(dir, [{ id: noticeId([rel, before]), kind: 'deleted', file: rel, title, device: by.device, time: new Date(by.time * 1000).toISOString(), restoreFrom: before }]);
+    } catch {
+      // The only document there is: keep it, written back from memory.
+      srv.bumpDocVersion();
+      srv.save();
+      await commitAll(dir, 'Keep the only document');
+    }
+  }
   srv.broadcastDocumentsChanged();
   srv.broadcastWorkspacesChanged();
   srv.broadcastPendingDocsChanged();
+}
+
+/** Who deleted a file among the commits a sync brought in. */
+async function lastDeletion(dir: string, before: string | null, path: string): Promise<LineInfo> {
+  try {
+    const out = await exec('git', ['log', '-1', '--diff-filter=D', '--format=%at%x1f%an%x1f%ae', before ? `${before}..HEAD` : 'HEAD', '--', path], dir);
+    const [t, name, email] = out.split('\x1f');
+    if (t) return { time: Number(t), device: name, deviceId: deviceOf(email || '') };
+  } catch { /* fall through */ }
+  return { time: Math.floor(Date.now() / 1000), device: 'another device', deviceId: '' };
+}
+
+/**
+ * Undo what a notice reports: put the other device's paragraph back, or bring
+ * back the deleted document. Saved and synced like any edit; the version Undo
+ * replaces stays in history. Returns the document to open.
+ */
+export function undoNotice(id: string, onStatus: (status: SyncStatus) => void): Promise<{ ok: boolean; filename?: string; error?: string }> {
+  return enqueue(async () => {
+    const dir = await dataDir();
+    const notice = readNotices(dir).find((n) => n.id === id);
+    if (!notice) return { ok: false, error: 'Already undone' };
+    const srv = await getServerModules();
+    let file = notice.file;
+    if (notice.kind === 'deleted') {
+      const raw = await readAt(dir, notice.restoreFrom || 'HEAD', notice.file);
+      if (raw === null) return { ok: false, error: 'That version is no longer available' };
+      writeFileSync(join(dir, file), raw);
+    } else {
+      if (notice.docId && !existsSync(join(dir, file))) file = docPathById(dir, notice.docId) || file;
+      const path = join(dir, file);
+      if (!existsSync(path)) return { ok: false, error: 'The document is gone' };
+      srv.cancelDebouncedSave();
+      srv.save();
+      const doc = splitDoc(readFileSync(path, 'utf-8'));
+      const lines = doc.body.split('\n');
+      const kept = notice.kept || [];
+      const earlier = (notice.earlier || []).flatMap((l, i) => (i ? ['', l] : [l]));
+      const start = kept.length ? lines.indexOf(kept[0]) : (notice.anchor ? lines.indexOf(notice.anchor) + 1 : 0);
+      if (kept.length && start < 0) return { ok: false, error: 'That paragraph has changed since' };
+      let end = start;
+      for (const k of kept.slice(1)) { const at = lines.indexOf(k, end); if (at >= 0) end = at; }
+      if (kept.length) lines.splice(start, end - start + 1, ...earlier);
+      else lines.splice(start, 0, '', ...earlier);
+      writeFileSync(path, joinDoc(doc.front, lines.join('\n')));
+    }
+    removeNotice(dir, id);
+    srv.reloadChangedFiles([join(dir, file)]);
+    await commitAll(dir, 'Undo a sync change');
+    srv.broadcastDocumentsChanged();
+    onStatus(await getSyncStatus());
+    schedulePush(onStatus, 2000);
+    return { ok: true, filename: file.split('/').pop() };
+  });
+}
+
+export async function dismissNotice(id: string): Promise<void> {
+  removeNotice(await dataDir(), id);
 }
 
 async function pushBranch(dir: string, timeout = NETWORK_TIMEOUT): Promise<void> {
@@ -677,7 +968,12 @@ async function pushBranch(dir: string, timeout = NETWORK_TIMEOUT): Promise<void>
 }
 
 /** Point origin at `remoteUrl`, fetch, merge GitHub in, push. Shared by every setup path. */
-async function connectRemote(remoteUrl: string): Promise<string[]> {
+/** Connecting waits for any running sync, like every other git job. */
+function connectRemote(remoteUrl: string): Promise<string[]> {
+  return enqueue(() => connectRemoteNow(remoteUrl));
+}
+
+async function connectRemoteNow(remoteUrl: string): Promise<string[]> {
   const dir = await dataDir();
   const mode = hasWriting(dir) ? 'connect' : 'fresh';
   await initRepo();
@@ -692,9 +988,9 @@ async function connectRemote(remoteUrl: string): Promise<string[]> {
   if (branch && branch !== (await currentBranch(dir))) await exec('git', ['branch', '-M', branch], dir);
 
   const saved = snapshotLocalOnly(dir);
-  const { changed, conflicts } = await mergeRemote(dir, mode);
+  const { changed, conflicts, before } = await mergeRemote(dir, mode);
   restoreLocalOnly(saved);
-  await applyToServer(dir, changed);
+  await applyToServer(dir, changed, before);
   await pushBranch(dir, LOCAL_WRITE_TIMEOUT);
   writeLastSync(dir, new Date().toISOString());
   lastConflicts = conflicts;
@@ -829,6 +1125,8 @@ async function aheadOfGitHub(dir: string): Promise<boolean> {
 async function runSync(onStatus: (status: SyncStatus) => void, push: boolean): Promise<SyncStatus> {
   const srv = await getServerModules();
   const dir = await dataDir();
+  // A timer armed before a profile switch, or a folder that was never connected.
+  if (!(await isConfigured())) return { state: 'unconfigured' };
 
   currentSyncState = 'syncing';
   onStatus({ state: 'syncing' });
@@ -844,9 +1142,9 @@ async function runSync(onStatus: (status: SyncStatus) => void, push: boolean): P
     // A backlog fetch or push can carry many megabytes of images and history.
     await execGitRemote(['fetch', 'origin'], dir, LOCAL_WRITE_TIMEOUT);
     const saved = snapshotLocalOnly(dir);
-    const { changed, conflicts } = await mergeRemote(dir, 'sync');
+    const { changed, conflicts, before } = await mergeRemote(dir, 'sync');
     restoreLocalOnly(saved);
-    await applyToServer(dir, changed);
+    await applyToServer(dir, changed, before);
     if (push && (await aheadOfGitHub(dir))) await pushBranch(dir, LOCAL_WRITE_TIMEOUT);
 
     const now = new Date().toISOString();

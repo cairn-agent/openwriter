@@ -17,6 +17,8 @@ import { useRightRail } from './right-rail/RightRailContext';
 import RightRail from './right-rail/RightRail';
 import SyncSetupModal from './sync/SyncSetupModal';
 import { useAutoSync } from './sync/useAutoSync';
+import DeletedNotice from './sync/DeletedNotice';
+import { setSyncNotices, forceSyncNoticeRefresh } from './sync/sync-notice-plugin';
 import { useWebSocket, type PendingDocsPayload, type SyncStatus, type DocumentSwitchedPayload } from './ws/client';
 import { showToast } from './utils/toast';
 import { applyNodeChangesToEditor, applyIdRewritesToEditor } from './decorations/bridge';
@@ -1072,6 +1074,22 @@ export default function App() {
     return () => { cancelled = true; };
   }, [metadata, editorInstance]);
 
+  // Paragraphs a sync replaced with another device's newer version show a
+  // notice with Undo. adr: adr/two-way-sync.md
+  useEffect(() => {
+    const docId = metadata?.docId;
+    setSyncNotices((syncStatus.notices || []).filter((n) => n.kind === 'replaced' && n.docId === docId), (id) => {
+      fetch(`/api/sync/notices/${id}/undo`, { method: 'POST' })
+        .then((r) => r.json())
+        .then((res) => { if (!res.ok) showToast(res.error || 'Could not undo', 'error'); })
+        .catch(() => showToast('Could not undo', 'error'));
+    });
+    const editors = allEditorsRef.current.length > 0 ? allEditorsRef.current : (editorInstance ? [editorInstance] : []);
+    for (const e of editors) {
+      if (e?.view) forceSyncNoticeRefresh(e.view);
+    }
+  }, [syncStatus.notices, metadata?.docId, editorInstance]);
+
   // Sync attribution heatmap data from /api/attribution/:docId. Fires on doc
   // switch or metadata change (a write may have shifted authorship). Feeds the
   // attribution decoration plugin + the header %. adr: adr/document-history-attribution.md
@@ -1478,6 +1496,7 @@ export default function App() {
       />
       <ContextMenu editorRef={editorRef} allEditors={allEditors} documentId={activeFilename} docId={(metadata?.docId as string) || undefined} />
       <CommentPopover documentId={activeFilename} />
+      <DeletedNotice notices={syncStatus.notices} onOpen={handleSwitchDocument} />
       {showSyncSetup && (
         <SyncSetupModal
           onClose={() => setShowSyncSetup(false)}

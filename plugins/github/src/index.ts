@@ -23,6 +23,8 @@ import {
   findDocsRepos,
   pullNow,
   startAutoSync,
+  undoNotice,
+  dismissNotice,
   saveDeviceName,
   suggestDeviceName,
   syncNow,
@@ -163,6 +165,21 @@ const plugin: OpenWriterPlugin = {
     ctx.app.post('/api/sync/pull', async (_req: Request, res: Response) => {
       try { res.json(await pullNow(onStatus)); }
       catch (err: any) { fail(res, 'sync/pull', err, { state: 'error' }); }
+    });
+
+    // Notices a sync left (a replaced paragraph, a deleted open document): undo or dismiss.
+    ctx.app.post('/api/sync/notices/:id/undo', async (req: Request, res: Response) => {
+      try { res.json(await undoNotice(String(req.params.id), onStatus)); }
+      catch (err: any) { fail(res, 'sync/notices/undo', err); }
+    });
+
+    ctx.app.post('/api/sync/notices/:id/dismiss', async (req: Request, res: Response) => {
+      try {
+        await dismissNotice(String(req.params.id));
+        const status = await getSyncStatus();
+        onStatus(status);
+        res.json(status);
+      } catch (err: any) { fail(res, 'sync/notices/dismiss', err); }
     });
 
     // Every save is committed here and sent after the writer pauses.

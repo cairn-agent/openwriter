@@ -9,7 +9,7 @@
  * Run: `node scripts/test-github-sync.mjs` (after `npm run build`)
  */
 
-import { mkdtempSync, rmSync, readFileSync, writeFileSync, existsSync, readdirSync, unlinkSync } from 'fs';
+import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, readdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { execFileSync } from 'child_process';
@@ -27,7 +27,7 @@ process.on('exit', () => { try { rmSync(home, { recursive: true, force: true });
 const { ROOT_DIR, setActiveProfile, ensureDataDir, getDataDir } = await import('../dist/server/helpers.js');
 if (!ROOT_DIR.startsWith(home)) { console.error(`Refusing to run: data root ${ROOT_DIR} is not in the temp folder`); process.exit(1); }
 const { load, clearAllCaches, cancelDebouncedSave, debouncedSave, save, getPlainText } = await import('../dist/server/state.js');
-const { switchDocument } = await import('../dist/server/documents.js');
+const { switchDocument, getActiveFilename } = await import('../dist/server/documents.js');
 const sync = await import('../../../plugins/github/dist/git-sync.js');
 const device = await import('../../../plugins/github/dist/device-flow.js');
 
@@ -124,29 +124,136 @@ switchDocument('Essay.md');
 await sync.syncNow(noop);
 assert(getPlainText().includes('live update'), 'open doc shows the pulled text without a restart');
 
-console.log('\nA real conflict keeps both versions:');
+// Edit times are set on the commit (GIT_AUTHOR_DATE), the way commit-on-save stamps them.
+const T = Math.floor(Date.now() / 1000) + 1000;
+async function editAt(t, write) {
+  write();
+  process.env.GIT_AUTHOR_DATE = `${t} +0000`;
+  try { return await sync.commitSaved(); } finally { delete process.env.GIT_AUTHOR_DATE; }
+}
+const notices = async () => (await sync.getSyncStatus()).notices || [];
+const notes = (middle, end) => ['Notes intro.', middle, end];
+const nodesA = { nodes: [['a1', ['x']]] };
+const nodesB = { nodes: [['b1', ['y']]] };
+function writeDocMeta(dir, file, title, docId, paragraphs, meta) {
+  writeFileSync(join(dir, file), `---\n${JSON.stringify({ title, docId, ...meta })}\n---\n\n${paragraphs.join('\n\n')}\n`);
+}
+
+console.log('\nThe same paragraph changed on both: the newer edit wins, across an offline edit:');
 A = side('A');
 switchDocument('Scratch A.md');
-writeDoc(A, 'Notes.md', 'Notes', '0e7e0001', ['Notes written on A.']);
+writeDoc(A, 'Notes.md', 'Notes', '0e7e0001', notes('Notes middle.', 'Notes end.'));
 await sync.syncNow(noop);
 B = side('B');
 switchDocument('Scratch B.md');
-writeDoc(B, 'Notes.md', 'Notes', '0e7e0001', ['Notes written on B.']);
-r = await sync.syncNow(noop);
-assert(r.state === 'synced', 'B syncs despite the conflict');
-assert(r.conflicts?.length === 1 && /^Notes \(from GitHub .+\)\.md$/.test(r.conflicts[0]), `conflict copy named after the doc (${r.conflicts?.[0]})`);
-assert(read(B, 'Notes.md').includes('written on B'), "B's own version stays in place");
-const copy = r.conflicts[0];
-assert(read(B, copy).includes('written on A'), "GitHub's version is in the copy");
-assert(!read(B, 'Notes.md').includes('<<<<<<<') && !read(B, copy).includes('<<<<<<<'), 'no conflict markers in either file');
-const fm = frontmatter(read(B, copy));
-assert(fm.docId && fm.docId !== '0e7e0001', 'copy has its own docId');
-assert(fm.title.startsWith('Notes (from GitHub'), 'copy title says where it came from');
-assert((await sync.getSyncStatus()).conflicts?.[0] === copy, 'status reports the conflict');
-A = side('A');
 await sync.syncNow(noop);
-const aText = readdirSync(A).filter((f) => f.startsWith('Notes')).map((f) => read(A, f)).join('\n');
-assert(aText.includes('written on A') && aText.includes('written on B'), 'A ends with both texts too');
+// B is offline and edits the middle later in the day than A does.
+await editAt(T + 200, () => writeDocMeta(B, 'Notes.md', 'Notes', '0e7e0001', notes('Middle from B, offline.', 'Notes end.'), nodesB));
+A = side('A');
+switchDocument('Scratch A.md');
+await editAt(T + 100, () => writeDocMeta(A, 'Notes.md', 'Notes', '0e7e0001', notes('Middle from A.', 'Notes end.'), nodesA));
+await sync.syncNow(noop);
+B = side('B');
+switchDocument('Scratch B.md');
+r = await sync.syncNow(noop);
+assert(r.state === 'synced' && !r.conflicts, 'B syncs, no conflict copy');
+assert(read(B, 'Notes.md').includes('Middle from B, offline.') && !read(B, 'Notes.md').includes('Middle from A.'), "B's newer offline edit wins although A sent first");
+assert(!readdirSync(B).some((f) => f.includes('from GitHub')), 'no "from GitHub" copies');
+assert(!read(B, 'Notes.md').includes('<<<<'), 'no conflict markers');
+assert(frontmatter(read(B, 'Notes.md')).docId === '0e7e0001', 'the document keeps its id');
+assert((await notices()).length === 0, 'B, whose words won, gets no notice');
+A = side('A');
+switchDocument('Scratch A.md');
+await sync.syncNow(noop);
+assert(read(A, 'Notes.md').includes('Middle from B, offline.'), 'A gets the newer paragraph');
+let n = (await notices()).find((x) => x.kind === 'replaced');
+assert(n && n.device === 'Web' && n.earlier?.[0] === 'Middle from A.' && n.kept?.[0] === 'Middle from B, offline.' && n.title === 'Notes',
+  `A, whose words were replaced, is told by whom (${JSON.stringify(n)})`);
+assert((await sync.undoNotice(n.id, noop)).ok, 'Undo works');
+assert(read(A, 'Notes.md').includes('Middle from A.') && !read(A, 'Notes.md').includes('Middle from B, offline.'), "Undo puts A's paragraph back");
+assert((await notices()).length === 0, 'and the notice goes');
+assert(git(A, 'log', '--all', '-p', '--', 'Notes.md').includes('Middle from B, offline.'), 'the other version stays in history');
+await sync.syncNow(noop);
+
+console.log('\n...and the older offline edit loses, with a notice on its device:');
+B = side('B');
+switchDocument('Scratch B.md');
+await sync.syncNow(noop);
+await editAt(T + 300, () => writeDocMeta(B, 'Notes.md', 'Notes', '0e7e0001', notes('Middle from A.', 'End from B.'), nodesB));
+A = side('A');
+switchDocument('Scratch A.md');
+await editAt(T + 400, () => writeDocMeta(A, 'Notes.md', 'Notes', '0e7e0001', notes('Middle from A.', 'End from A.'), nodesA));
+await sync.syncNow(noop);
+B = side('B');
+switchDocument('Scratch B.md');
+r = await sync.syncNow(noop);
+assert(read(B, 'Notes.md').includes('End from A.') && !read(B, 'Notes.md').includes('End from B.'), "A's newer edit wins on B");
+n = (await notices()).find((x) => x.kind === 'replaced');
+assert(n && n.device === "Maya's laptop" && n.earlier?.[0] === 'End from B.', 'B is told its paragraph was replaced, and by whom');
+
+console.log('\nAppend-only logs merge without a clash:');
+A = side('A');
+switchDocument('Scratch A.md');
+await sync.syncNow(noop);
+mkdirSync(join(A, '_history'), { recursive: true });
+writeFileSync(join(A, '_history', '0e7e0001.jsonl'), '{"seq":1,"by":"base"}\n');
+await sync.syncNow(noop);
+B = side('B');
+switchDocument('Scratch B.md');
+await sync.syncNow(noop);
+writeFileSync(join(B, '_history', '0e7e0001.jsonl'), '{"seq":1,"by":"base"}\n{"seq":2,"by":"B"}\n');
+await sync.commitSaved();
+A = side('A');
+switchDocument('Scratch A.md');
+writeFileSync(join(A, '_history', '0e7e0001.jsonl'), '{"seq":1,"by":"base"}\n{"seq":2,"by":"A"}\n');
+await sync.syncNow(noop);
+B = side('B');
+switchDocument('Scratch B.md');
+r = await sync.syncNow(noop);
+const log = read(B, '_history/0e7e0001.jsonl');
+assert(log.includes('"by":"A"') && log.includes('"by":"B"') && !log.includes('<<<<') && !r.conflicts, 'both devices\' lines are kept, no copy');
+assert(read(B, '.gitattributes').includes('_history/*.jsonl merge=union'), 'the union rule travels with the documents');
+
+console.log('\nTwo devices decide the same suggested change differently: the later decision wins:');
+const proposal = (status) => ({
+  version: 1,
+  entries: [{
+    nodeId: 'p2', status,
+    originalBaseline: { type: 'paragraph', attrs: { id: 'p2' }, content: [{ type: 'text', text: 'Second, as written.' }] },
+    newContent: { type: 'paragraph', attrs: { id: 'p2' }, content: [{ type: 'text', text: 'Second, as suggested.' }] },
+  }],
+});
+A = side('A');
+switchDocument('Scratch A.md');
+writeDoc(A, 'Review.md', 'Review', 'aeaee001', ['First.', 'Second, as written.']);
+mkdirSync(join(A, '_pending'), { recursive: true });
+writeFileSync(join(A, '_pending', 'aeaee001.json'), JSON.stringify(proposal('rewrite'), null, 2));
+await sync.syncNow(noop);
+B = side('B');
+switchDocument('Scratch B.md');
+await sync.syncNow(noop);
+// B rejects later, and an agent adds a new suggestion there.
+const newer = proposal('rewrite');
+newer.entries = [{ nodeId: 'p3', status: 'insert', afterNodeId: 'p2', newContent: { type: 'paragraph', attrs: { id: 'p3' }, content: [{ type: 'text', text: 'A third.' }] } }];
+await editAt(T + 600, () => writeFileSync(join(B, '_pending', 'aeaee001.json'), JSON.stringify(newer, null, 2)));
+A = side('A');
+switchDocument('Scratch A.md');
+await editAt(T + 500, () => {
+  writeDoc(A, 'Review.md', 'Review', 'aeaee001', ['First.', 'Second, as suggested.']);
+  unlinkSync(join(A, '_pending', 'aeaee001.json'));
+});
+await sync.syncNow(noop);
+B = side('B');
+switchDocument('Scratch B.md');
+r = await sync.syncNow(noop);
+assert(read(B, 'Review.md').includes('Second, as written.') && !read(B, 'Review.md').includes('as suggested'), "B's later reject wins over A's earlier accept");
+const pend = JSON.parse(read(B, '_pending/aeaee001.json'));
+assert(!pend.entries.some((e) => e.nodeId === 'p2'), 'the decided change is not brought back');
+assert(pend.entries.some((e) => e.nodeId === 'p3'), 'the new suggestion is kept');
+A = side('A');
+switchDocument('Scratch A.md');
+await sync.syncNow(noop);
+assert(read(A, 'Review.md').includes('Second, as written.'), 'A ends with the later decision too');
 
 console.log('\nAn edit beats a delete:');
 B = side('B');
@@ -161,27 +268,41 @@ r = await sync.syncNow(noop);
 assert(r.state === 'synced', 'A syncs');
 assert(existsSync(join(A, 'Old.md')) && read(A, 'Old.md').includes('edited on B'), "B's edit survives A's delete");
 
-console.log('\nThe open doc is not deleted by a pull:');
+console.log('\nThe open doc deleted on another device closes, with Undo:');
 B = side('B');
 switchDocument('Essay.md');
+await sync.syncNow(noop);
 A = side('A');
 switchDocument('Scratch A.md');
+await sync.syncNow(noop);
 unlinkSync(join(A, 'Essay.md'));
 await sync.syncNow(noop);
 B = side('B');
 switchDocument('Essay.md');
 r = await sync.syncNow(noop);
-assert(r.state === 'synced', 'B syncs');
-assert(existsSync(join(B, 'Essay.md')) && read(B, 'Essay.md').includes('live update'), 'B keeps the open doc');
-assert(git(B, 'ls-files', 'Essay.md') === 'Essay.md', 'and commits it again');
+assert(r.state === 'synced' || r.state === 'pending', 'B syncs');
+assert(!existsSync(join(B, 'Essay.md')), 'the deleted document is not brought back');
+assert(getActiveFilename() !== 'Essay.md', 'B moves to another document');
+n = (await notices()).find((x) => x.kind === 'deleted');
+assert(n && n.device === "Maya's laptop" && n.title === 'Essay', `B is told where it was deleted (${JSON.stringify(n)})`);
+const undone = await sync.undoNotice(n.id, noop);
+assert(undone.ok && undone.filename === 'Essay.md' && read(B, 'Essay.md').includes('live update'), 'Undo brings it back');
+await sync.syncNow(noop);
+A = side('A');
+await sync.syncNow(noop);
+assert(existsSync(join(A, 'Essay.md')), 'and every device gets it back');
 
 console.log('\nConnecting a folder that already has writing merges, never overwrites:');
 const C = side('C');
-writeDoc(C, 'Notes.md', 'Notes', 'c0c00001', ['Notes from a third copy.']);
+writeDoc(C, 'Notes.md', 'Notes', '0e7e0001', ['Notes from a third copy.']);
 writeDoc(C, 'Own.md', 'Own', 'c0c00002', ['Only here.']);
+// C's writing is the newest of all.
+process.env.GIT_AUTHOR_DATE = `${T + 900} +0000`;
 const copies = await sync.connectExisting(remote);
-assert(read(C, 'Notes.md').includes('third copy'), "C's Notes.md is kept");
-assert(copies.length === 1 && read(C, copies[0]).includes('Notes written on B'), "GitHub's Notes.md is saved as a copy");
+delete process.env.GIT_AUTHOR_DATE;
+assert(copies.length === 0 && !readdirSync(C).some((f) => f.includes('from GitHub')), 'no conflict copies');
+assert(read(C, 'Notes.md').includes('third copy'), "C's newer Notes.md is kept");
+assert(git(C, 'log', '--all', '-p', '--', 'Notes.md').includes('End from A.'), "GitHub's version stays in history");
 assert(existsSync(join(C, 'Own.md')) && existsSync(join(C, 'Essay.md')), "C keeps its own doc and gets GitHub's");
 
 console.log('\nA save is committed here at once, offline too, signed by the device:');

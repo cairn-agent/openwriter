@@ -21,7 +21,10 @@ export interface ServerModules {
   bumpDocVersion: () => number;
   // After a GitHub pull: reload the changed files into the running server.
   // adr: adr/two-way-sync.md
-  reloadChangedFiles: (changedPaths: string[]) => { restoredActive: string | null };
+  reloadChangedFiles: (changedPaths: string[]) => { deletedActive: string | null };
+  // documents.js: close the open doc another device deleted (switches to a neighbour).
+  deleteDocument: (filename: string) => Promise<{ switched: boolean; newDoc?: { document: any; title: string; filename: string } }>;
+  broadcastDocumentSwitched: (document: any, title: string, filename: string, metadata?: Record<string, any>, navigation?: 'open' | 'fallback' | 'create') => void;
   /** How long since the writer last edited in a browser; a pull waits while they type. */
   msSinceHumanEdit: () => number;
   // ws.js
@@ -64,23 +67,24 @@ const monoBase = new URL('../../../packages/openwriter/dist/server/', import.met
 let _cached: ServerModules | null = null;
 
 async function tryImport(base: string) {
-  const [helpers, state, ws, markdown, schemaGate] = await Promise.all([
+  const [helpers, state, ws, markdown, schemaGate, documents] = await Promise.all([
     import(base + 'helpers.js'),
     import(base + 'state.js'),
     import(base + 'ws.js'),
     import(base + 'markdown.js'),
     import(base + 'blog-schema-gate.js'),
+    import(base + 'documents.js'),
   ]);
-  return { helpers, state, ws, markdown, schemaGate };
+  return { helpers, state, ws, markdown, schemaGate, documents };
 }
 
 export async function getServerModules(): Promise<ServerModules> {
   if (_cached) return _cached;
-  let helpers, state, ws, markdown, schemaGate;
+  let helpers, state, ws, markdown, schemaGate, documents;
   try {
-    ({ helpers, state, ws, markdown, schemaGate } = await tryImport(npmBase));
+    ({ helpers, state, ws, markdown, schemaGate, documents } = await tryImport(npmBase));
   } catch {
-    ({ helpers, state, ws, markdown, schemaGate } = await tryImport(monoBase));
+    ({ helpers, state, ws, markdown, schemaGate, documents } = await tryImport(monoBase));
   }
   _cached = {
     getDataDir: helpers.getDataDir,
@@ -97,6 +101,8 @@ export async function getServerModules(): Promise<ServerModules> {
     bumpDocVersion: state.bumpDocVersion,
     reloadChangedFiles: state.reloadChangedFiles,
     msSinceHumanEdit: state.msSinceHumanEdit,
+    deleteDocument: documents.deleteDocument,
+    broadcastDocumentSwitched: ws.broadcastDocumentSwitched,
     broadcastSyncStatus: ws.broadcastSyncStatus,
     broadcastMetadataChanged: ws.broadcastMetadataChanged,
     broadcastDocumentsChanged: ws.broadcastDocumentsChanged,

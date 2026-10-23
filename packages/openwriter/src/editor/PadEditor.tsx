@@ -12,6 +12,7 @@ import { replaceChangedContent } from '../decorations/apply';
 import { createCommentDecorationPlugin } from '../decorations/comments-plugin';
 import { createBacklinkDecorationPlugin } from '../decorations/backlinks-plugin';
 import { createAttributionDecorationPlugin } from '../decorations/attribution-plugin';
+import { createSyncNoticePlugin } from '../sync/sync-notice-plugin';
 import { handleImagePaste, handleImageDrop } from './uploadImage';
 import { cleanPastedHTML } from './pasteCleanup';
 import { parseLinkHref, type ParsedLinkHref } from './link-href';
@@ -187,6 +188,16 @@ export default function PadEditor({ documentId, initialContent, extensions, onUp
     if (state.plugins.some((p: any) => p.key === 'backlinkDecoration$')) return;
     const plugin = createBacklinkDecorationPlugin();
     const newState = state.reconfigure({ plugins: [...state.plugins, plugin] });
+    editor.view.updateState(newState);
+  }, [editor]);
+
+  // Register the sync notice plugin (a paragraph another device's newer edit
+  // replaced, with Undo). adr: adr/two-way-sync.md
+  useEffect(() => {
+    if (!editor) return;
+    const { state } = editor.view;
+    if (state.plugins.some((p: any) => p.key === 'syncNotice$')) return;
+    const newState = state.reconfigure({ plugins: [...state.plugins, createSyncNoticePlugin()] });
     editor.view.updateState(newState);
   }, [editor]);
 

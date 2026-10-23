@@ -77,6 +77,20 @@ export interface PendingDocsPayload {
   counts: Record<string, number>;
 }
 
+/** Mirrors plugins/github/src/sync-notices.ts. adr: adr/two-way-sync.md */
+export interface SyncNotice {
+  id: string;
+  kind: 'replaced' | 'deleted';
+  file: string;
+  docId?: string;
+  title?: string;
+  device: string;
+  time: string;
+  kept?: string[];
+  earlier?: string[];
+  anchor?: string;
+}
+
 export interface SyncStatus {
   state: 'unconfigured' | 'synced' | 'pending' | 'syncing' | 'offline' | 'error';
   lastSyncTime?: string;
@@ -87,6 +101,8 @@ export interface SyncStatus {
   fix?: 'signin' | 'setup' | 'retry';
   /** A pull waited because the writer is typing; ask again after the pause. */
   deferred?: boolean;
+  /** What syncs changed under the writer: a replaced paragraph, a deleted open document. */
+  notices?: SyncNotice[];
   /** Conflict copies the last sync saved (files changed on both sides). adr: adr/two-way-sync.md */
   conflicts?: string[];
 }

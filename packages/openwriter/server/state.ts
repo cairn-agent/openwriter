@@ -605,31 +605,25 @@ function reloadActiveAndNotify(reason: string): void {
 /**
  * Pick up files a GitHub pull changed in the data folder, without a restart.
  * The active doc reloads like an external write; any other doc drops its cache
- * entry and its viewers get the new copy. If the pull deleted the active doc,
- * it is written back from memory (the writer has it open) and its path is
- * returned so the sync can commit it again. adr: adr/two-way-sync.md
+ * entry and its viewers get the new copy. If the pull deleted the active doc
+ * (another device deleted it and this one had not edited it since), its path is
+ * returned so the sync can close it with a notice. adr: adr/two-way-sync.md
  */
-export function reloadChangedFiles(changedPaths: string[]): { restoredActive: string | null } {
+export function reloadChangedFiles(changedPaths: string[]): { deletedActive: string | null } {
   const changed = new Set(changedPaths.map((p) => canonicalizePath(p)));
-  if (changed.size === 0) return { restoredActive: null };
+  if (changed.size === 0) return { deletedActive: null };
   invalidateBacklinksCache();
-  let restoredActive: string | null = null;
+  let deletedActive: string | null = null;
   for (const path of changed) {
     invalidateDocCache(path);
     if (path === state.filePath) continue;
     if (path.endsWith('.md') && existsSync(path)) notifyDocFileWritten(path.split(/[/\\]/).pop() || '');
   }
   if (state.filePath && changed.has(state.filePath)) {
-    if (existsSync(state.filePath)) {
-      reloadActiveAndNotify('GitHub pull');
-    } else {
-      bumpDocVersion();
-      writeToDisk();
-      startActiveDocWatcher();
-      restoredActive = state.filePath;
-    }
+    if (existsSync(state.filePath)) reloadActiveAndNotify('GitHub pull');
+    else deletedActive = state.filePath;
   }
-  return { restoredActive };
+  return { deletedActive };
 }
 
 /** Start (or restart) the watcher on the active doc's filePath. Called
