@@ -60,7 +60,7 @@ them stay in the public history; that cannot be undone and they hold no secrets.
     `openRailTab`, `showToast` (one action button or several) and `onConnectionLost`. A client module mounts its own UI into the element it is given.
     A module presenting the app its own way also gets what the app shows (`getApp`,
     `onAppChange`: the editor, the open document, the connection, unsent edits, pending
-    documents), the app's own actions (`app`: switch, create, flush, rename, and review's
+    documents, GitHub sync status), the app's own actions (`app`: switch, create, flush, rename, and review's
     accept/reject, focus and original preview, through the same code the Review tab uses, and
     `showPending` to point the writer at changes from the plugin's own writing action),
     the app's ProseMirror classes (`pm`) for its editor plugins and decorations, and `tabId`.
@@ -207,3 +207,9 @@ the rail. Generic: any plugin with its own screens needs a way in that does not 
 after the date. Generic: any plugin that copies the data folder elsewhere (the github
 sync plugin keeps them on this copy only) can tell the app's starter documents from the
 writer's. The marker still means "first run done"; readers of line one are unchanged.
+
+### 2026-10-23 — the app snapshot carries GitHub sync status
+`getApp()` now has `sync`, the same status the app's own sync line shows, so a module
+presenting the app its own way can show it too without polling. Generic: a local plugin
+that lays out its own screen needs it as much as an embedder; nothing changes for the
+local app.

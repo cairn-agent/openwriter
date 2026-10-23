@@ -18,7 +18,7 @@ import { Plugin, PluginKey, TextSelection, NodeSelection } from '@tiptap/pm/stat
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { DOMSerializer } from '@tiptap/pm/model';
 import { showToast } from '../utils/toast';
-import { TAB_ID } from '../ws/client';
+import { TAB_ID, type SyncStatus } from '../ws/client';
 import { canonicalTabId } from '../right-rail/types';
 
 /** A plugin's mounted view. `update` receives fresh context; `unmount` tears it down. */
@@ -129,6 +129,8 @@ export interface AppSnapshot {
   unsent: boolean;
   /** Documents with changes waiting for review, and how many each. */
   pendingDocs: { filenames: string[]; counts: Record<string, number> };
+  /** GitHub sync, as the app's own status line shows it. */
+  sync: SyncStatus;
 }
 
 /** The app's own navigation and review actions, for a plugin presenting them its own way. */
@@ -270,6 +272,7 @@ export function setRailOpener(fn: ((id: string) => void) | null): void {
 let appSnapshot: AppSnapshot = {
   editor: null, docId: null, filename: '', title: '', metadata: {},
   connected: false, unsent: false, pendingDocs: { filenames: [], counts: {} },
+  sync: { state: 'unconfigured' },
 };
 const appListeners = new Set<(app: AppSnapshot) => void>();
 

@@ -1190,6 +1190,7 @@ export default function App() {
   }, [activeFilename, title, metadata]);
   useEffect(() => { publishApp({ connected }); }, [connected]);
   useEffect(() => { publishApp({ pendingDocs }); }, [pendingDocs]);
+  useEffect(() => { publishApp({ sync: syncStatus }); }, [syncStatus]);
 
   const pendingTitleRef = useRef(pendingTitle);
   pendingTitleRef.current = pendingTitle;
