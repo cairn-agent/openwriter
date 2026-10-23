@@ -19,6 +19,15 @@ The right rail consolidates every contextual surface into a single tabbed sideba
 
 ## Decision log (append-only)
 
+### 2026-10-23 — The floating bar mounts only where its slot is shown
+
+An embedder with its own review on small screens (OpenWriter on the web, on a phone) hides
+`#floating-review` and keeps the rail on another tab so no rail Review competes with its own
+for the current change. The floating ReviewTab would have mounted hidden and moved the current
+change on every edit. RailBody now mounts it only while the slot has a box
+(`getClientRects()`), re-checked when the `<html>` class changes or the window resizes. The
+slot is always displayed by OpenWriter itself; hiding it is how a page opts out.
+
 ### 2026-10-23 — Floating review bar
 
 The Focus strip below becomes the general case. While the Review tab is not on

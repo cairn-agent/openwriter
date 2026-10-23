@@ -7,7 +7,6 @@
   z-index: 1000;
   max-width: calc(100% - 24px);
 }
-.floating-review-slot:empty { display: none; }
 
 .floating-review {
   display: flex;

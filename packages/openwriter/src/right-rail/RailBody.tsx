@@ -20,9 +20,20 @@ export default function RailBody({ railVisible, ...props }: RailBodyProps) {
   // The Review tab on screen holds the review controls; otherwise (another tab such as the
   // chat holds the rail, the rail is closed, or Focus) they float over the bottom of the document.
   const floating = !(railVisible && activeTab === 'review');
+  // Only a slot that is shown gets the controls. A page that hides it (an embedder's own
+  // review on a small screen) mounts no second controller to fight over the current change.
   const [floatTarget, setFloatTarget] = useState<HTMLElement | null>(null);
   useLayoutEffect(() => {
-    setFloatTarget(floating ? document.getElementById('floating-review') : null);
+    if (!floating) { setFloatTarget(null); return; }
+    const pick = () => {
+      const slot = document.getElementById('floating-review');
+      setFloatTarget(slot && slot.getClientRects().length > 0 ? slot : null);
+    };
+    pick();
+    const watch = new MutationObserver(pick);
+    watch.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    window.addEventListener('resize', pick);
+    return () => { watch.disconnect(); window.removeEventListener('resize', pick); };
   }, [floating]);
 
   return (
@@ -30,7 +41,7 @@ export default function RailBody({ railVisible, ...props }: RailBodyProps) {
       {activeTab === 'review'
         ? !floating && <ReviewTab {...props} />
         : active ? <active.Component {...props} /> : null}
-      {floating && <ReviewTab {...props} floatingTarget={floatTarget} />}
+      {floatTarget && <ReviewTab {...props} floatingTarget={floatTarget} />}
     </div>
   );
 }
