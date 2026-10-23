@@ -44,10 +44,11 @@ const MARKER_FILE = '.openwriter';
 const FIRST_RUN_MARKER = '.first-run';
 /**
  * Files that belong to this copy only: settings, this device, the running
- * server's lock, local versions, and the first-run marker. Listed in
- * .git/info/exclude, which is never synced; the first-run documents join them.
+ * server's lock, local versions, the first-run marker, and the voice index's
+ * open-database journals (only meaningful to the process holding the file).
+ * Listed in .git/info/exclude, which is never synced; the first-run documents join them.
  */
-const LOCAL_ONLY = ['config.json', '.versions/', DEVICE_FILE, FIRST_RUN_MARKER, 'server.lock'];
+const LOCAL_ONLY = ['config.json', '.versions/', DEVICE_FILE, FIRST_RUN_MARKER, 'server.lock', 'voice/index.db-shm', 'voice/index.db-wal'];
 /** Per-document append-only logs: merged by keeping both sides' lines (.gitattributes, synced). */
 const UNION_MERGED = ['_history/*.jsonl merge=union', '_commits/*.jsonl merge=union', '*.log merge=union'];
 /** When this copy last synced. Inside .git, so it is never synced either. */
@@ -89,6 +90,8 @@ export interface SyncCapabilities {
   deviceFlow: boolean;
   /** The name this copy signs its changes with, once chosen. */
   deviceName?: string;
+  /** A name to offer before sign-in tells us the writer's name. */
+  deviceSuggestion: string;
 }
 
 export interface Device { id: string; name: string }
@@ -401,13 +404,14 @@ export async function getSyncStatus(): Promise<SyncStatus> {
     return { state: 'unconfigured' };
   }
 
+  const dir = await dataDir();
+  const notices = readNotices(dir);
+  // Notices stay on screen while a sync runs.
   if (currentSyncState === 'syncing') {
-    return { state: 'syncing' };
+    return { state: 'syncing', ...(notices.length ? { notices } : {}) };
   }
 
-  const dir = await dataDir();
   const lastSyncTime = await readLastSync(dir);
-  const notices = readNotices(dir);
   const conflicts = { ...(lastConflicts.length ? { conflicts: lastConflicts } : {}), ...(notices.length ? { notices } : {}) };
   if ((currentSyncState === 'error' || currentSyncState === 'offline') && lastError) {
     return { state: currentSyncState, ...lastError, lastSyncTime, ...conflicts };
@@ -446,6 +450,7 @@ export async function getCapabilities(): Promise<SyncCapabilities> {
     signedIn: !!(await readToken()),
     deviceFlow: !!deviceFlowClientId(),
     deviceName: (await readDevice())?.name,
+    deviceSuggestion: suggestDeviceName(),
   };
 }
 
@@ -682,6 +687,7 @@ async function unmergedStages(dir: string): Promise<Map<string, Map<number, stri
  * Settle every file git could not merge, keeping all writing:
  *   a document both changed   → paragraph merge, the newest edit of each paragraph wins
  *   pending changes           → entry merge, decided changes stay decided
+ *   attribution cache (_blame) → ours stays; it is rebuilt from _history
  *   any other file both changed → ours stays, GitHub's saved under .sync-conflicts/
  *   one side deleted          → the side that still has the file wins (an edit since beats a delete)
  *   both deleted              → gone
@@ -699,6 +705,10 @@ async function settleConflicts(ctx: MergeContext, stages: Map<string, Map<number
       await mergePendingFile(ctx, path, await text(s.get(1)), await text(ours), await text(theirs));
     } else if (ours && theirs && isDocPath(path)) {
       await mergeDocument(ctx, path, s);
+    } else if (ours && theirs && path.startsWith('_blame/')) {
+      // The attribution cache is rebuilt from _history; a copy of GitHub's would only pile up.
+      await exec('git', ['checkout', '--ours', '--', path], dir);
+      await exec('git', ['add', '--', path], dir);
     } else if (ours && theirs) {
       await exec('git', ['checkout', '--ours', '--', path], dir);
       const blob = await gitBlob(theirs, dir);
@@ -1230,7 +1240,7 @@ async function runSync(onStatus: (status: SyncStatus) => void, push: boolean): P
   if (!(await isConfigured())) return { state: 'unconfigured' };
 
   currentSyncState = 'syncing';
-  onStatus({ state: 'syncing' });
+  onStatus(await getSyncStatus());
 
   try {
     srv.cancelDebouncedSave();
@@ -1299,8 +1309,9 @@ export function commitSaved(): Promise<boolean> {
 
 /** Path parts the folder watcher ignores: git's own files and this copy's local ones. */
 function ignoredChange(rel: string): boolean {
-  const first = rel.replace(/\\/g, '/').split('/')[0];
-  return first === '.git' || first === '.versions' || first === DEVICE_FILE || first === 'server.lock' || first === CONFLICT_DIR;
+  const path = rel.replace(/\\/g, '/');
+  const first = path.split('/')[0];
+  return first === '.git' || first === '.versions' || first === DEVICE_FILE || first === 'server.lock' || first === CONFLICT_DIR || LOCAL_ONLY.includes(path);
 }
 
 /** A save landed in the data folder: commit it shortly, push after the pause. */

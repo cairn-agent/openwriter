@@ -19,6 +19,7 @@ interface SyncCapabilities {
   /** "Sign in with GitHub" (device flow) is available on this server. */
   deviceFlow?: boolean;
   deviceName?: string;
+  deviceSuggestion?: string;
 }
 
 interface DocsRepo { fullName: string; name: string; documents: number; private: boolean }
@@ -242,7 +243,11 @@ export default function SyncSetupModal({ onClose, onSetupComplete }: SyncSetupMo
               </div>
             )}
 
-            <details className="sync-other" onToggle={(e) => { if (!(e.target as HTMLDetailsElement).open) setOther(null); else if (!other) setOther(caps.ghAuthenticated ? 'gh' : 'pat'); }}>
+            <details className="sync-other" onToggle={(e) => {
+              if (!(e.target as HTMLDetailsElement).open) { setOther(null); return; }
+              if (!other) setOther(caps.ghAuthenticated ? 'gh' : 'pat');
+              setDeviceName((name) => name || caps.deviceSuggestion || '');
+            }}>
               <summary>Other ways to connect</summary>
               <div className="sync-tabs">
                 {caps.ghAuthenticated && (

@@ -196,3 +196,13 @@ shows GitHub history per document by device and time, with Restore, and "Roll ba
 everything to…" with a preview count. Both are new commits rather than resets, so
 nothing is lost and every other device receives the restore like any edit. The local
 `.versions` snapshots stay as they were; synced history sits beside them.
+
+### 2026-10-23 — fixes from the two-copy browser check
+A browser check with two copies on one test repo turned up four things. The voice
+index's open-database journals (`voice/index.db-shm`, `-wal`) were synced; they only
+mean something to the process holding the file, so they are local-only. Two devices
+editing one document clashed on its `_blame/` attribution cache and left a copy in
+`.sync-conflicts`; that cache is rebuilt from `_history`, so ours is kept with no copy.
+The "deleted on <device>" notice blinked out during every sync because the syncing
+status carried no notices; it now does. The device name field under "Other ways to
+connect" starts with the suggested name, as the sign-in path already did.
