@@ -19,6 +19,10 @@ import {
   setupWithGh,
   setupWithToken,
   connectExisting,
+  connectRepo,
+  findDocsRepos,
+  saveDeviceName,
+  suggestDeviceName,
   syncNow,
   type SyncStatus,
 } from './git-sync.js';
@@ -78,12 +82,27 @@ const plugin: OpenWriterPlugin = {
       catch (err: any) { fail(res, 'sync/pending', err); }
     });
 
+    // After sign-in: the writer's existing documents repos (so a second device
+    // joins the first one's repo) and a suggested name for this device.
+    ctx.app.get('/api/sync/repos', async (_req: Request, res: Response) => {
+      try {
+        const found = await findDocsRepos();
+        res.json({ repos: found.repos, login: found.login, deviceSuggestion: suggestDeviceName(found.name || found.login) });
+      } catch (err: any) {
+        console.error('[GitHub Plugin] sync/repos failed:', err?.message || err);
+        res.status(500).json({ error: err?.message || 'Could not reach GitHub' });
+      }
+    });
+
     ctx.app.post('/api/sync/setup', async (req: Request, res: Response) => {
       try {
-        const { method, repoName, remoteUrl, pat, isPrivate } = req.body;
+        const { method, repoName, remoteUrl, pat, isPrivate, repo, deviceName } = req.body;
+        if (typeof deviceName === 'string' && deviceName.trim()) await saveDeviceName(deviceName);
 
         let conflicts: string[];
-        if (method === 'gh') {
+        if (method === 'use') {
+          conflicts = await connectRepo(String(repo || ''));
+        } else if (method === 'gh') {
           conflicts = await setupWithGh(repoName || 'openwriter-docs', isPrivate !== false);
         } else if (method === 'pat') {
           // No PAT in the body: use the stored token (device-flow sign-in).
@@ -92,7 +111,7 @@ const plugin: OpenWriterPlugin = {
           if (!remoteUrl) { res.status(400).json({ error: 'Remote URL is required' }); return; }
           conflicts = await connectExisting(remoteUrl, pat);
         } else {
-          res.status(400).json({ error: 'Invalid method. Use: gh, pat, or connect' });
+          res.status(400).json({ error: 'Invalid method. Use: use, gh, pat, or connect' });
           return;
         }
 

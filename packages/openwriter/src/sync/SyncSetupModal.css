@@ -194,3 +194,16 @@
   border-radius: 6px;
   user-select: all;
 }
+
+.sync-btn-wide { width: 100%; margin-top: 4px; }
+.sync-link {
+  background: none;
+  border: none;
+  padding: 4px 0;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+.sync-other { margin-top: 16px; font-size: 13px; }
+.sync-other summary { cursor: pointer; color: var(--ink-light, #777); margin-bottom: 8px; }

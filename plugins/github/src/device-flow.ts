@@ -2,20 +2,23 @@
  * "Sign in with GitHub" without a client secret: GitHub's device flow.
  * The writer gets a short code, enters it at github.com/login/device in their
  * own browser, and the browser polls this server until GitHub hands over a
- * token. Used by the online copy, where there is no gh CLI. The client id is
- * public (OW_GITHUB_CLIENT_ID); the token is stored by saveToken, never logged.
+ * token. Every copy offers it, desktop included. The client id is public, not
+ * a secret: OpenWriter's own OAuth App by default, OW_GITHUB_CLIENT_ID to use
+ * another. The token is stored by saveToken, never logged.
  * adr: adr/two-way-sync.md
  */
 
 import { saveToken } from './git-sync.js';
 
 const GITHUB = 'https://github.com';
+/** OpenWriter's GitHub OAuth App (device flow on). Public: device flow has no client secret. */
+const DEFAULT_CLIENT_ID = 'Ov23liCYclIOzGfwgfAH';
 
 interface PendingLogin { deviceCode: string; interval: number; expiresAt: number }
 let pending: PendingLogin | null = null;
 
 export function deviceFlowClientId(): string {
-  return process.env.OW_GITHUB_CLIENT_ID?.trim() || '';
+  return process.env.OW_GITHUB_CLIENT_ID?.trim() || DEFAULT_CLIENT_ID;
 }
 
 async function post(path: string, params: Record<string, string>): Promise<any> {

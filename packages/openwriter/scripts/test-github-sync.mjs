@@ -70,8 +70,12 @@ writeDoc(A, 'Notes.md', 'Notes', '0e7e0001', ['Notes start.']);
 writeDoc(A, 'Old.md', 'Old', '01d00001', ['Old text.']);
 switchDocument('Scratch A.md');
 const pat = 'ghp_TESTONLY_not_a_real_token_1234';
+await sync.saveDeviceName("Maya's laptop");
 assert((await sync.connectExisting(remote, pat)).length === 0, 'connect reports no conflicts');
 assert(git(remote, 'ls-tree', '-r', '--name-only', 'main').includes('Essay.md'), 'GitHub has Essay.md');
+assert(git(remote, 'log', '-1', '--format=%an', 'main') === "Maya's laptop", 'commits are signed with the device name');
+assert(git(remote, 'ls-tree', '--name-only', 'main').split('\n').includes('.openwriter'), 'the repo carries the OpenWriter marker');
+assert(!git(remote, 'ls-tree', '--name-only', 'main').includes('openwriter-device'), 'the device file is not synced');
 
 console.log('\nCredentials stay out of git:');
 assert(!read(A, '.git/config').includes(pat), '.git/config does not contain the token');
@@ -84,6 +88,7 @@ assert(sync.sanitizeRemoteUrl('https://u:secret@github.com/o/r.git') === 'https:
 console.log('\nB (empty folder) connects and pulls everything down:');
 let B = side('B');
 assert(!existsSync(join(B, 'Essay.md')), 'B starts without Essay.md');
+await sync.saveDeviceName('Web');
 assert((await sync.connectExisting(remote)).length === 0, 'first connection has no conflicts');
 assert(read(B, 'Essay.md').includes('Essay five.'), 'B has Essay.md with its text');
 assert(existsSync(join(B, 'Notes.md')) && existsSync(join(B, 'Old.md')), 'B has every document');
@@ -179,9 +184,36 @@ assert(read(C, 'Notes.md').includes('third copy'), "C's Notes.md is kept");
 assert(copies.length === 1 && read(C, copies[0]).includes('Notes written on B'), "GitHub's Notes.md is saved as a copy");
 assert(existsSync(join(C, 'Own.md')) && existsSync(join(C, 'Essay.md')), "C keeps its own doc and gets GitHub's");
 
-console.log('\nSign in with GitHub (device flow, GitHub replies faked):');
-process.env.OW_GITHUB_CLIENT_ID = 'Iv1.testclient';
+console.log('\nA second device finds the documents already on GitHub (GitHub replies faked):');
 const realFetch = globalThis.fetch;
+globalThis.fetch = async (url) => {
+  const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  const u = String(url);
+  if (u.endsWith('/user')) return reply({ login: 'maya', name: 'Maya Lin' });
+  if (u.includes('/user/repos')) return reply([
+    { full_name: 'maya/website', name: 'website', size: 10, private: false },
+    { full_name: 'maya/my-writing', name: 'my-writing', size: 10, private: true },
+    { full_name: 'maya/openwriter-docs', name: 'openwriter-docs', size: 0, private: true },
+  ]);
+  if (u.includes('/repos/maya/website/contents')) return reply([{ name: 'index.html', type: 'file' }, { name: 'README.md', type: 'file' }]);
+  if (u.includes('/repos/maya/my-writing/contents')) return reply([{ name: '.openwriter', type: 'file' }, { name: 'Essay.md', type: 'file' }, { name: 'Notes.md', type: 'file' }, { name: '_pending', type: 'dir' }]);
+  if (u.includes('/repos/maya/openwriter-docs/contents')) return reply({ message: 'This repository is empty.' }, 404);
+  throw new Error(`unexpected fetch ${u}`);
+};
+try {
+  const found = await sync.findDocsRepos();
+  assert(found.repos[0]?.fullName === 'maya/my-writing' && found.repos[0].documents === 2, `the repo with documents is offered first, with its count (${JSON.stringify(found.repos[0])})`);
+  assert(!found.repos.some((r) => r.name === 'website'), 'an unrelated repo is not offered');
+  assert(found.repos.some((r) => r.name === 'openwriter-docs'), 'an empty openwriter-docs is offered too');
+  assert(sync.suggestDeviceName(found.name) === "Maya's computer", 'device name suggestion uses the first name');
+} finally {
+  globalThis.fetch = realFetch;
+}
+
+console.log('\nSign in with GitHub (device flow, GitHub replies faked):');
+delete process.env.OW_GITHUB_CLIENT_ID;
+assert(device.deviceFlowClientId() === 'Ov23liCYclIOzGfwgfAH', 'every copy has the public OpenWriter client id by default');
+process.env.OW_GITHUB_CLIENT_ID = 'Iv1.testclient';
 const calls = [];
 let polls = 0;
 globalThis.fetch = async (url, init) => {

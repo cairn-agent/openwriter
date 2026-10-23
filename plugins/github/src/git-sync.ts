@@ -34,6 +34,12 @@ const LOCAL_WRITE_TIMEOUT = 300000;
 const CONFLICT_DIR = '.sync-conflicts';
 /** The token from device flow or a pasted PAT, outside the synced folder, owner-only. */
 const TOKEN_FILE = 'github-token.json';
+/** This copy's device name and id, in the data folder but never synced. */
+const DEVICE_FILE = '.openwriter-device.json';
+/** Committed to every documents repo, so another device can recognise it. */
+const MARKER_FILE = '.openwriter';
+/** Files that belong to this copy only. Listed in .git/info/exclude, which is never synced. */
+const LOCAL_ONLY = ['config.json', '.versions/', DEVICE_FILE];
 
 export type SyncState = 'unconfigured' | 'synced' | 'pending' | 'syncing' | 'error';
 
@@ -54,9 +60,16 @@ export interface SyncCapabilities {
   remoteUrl?: string;
   /** A GitHub token is stored (device flow or PAT); setup can use it without asking again. */
   signedIn: boolean;
-  /** "Sign in with GitHub" (device flow) is available: OW_GITHUB_CLIENT_ID is set. */
+  /** "Sign in with GitHub" (device flow) is available. */
   deviceFlow: boolean;
+  /** The name this copy signs its changes with, once chosen. */
+  deviceName?: string;
 }
+
+export interface Device { id: string; name: string }
+
+/** A GitHub repo that already holds OpenWriter documents. */
+export interface DocsRepo { fullName: string; name: string; documents: number; private: boolean }
 
 let currentSyncState: SyncState = 'unconfigured';
 let lastError: string | undefined;
@@ -172,6 +185,99 @@ async function dataDir(): Promise<string> {
   return (await getServerModules()).getDataDir();
 }
 
+// ── Device ──────────────────────────────────────────────────────────────────
+// Every change this copy sends is signed with its device name (the commit
+// author), so history and notices can say "Maya's laptop" or "Web". The id
+// (the author email) tells this copy's own changes from another's even when
+// two devices share a name. Stored in the data folder, never synced.
+
+function cleanDeviceName(name: string): string {
+  return name.replace(/[\r\n\t<>"]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+}
+
+/** This copy's device, if a name was chosen. */
+export async function readDevice(): Promise<Device | null> {
+  try {
+    const d = JSON.parse(readFileSync(join(await dataDir(), DEVICE_FILE), 'utf-8'));
+    if (typeof d?.id === 'string' && typeof d?.name === 'string' && d.name) return { id: d.id, name: d.name };
+  } catch { /* not chosen yet */ }
+  return null;
+}
+
+export async function saveDeviceName(name: string): Promise<Device> {
+  const clean = cleanDeviceName(name) || 'OpenWriter';
+  const id = (await readDevice())?.id || randomBytes(6).toString('hex');
+  writeFileSync(join(await dataDir(), DEVICE_FILE), JSON.stringify({ id, name: clean }));
+  return { id, name: clean };
+}
+
+async function device(): Promise<Device> {
+  return (await readDevice()) || saveDeviceName(process.env.OW_GITHUB_DEVICE_NAME || 'OpenWriter');
+}
+
+/** `git -c user.name=<device> -c user.email=<id>@device.openwriter <args>`: this device signs the commit. */
+async function gitAs(args: string[], dir: string, timeout = LOCAL_WRITE_TIMEOUT): Promise<string> {
+  const d = await device();
+  return exec('git', ['-c', `user.name=${d.name}`, '-c', `user.email=${d.id}@device.openwriter`, ...args], dir, timeout);
+}
+
+/** The name the setup screen offers: the hosting program's choice, else "<first name>'s computer". */
+export function suggestDeviceName(githubName?: string): string {
+  if (process.env.OW_GITHUB_DEVICE_NAME?.trim()) return process.env.OW_GITHUB_DEVICE_NAME.trim();
+  const first = githubName?.trim().split(/\s+/)[0];
+  return first ? `${first}'s computer` : 'My computer';
+}
+
+// ── Finding the writer's documents on GitHub ────────────────────────────────
+
+async function githubApi(path: string, token: string): Promise<{ status: number; body: any }> {
+  const res = await fetch(`https://api.github.com${path}`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+  });
+  return { status: res.status, body: await res.json().catch(() => null) };
+}
+
+/** True when a repo's top-level listing looks like an OpenWriter data folder. */
+function isDocsListing(entries: any[]): boolean {
+  const names = new Set(entries.map((e) => e?.name));
+  return names.has(MARKER_FILE) || names.has('_doc-order.json') || names.has('_workspaces') || names.has('_pending') || names.has('_history');
+}
+
+/**
+ * The writer's GitHub repos that already hold OpenWriter documents, most
+ * recently changed first, plus their name for the device suggestion. A second
+ * device connects to one of these instead of creating another repo.
+ */
+export async function findDocsRepos(): Promise<{ login: string; name?: string; repos: DocsRepo[] }> {
+  const token = await readToken();
+  if (!token) throw new Error('Sign in with GitHub first');
+  const user = await githubApi('/user', token);
+  if (user.status === 401) throw new Error('GitHub sign-in expired. Sign in again.');
+  if (user.status !== 200) throw new Error(`GitHub returned ${user.status}`);
+  const list = await githubApi('/user/repos?per_page=100&sort=pushed&affiliation=owner', token);
+  const all: any[] = Array.isArray(list.body) ? list.body : [];
+  const repos: DocsRepo[] = [];
+  // Look inside the 30 most recently changed repos, and always the default name.
+  const candidates = all.filter((r, i) => i < 30 || r.name === 'openwriter-docs');
+  await Promise.all(candidates.map(async (r) => {
+    const root = await githubApi(`/repos/${r.full_name}/contents/`, token);
+    const entries: any[] = Array.isArray(root.body) ? root.body : [];
+    const empty = root.status === 404 && r.size === 0;
+    if (!isDocsListing(entries) && !(empty && r.name === 'openwriter-docs')) return;
+    const documents = entries.filter((e) => e?.type === 'file' && String(e.name).endsWith('.md')).length;
+    repos.push({ fullName: r.full_name, name: r.name, documents, private: !!r.private });
+  }));
+  const order = new Map(all.map((r, i) => [r.full_name, i]));
+  repos.sort((a, b) => (order.get(a.fullName) ?? 0) - (order.get(b.fullName) ?? 0));
+  return { login: user.body?.login, name: user.body?.name || undefined, repos };
+}
+
+/** Connect a repo found by findDocsRepos (`owner/name`): the existing-repo path, no address to paste. */
+export async function connectRepo(fullName: string): Promise<string[]> {
+  if (!/^[\w.-]+\/[\w.-]+$/.test(fullName)) throw new Error('Unknown repository');
+  return connectExisting(`https://github.com/${fullName}.git`);
+}
+
 export async function isGitInstalled(): Promise<boolean> {
   try { await exec('git', ['--version'], await dataDir()); return true; } catch { return false; }
 }
@@ -275,7 +381,18 @@ export async function getCapabilities(): Promise<SyncCapabilities> {
     remoteUrl,
     signedIn: !!(await readToken()),
     deviceFlow: !!deviceFlowClientId(),
+    deviceName: (await readDevice())?.name,
   };
+}
+
+/** This copy's own files stay out of every commit: .git/info/exclude is local to this folder. */
+async function ensureLocalExcludes(dir: string): Promise<void> {
+  const file = join(dir, '.git', 'info', 'exclude');
+  let current = '';
+  try { current = readFileSync(file, 'utf-8'); } catch { mkdirSync(dirname(file), { recursive: true }); }
+  const have = new Set(current.split(/\r?\n/));
+  const missing = LOCAL_ONLY.filter((p) => !have.has(p));
+  if (missing.length) writeFileSync(file, `${current}${current && !current.endsWith('\n') ? '\n' : ''}${missing.join('\n')}\n`);
 }
 
 async function initRepo(): Promise<void> {
@@ -284,20 +401,18 @@ async function initRepo(): Promise<void> {
     await exec('git', ['init'], dir);
   }
   await ensureGitignore();
-  try { await exec('git', ['config', 'user.name'], dir); } catch {
-    await exec('git', ['config', 'user.name', 'OpenWriter'], dir);
-  }
-  try { await exec('git', ['config', 'user.email'], dir); } catch {
-    await exec('git', ['config', 'user.email', 'openwriter@local'], dir);
+  await ensureLocalExcludes(dir);
+  if (!existsSync(join(dir, MARKER_FILE))) {
+    writeFileSync(join(dir, MARKER_FILE), 'This repository holds OpenWriter documents. OpenWriter keeps it in sync.\n');
   }
 }
 
-/** Stage everything and commit it. False when there was nothing to commit. */
+/** Stage everything and commit it as this device. False when there was nothing to commit. */
 async function commitAll(dir: string, message: string): Promise<boolean> {
   await exec('git', ['add', '-A'], dir, LOCAL_WRITE_TIMEOUT);
   const status = await exec('git', ['status', '--porcelain'], dir, LOCAL_WRITE_TIMEOUT);
   if (!status) return false;
-  await exec('git', ['commit', '-m', message], dir, LOCAL_WRITE_TIMEOUT);
+  await gitAs(['commit', '-m', message], dir);
   return true;
 }
 
@@ -439,7 +554,7 @@ async function mergeRemote(dir: string, mode: 'sync' | 'connect' | 'fresh'): Pro
   if (mode !== 'sync') args.push('--allow-unrelated-histories');
   if (mode === 'fresh') args.push('-X', 'theirs');
   try {
-    await exec('git', [...args, ref], dir, LOCAL_WRITE_TIMEOUT);
+    await gitAs([...args, ref], dir);
   } catch (err) {
     // No unmerged files means the merge failed for another reason: undo it and surface it.
     if (!(await exec('git', ['ls-files', '-u'], dir))) {
@@ -447,7 +562,7 @@ async function mergeRemote(dir: string, mode: 'sync' | 'connect' | 'fresh'): Pro
       throw err;
     }
     conflicts = await settleConflicts(dir);
-    await exec('git', ['commit', '--no-edit'], dir, LOCAL_WRITE_TIMEOUT);
+    await gitAs(['commit', '--no-edit'], dir);
   }
 
   const after = await headSha(dir);

@@ -1,3 +1,10 @@
+/**
+ * Set up sync with GitHub. One path: sign in with GitHub, name this device,
+ * then use the documents already on GitHub or start new ones. A second device
+ * finds the first one's documents, so it never creates a second store by
+ * accident. The GitHub CLI, a token or a pasted address sit under "Other ways
+ * to connect". adr: adr/two-way-sync.md
+ */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './SyncSetupModal.css';
 
@@ -11,52 +18,74 @@ interface SyncCapabilities {
   signedIn?: boolean;
   /** "Sign in with GitHub" (device flow) is available on this server. */
   deviceFlow?: boolean;
+  deviceName?: string;
 }
+
+interface DocsRepo { fullName: string; name: string; documents: number; private: boolean }
 
 interface SyncSetupModalProps {
   onClose: () => void;
   onSetupComplete: () => void;
 }
 
-type Phase = 'detecting' | 'setup' | 'progress' | 'done' | 'error';
-type Mode = 'gh' | 'github' | 'pat' | 'connect';
+type Phase = 'loading' | 'setup' | 'progress' | 'done' | 'error';
+type Other = 'gh' | 'pat' | 'connect';
 interface DeviceCode { userCode: string; verificationUri: string; interval: number }
 
+function documentsLabel(n: number): string {
+  return n === 1 ? '1 document' : `${n} documents`;
+}
+
 export default function SyncSetupModal({ onClose, onSetupComplete }: SyncSetupModalProps) {
-  const [phase, setPhase] = useState<Phase>('detecting');
+  const [phase, setPhase] = useState<Phase>('loading');
   const [caps, setCaps] = useState<SyncCapabilities | null>(null);
-  const [mode, setMode] = useState<Mode>('gh');
+  const [signedIn, setSignedIn] = useState(false);
+  const [deviceCode, setDeviceCode] = useState<DeviceCode | null>(null);
+  const [deviceMsg, setDeviceMsg] = useState('');
+  const [repos, setRepos] = useState<DocsRepo[] | null>(null);
+  const [reposError, setReposError] = useState('');
+  const [deviceName, setDeviceName] = useState('');
+  const [creating, setCreating] = useState(false);
   const [repoName, setRepoName] = useState('openwriter-docs');
   const [isPrivate, setIsPrivate] = useState(true);
+  const [other, setOther] = useState<Other | null>(null);
   const [pat, setPat] = useState('');
   const [remoteUrl, setRemoteUrl] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [progressMsg, setProgressMsg] = useState('');
-  const [conflicts, setConflicts] = useState<string[]>([]);
-  const [signedIn, setSignedIn] = useState(false);
-  const [deviceCode, setDeviceCode] = useState<DeviceCode | null>(null);
-  const [deviceMsg, setDeviceMsg] = useState('');
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Detect capabilities on mount
   useEffect(() => {
     fetch('/api/sync/capabilities')
       .then((r) => r.json())
       .then((data: SyncCapabilities) => {
         setCaps(data);
         setSignedIn(!!data.signedIn);
-        if (data.ghAuthenticated) setMode('gh');
-        else if (data.deviceFlow) setMode('github');
-        else setMode('pat');
+        if (data.deviceName) setDeviceName(data.deviceName);
         setPhase('setup');
       })
       .catch(() => {
-        setErrorMsg('Failed to detect git capabilities');
+        setErrorMsg('OpenWriter could not check this computer. Close this window and try again.');
         setPhase('error');
       });
   }, []);
 
   useEffect(() => () => { if (pollTimer.current) clearTimeout(pollTimer.current); }, []);
+
+  // Once signed in: look for documents already on GitHub, and suggest a name for this device.
+  useEffect(() => {
+    if (!signedIn) return;
+    setRepos(null);
+    setReposError('');
+    fetch('/api/sync/repos')
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || 'Could not reach GitHub');
+        setRepos(data.repos || []);
+        setDeviceName((name) => name || data.deviceSuggestion || '');
+      })
+      .catch((err: Error) => { setReposError(err.message); setRepos([]); });
+  }, [signedIn]);
 
   // "Sign in with GitHub": show the code, then ask the server every few
   // seconds whether GitHub has approved it. adr: adr/two-way-sync.md
@@ -91,35 +120,48 @@ export default function SyncSetupModal({ onClose, onSetupComplete }: SyncSetupMo
     }
   }, [poll]);
 
-  const handleSetup = useCallback(async () => {
+  const runSetup = useCallback(async (body: Record<string, any>, message: string) => {
     setPhase('progress');
-    setProgressMsg(mode === 'connect' ? 'Connecting and getting your documents from GitHub...' : 'Creating repository and syncing...');
-
+    setProgressMsg(message);
     try {
-      // 'github' creates a repo with the signed-in token: the server's PAT
-      // path, with the stored token instead of a pasted one.
-      const method = mode === 'github' ? 'pat' : mode;
-      const body: Record<string, any> = { method, repoName, isPrivate };
-      if (mode === 'pat') body.pat = pat;
-      if (mode === 'connect') { body.remoteUrl = remoteUrl; body.pat = pat || undefined; }
-
       const res = await fetch('/api/sync/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ ...body, deviceName: deviceName.trim() || undefined }),
       });
-
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Setup failed (${res.status})`);
-
-      setConflicts(data.conflicts || []);
       setPhase('done');
       onSetupComplete();
     } catch (err: any) {
       setErrorMsg(err.message);
       setPhase('error');
     }
-  }, [mode, repoName, isPrivate, pat, remoteUrl, onSetupComplete]);
+  }, [deviceName, onSetupComplete]);
+
+  const connectTo = (repo: DocsRepo) => runSetup({ method: 'use', repo: repo.fullName }, `Bringing your documents from ${repo.name}...`);
+  // A new repo with the signed-in token: the server's token path, no token in the body.
+  const createRepo = () => runSetup({ method: 'pat', repoName, isPrivate }, `Creating ${repoName} on GitHub...`);
+  const runOther = () => {
+    if (other === 'gh') return runSetup({ method: 'gh', repoName, isPrivate }, `Creating ${repoName} on GitHub...`);
+    if (other === 'pat') return runSetup({ method: 'pat', pat, repoName, isPrivate }, `Creating ${repoName} on GitHub...`);
+    return runSetup({ method: 'connect', remoteUrl, pat: pat || undefined }, 'Bringing your documents from GitHub...');
+  };
+
+  const newRepoFields = (
+    <>
+      <label>
+        Name on GitHub
+        <input type="text" value={repoName} onChange={(e) => setRepoName(e.target.value)} placeholder="openwriter-docs" />
+      </label>
+      <label className="sync-checkbox">
+        <input type="checkbox" checked={isPrivate} onChange={(e) => setIsPrivate(e.target.checked)} />
+        Private (only you can see it)
+      </label>
+    </>
+  );
+
+  const found = repos && repos.length > 0 ? repos[0] : null;
 
   return (
     <div className="sync-modal-overlay" onClick={onClose}>
@@ -129,153 +171,131 @@ export default function SyncSetupModal({ onClose, onSetupComplete }: SyncSetupMo
           <button className="sync-modal-close" onClick={onClose}>&times;</button>
         </div>
 
-        {phase === 'detecting' && (
+        {phase === 'loading' && (
           <div className="sync-modal-body">
             <div className="sync-spinner" />
-            <p>Detecting git configuration...</p>
           </div>
         )}
 
-        {phase === 'setup' && caps && (
+        {phase === 'setup' && caps && !caps.gitInstalled && (
           <div className="sync-modal-body">
-            {!caps.gitInstalled && (
-              <div className="sync-warning">
-                Git is not installed. Please <a href="https://git-scm.com/downloads" target="_blank" rel="noreferrer">install git</a> first.
+            <div className="sync-warning">
+              Syncing needs Git on this computer. Install it from <a href="https://git-scm.com/downloads" target="_blank" rel="noreferrer">git-scm.com</a>, then open this window again.
+            </div>
+          </div>
+        )}
+
+        {phase === 'setup' && caps?.gitInstalled && (
+          <div className="sync-modal-body">
+            <p className="sync-hint">
+              Your documents are kept on GitHub and stay the same on every device you write on. Changes sync by themselves.
+            </p>
+
+            {!signedIn && (
+              <div className="sync-form">
+                {!deviceCode && <button className="sync-btn primary" onClick={startSignIn}>Sign in with GitHub</button>}
+                {deviceCode && (
+                  <>
+                    <p className="sync-hint">
+                      Open <a href={deviceCode.verificationUri} target="_blank" rel="noreferrer">{deviceCode.verificationUri}</a> and enter this code:
+                    </p>
+                    <div className="sync-device-code">{deviceCode.userCode}</div>
+                    <p className="sync-hint">Waiting for GitHub...</p>
+                  </>
+                )}
+                {deviceMsg && <div className="sync-warning">{deviceMsg}</div>}
               </div>
             )}
 
-            {caps.gitInstalled && (
-              <>
-                <p className="sync-hint">
-                  Sync works both ways: your changes go up to GitHub, and changes made in your other OpenWriter come back down.
-                </p>
+            {signedIn && repos === null && <div className="sync-spinner" />}
 
-                {/* Mode tabs */}
-                <div className="sync-tabs">
-                  {caps.ghAuthenticated && (
-                    <button className={`sync-tab${mode === 'gh' ? ' active' : ''}`} onClick={() => setMode('gh')}>
-                      GitHub CLI
+            {signedIn && repos !== null && (
+              <div className="sync-form">
+                <label>
+                  Name this device
+                  <input type="text" value={deviceName} onChange={(e) => setDeviceName(e.target.value)} placeholder="Maya's laptop" />
+                </label>
+                <p className="sync-hint">History shows which device made each change.</p>
+                {reposError && <div className="sync-warning">{reposError}</div>}
+
+                {found && !creating && (
+                  <>
+                    {repos!.map((r, i) => (
+                      <button key={r.fullName} className={`sync-btn ${i === 0 ? 'primary' : 'secondary'} sync-btn-wide`} disabled={!deviceName.trim()} onClick={() => connectTo(r)}>
+                        Use {r.name} ({documentsLabel(r.documents)})
+                      </button>
+                    ))}
+                    <button className="sync-link" onClick={() => setCreating(true)}>Start with new, empty documents instead</button>
+                  </>
+                )}
+
+                {(!found || creating) && (
+                  <>
+                    {creating && <p className="sync-hint">This keeps a separate set of documents. Your other devices will not see them unless they choose it too.</p>}
+                    {newRepoFields}
+                    <button className="sync-btn primary sync-btn-wide" disabled={!deviceName.trim() || !repoName.trim()} onClick={createRepo}>
+                      Create {repoName || 'openwriter-docs'} on GitHub
                     </button>
-                  )}
-                  {caps.deviceFlow && (
-                    <button className={`sync-tab${mode === 'github' ? ' active' : ''}`} onClick={() => setMode('github')}>
-                      Sign in with GitHub
-                    </button>
-                  )}
-                  <button className={`sync-tab${mode === 'pat' ? ' active' : ''}`} onClick={() => setMode('pat')}>
-                    Personal Access Token
-                  </button>
-                  <button className={`sync-tab${mode === 'connect' ? ' active' : ''}`} onClick={() => setMode('connect')}>
-                    Connect Existing
-                  </button>
-                </div>
-
-                {/* gh CLI mode */}
-                {mode === 'gh' && (
-                  <div className="sync-form">
-                    <label>
-                      Repository name
-                      <input type="text" value={repoName} onChange={(e) => setRepoName(e.target.value)} placeholder="openwriter-docs" />
-                    </label>
-                    <label className="sync-checkbox">
-                      <input type="checkbox" checked={isPrivate} onChange={(e) => setIsPrivate(e.target.checked)} />
-                      Private repository
-                    </label>
-                  </div>
+                    {creating && <button className="sync-link" onClick={() => setCreating(false)}>Back</button>}
+                  </>
                 )}
-
-                {/* Sign in with GitHub (device flow) */}
-                {mode === 'github' && (
-                  <div className="sync-form">
-                    {!signedIn && !deviceCode && (
-                      <>
-                        <p className="sync-hint">GitHub gives you a short code to enter on github.com. Nothing to install.</p>
-                        <button className="sync-btn primary" onClick={startSignIn}>Get sign-in code</button>
-                      </>
-                    )}
-                    {!signedIn && deviceCode && (
-                      <>
-                        <p className="sync-hint">
-                          Open <a href={deviceCode.verificationUri} target="_blank" rel="noreferrer">{deviceCode.verificationUri}</a> and enter this code:
-                        </p>
-                        <div className="sync-device-code">{deviceCode.userCode}</div>
-                        <p className="sync-hint">Waiting for GitHub...</p>
-                      </>
-                    )}
-                    {deviceMsg && <div className="sync-warning">{deviceMsg}</div>}
-                    {signedIn && (
-                      <>
-                        <p className="sync-hint">Signed in to GitHub. Create a new repository, or use Connect Existing to bring down documents you already have.</p>
-                        <label>
-                          Repository name
-                          <input type="text" value={repoName} onChange={(e) => setRepoName(e.target.value)} placeholder="openwriter-docs" />
-                        </label>
-                        <label className="sync-checkbox">
-                          <input type="checkbox" checked={isPrivate} onChange={(e) => setIsPrivate(e.target.checked)} />
-                          Private repository
-                        </label>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {/* PAT mode */}
-                {mode === 'pat' && (
-                  <div className="sync-form">
-                    {!caps.ghAuthenticated && !caps.ghInstalled && (
-                      <p className="sync-hint">
-                        Create a <a href="https://github.com/settings/tokens/new?scopes=repo&description=OpenWriter" target="_blank" rel="noreferrer">Personal Access Token</a> with <code>repo</code> scope.
-                      </p>
-                    )}
-                    <label>
-                      Personal Access Token
-                      <input type="password" value={pat} onChange={(e) => setPat(e.target.value)} placeholder="ghp_..." />
-                    </label>
-                    <label>
-                      Repository name
-                      <input type="text" value={repoName} onChange={(e) => setRepoName(e.target.value)} placeholder="openwriter-docs" />
-                    </label>
-                    <label className="sync-checkbox">
-                      <input type="checkbox" checked={isPrivate} onChange={(e) => setIsPrivate(e.target.checked)} />
-                      Private repository
-                    </label>
-                  </div>
-                )}
-
-                {/* Connect existing mode */}
-                {mode === 'connect' && (
-                  <div className="sync-form">
-                    <p className="sync-hint">
-                      Brings down every document in the repository. Documents already here are kept; if one changed in both places, GitHub's copy is saved next to yours.
-                    </p>
-                    <label>
-                      Remote URL
-                      <input type="text" value={remoteUrl} onChange={(e) => setRemoteUrl(e.target.value)} placeholder="https://github.com/user/repo.git" />
-                    </label>
-                    <label>
-                      {signedIn ? 'PAT (optional, you are signed in)' : 'PAT (optional, for private repos)'}
-                      <input type="password" value={pat} onChange={(e) => setPat(e.target.value)} placeholder="ghp_..." />
-                    </label>
-                  </div>
-                )}
-
-                <div className="sync-modal-actions">
-                  <button className="sync-btn secondary" onClick={onClose}>Cancel</button>
-                  <button
-                    className="sync-btn primary"
-                    onClick={handleSetup}
-                    disabled={
-                      (mode === 'pat' && !pat) ||
-                      (mode === 'github' && !signedIn) ||
-                      (mode === 'connect' && !remoteUrl) ||
-                      (mode !== 'connect' && !repoName)
-                    }
-                  >
-                    {mode === 'connect' ? 'Connect & Sync' : 'Create & Sync'}
-                  </button>
-                </div>
-              </>
+              </div>
             )}
+
+            <details className="sync-other" onToggle={(e) => { if (!(e.target as HTMLDetailsElement).open) setOther(null); else if (!other) setOther(caps.ghAuthenticated ? 'gh' : 'pat'); }}>
+              <summary>Other ways to connect</summary>
+              <div className="sync-tabs">
+                {caps.ghAuthenticated && (
+                  <button className={`sync-tab${other === 'gh' ? ' active' : ''}`} onClick={() => setOther('gh')}>GitHub CLI</button>
+                )}
+                <button className={`sync-tab${other === 'pat' ? ' active' : ''}`} onClick={() => setOther('pat')}>Personal Access Token</button>
+                <button className={`sync-tab${other === 'connect' ? ' active' : ''}`} onClick={() => setOther('connect')}>Address on GitHub</button>
+              </div>
+              {other && (
+                <div className="sync-form">
+                  {other === 'pat' && (
+                    <>
+                      <p className="sync-hint">
+                        Create a <a href="https://github.com/settings/tokens/new?scopes=repo&description=OpenWriter" target="_blank" rel="noreferrer">Personal Access Token</a> with <code>repo</code> access.
+                      </p>
+                      <label>
+                        Personal Access Token
+                        <input type="password" value={pat} onChange={(e) => setPat(e.target.value)} placeholder="ghp_..." />
+                      </label>
+                    </>
+                  )}
+                  {other !== 'connect' && newRepoFields}
+                  {other === 'connect' && (
+                    <>
+                      <p className="sync-hint">Brings down every document stored there. Documents already here are kept.</p>
+                      <label>
+                        Address on GitHub
+                        <input type="text" value={remoteUrl} onChange={(e) => setRemoteUrl(e.target.value)} placeholder="https://github.com/you/openwriter-docs" />
+                      </label>
+                      <label>
+                        {signedIn ? 'Personal Access Token (optional, you are signed in)' : 'Personal Access Token (for private ones)'}
+                        <input type="password" value={pat} onChange={(e) => setPat(e.target.value)} placeholder="ghp_..." />
+                      </label>
+                    </>
+                  )}
+                  {!signedIn && (
+                    <label>
+                      Name this device
+                      <input type="text" value={deviceName} onChange={(e) => setDeviceName(e.target.value)} placeholder="Maya's laptop" />
+                    </label>
+                  )}
+                  <div className="sync-modal-actions">
+                    <button
+                      className="sync-btn primary"
+                      onClick={runOther}
+                      disabled={!deviceName.trim() || (other === 'pat' && !pat) || (other === 'connect' ? !remoteUrl : !repoName)}
+                    >
+                      {other === 'connect' ? 'Connect' : 'Create and connect'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </details>
           </div>
         )}
 
@@ -289,13 +309,7 @@ export default function SyncSetupModal({ onClose, onSetupComplete }: SyncSetupMo
         {phase === 'done' && (
           <div className="sync-modal-body">
             <div className="sync-success-icon">&#10003;</div>
-            <p>Your documents are synced with GitHub.</p>
-            {conflicts.length > 0 && (
-              <div className="sync-warning">
-                These files changed in both places. Yours were kept, and GitHub's versions were saved next to them:
-                <ul>{conflicts.map((f) => <li key={f}>{f}</li>)}</ul>
-              </div>
-            )}
+            <p>Your documents are synced with GitHub. From now on they sync by themselves.</p>
             <div className="sync-modal-actions">
               <button className="sync-btn primary" onClick={onClose}>Done</button>
             </div>

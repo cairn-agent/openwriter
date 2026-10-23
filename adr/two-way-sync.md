@@ -51,9 +51,24 @@ failure modes with ones that never drop a word.
   token through the inline credential helper and `OW_GIT_PAT` env var. It is never in
   the remote URL, `.git/config`, argv or logs. Network git never prompts
   (`GIT_TERMINAL_PROMPT=0`).
-- **Device flow** (`device-flow.ts`) needs only the public `OW_GITHUB_CLIENT_ID` of a
-  GitHub OAuth App with device flow enabled; there is no client secret. The browser
-  polls `/api/sync/device/poll`; the server runs no timer.
+- **Device flow** (`device-flow.ts`) needs only the public client id of a GitHub OAuth
+  App with device flow enabled; there is no client secret. Every copy has it: OpenWriter's
+  own app id (`Ov23liCYclIOzGfwgfAH`) by default, `OW_GITHUB_CLIENT_ID` to use another.
+  The browser polls `/api/sync/device/poll`; the server runs no timer.
+- **One setup path, one repo.** Setup is sign in, name this device, then connect.
+  After sign-in `/api/sync/repos` (`findDocsRepos`) lists the writer's repos that
+  already hold OpenWriter documents (the committed `.openwriter` marker, or
+  `_doc-order.json` / `_workspaces` / `_pending` / `_history` at the top, or an empty
+  `openwriter-docs`) with their document count. When one exists the primary action is
+  "Use <repo> (N documents)" (setup method `use`, the existing-repo path); creating a
+  new repo is the secondary choice, so a second device never makes a second repo by
+  default. GitHub CLI, a pasted token and a pasted address are "Other ways to connect".
+- **Every commit is signed by its device.** The device name and a random id live in
+  `.openwriter-device.json` in the data folder, never synced (`.git/info/exclude`,
+  with `config.json` and `.versions/`). Commits and merges run as
+  `user.name=<device name>`, `user.email=<id>@device.openwriter`, so history can say
+  which device made a change. The name is asked at setup, prefilled from
+  `OW_GITHUB_DEVICE_NAME` (a hosting program's choice) or "<first name>'s computer".
 - **Pull on start is opt-in.** With the plugin setting `pullOnStart` (or env
   `OW_GITHUB_PULL_ON_START=1`) the plugin pulls once at start-up (commit and merge, no
   push); otherwise only a Sync click pulls. No background timers.
@@ -77,3 +92,13 @@ repository (adr/open-source-boundary.md). It is now the plugin's `pullOnStart` s
 (env `OW_GITHUB_PULL_ON_START`), off by default, so any copy that is often started after
 edits elsewhere can use it. The blog tools are always offered; a program embedding
 OpenWriter can drop them with its tool filter.
+
+### 2026-10-23 — one setup path that finds the existing repo; device names
+A UX roleplay found a second device creating a second repo (the sign-in path only
+offered "create"), and history with no way to tell devices apart. Setup now signs in
+first, then looks for repos that already hold OpenWriter documents and makes using one
+the primary action. Detection reads each recent repo's top-level listing (one API call
+each, the 30 most recently pushed) rather than a GitHub topic, because older repos carry
+no marker; new ones get a committed `.openwriter` file. Device flow is offered on the
+desktop too, with OpenWriter's public client id as the default. The device name is the
+commit author, not a synced file, so history keeps it with no extra format to merge.
