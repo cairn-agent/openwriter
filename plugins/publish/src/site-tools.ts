@@ -113,6 +113,7 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
         type: 'object',
         properties: {
           name: { type: 'string', description: 'The name before .openwriter.io: lowercase letters, numbers and hyphens.' },
+          title: { type: 'string', description: 'Optional, first claim only: the site name readers see, e.g. "The Morning Page". Defaults to the address.' },
           ...SITE_PARAM,
         },
         required: ['name'],
@@ -120,7 +121,7 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
       handler: async (params) => {
         const res = await publishFetch(config, '/sites/slug', onSite(params.site, {
           method: 'PUT',
-          body: JSON.stringify({ slug: params.name }),
+          body: JSON.stringify({ slug: params.name, ...(params.title ? { title: params.title } : {}) }),
         }));
         if (!res.ok) return apiError(res, 'Could not claim that name');
         const { site } = (await res.json()) as { site: any };
