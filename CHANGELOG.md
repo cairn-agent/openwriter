@@ -6,8 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.49.0] - 2026-10-23
+
+### Added
+- GitHub sync is automatic. Your work is saved for sync as you write, offline included, and sent to GitHub shortly after you stop typing and when you close the app. Changes from your other devices come in when you open the app, return to it, open a document, and every minute while it is open. A status line always says whether you are synced, syncing, or offline, and when something fails it says why and how to fix it.
+- One setup path: sign in with GitHub on any copy. If you already sync from another device, OpenWriter finds that repository and offers it first, so a second device never starts a separate one. Each device gets a name, used to label where a change came from. Tokens and other options are under Other ways to connect.
+- When the same paragraph changed on two devices, the most recent edit wins and the paragraph says so: "Updated from <device>, <time>" with Undo and a link to the earlier version. No more duplicate "from GitHub" documents.
+- A document deleted on another device closes with an Undo, and stays deleted.
+- Versions shows each document's history from every device, labelled by device and time, with Restore. Roll back everything to a chosen time, with a preview of which documents change; a rollback can itself be undone.
+- Plugins and programs embedding OpenWriter can read GitHub sync status, add settings panels, add first-run documents and reword the app's copy.
+
 ### Changed
 - The floating review bar is back. While the Review tab is not open (the panel is closed, another tab is showing, or Focus is on), pending changes get a bar near the bottom of the document: step through changes, see the original of a rewrite, Accept, Reject, Accept all, Reject all, and read the agent's note. It replaces the small Accept and Reject bar under the change and the Focus titlebar strip.
+- Agents' editing guidance now carries the block-editing rules directly, so an agent no longer needs the full skill manual to edit well.
+- Publishing a site can set the site name readers see when claiming its address.
+
+### Fixed
+- The Timeline's workspace filter uses the app's own menu and only appears once a workspace exists.
+- Settings > Claude reads shorter, and the key field is no longer treated as a password by password managers.
 
 ## [0.48.0] - 2026-10-18
 
