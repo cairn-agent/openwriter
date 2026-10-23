@@ -1226,7 +1226,16 @@ const SAVE_DEBOUNCE_MS = 500;
 // cleared the moment that batch flushes).
 let pendingSaveActor: Actor | null = null;
 
+/** When the writer last edited in a browser. A GitHub pull waits while this
+ *  is recent, so nothing changes under the cursor. adr: adr/two-way-sync.md */
+let lastHumanEditAt = 0;
+
+export function msSinceHumanEdit(): number {
+  return Date.now() - lastHumanEditAt;
+}
+
 export function debouncedSave(actor: Actor = 'human'): void {
+  if (actor === 'human') lastHumanEditAt = Date.now();
   // If a save is already pending under a DIFFERENT actor, flush that batch now
   // under ITS actor before this actor's edits join the window — otherwise the
   // single coalesced flush would attribute both actors' new sentences to one.

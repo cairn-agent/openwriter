@@ -428,3 +428,9 @@ the switch to the `openOnFirstRun` tab is a layout effect, so Activity is never 
 Locally that wait is one `/api/plugins` read, after which everything shows as before. Rendering
 was not held back until plugins load: a module's `activate` would then run before the app
 mounts, which changes what plugins see.
+
+### 2026-10-23 — the topbar sync control is a status line
+`SyncButton.tsx` no longer offers a pending-files dropdown (it listed internal paths such
+as `_pending/*.json`). It shows one always-visible line ("Synced 3 min ago", "Syncing…",
+"Offline, saved here, will sync", or a reason with its fix) and stays in the topbar.
+Sync itself is automatic (adr/two-way-sync.md); a click syncs now or opens setup.

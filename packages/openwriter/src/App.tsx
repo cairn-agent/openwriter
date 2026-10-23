@@ -16,6 +16,7 @@ import Sidebar, { SIDEBAR_MIN_WIDTH, SIDEBAR_MAX_WIDTH, SIDEBAR_DEFAULT_WIDTH } 
 import { useRightRail } from './right-rail/RightRailContext';
 import RightRail from './right-rail/RightRail';
 import SyncSetupModal from './sync/SyncSetupModal';
+import { useAutoSync } from './sync/useAutoSync';
 import { useWebSocket, type PendingDocsPayload, type SyncStatus, type DocumentSwitchedPayload } from './ws/client';
 import { showToast } from './utils/toast';
 import { applyNodeChangesToEditor, applyIdRewritesToEditor } from './decorations/bridge';
@@ -120,6 +121,7 @@ export default function App() {
   const [workspacesRefreshKey, setWorkspacesRefreshKey] = useState(0);
   const [pendingDocs, setPendingDocs] = useState<PendingDocsPayload>({ filenames: [], counts: {} });
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ state: 'unconfigured' });
+  const { pullBeforeOpen } = useAutoSync(syncStatus.state !== 'unconfigured', setSyncStatus);
   const [showSyncSetup, setShowSyncSetup] = useState(false);
   const [metadata, setMetadata] = useState<Record<string, any>>({});
   // Author-attribution heatmap (voice-shape view). adr: adr/document-history-attribution.md
@@ -773,11 +775,15 @@ export default function App() {
     saveCurrentScroll();
     navIntent.current = 'push';
     flushCurrentDoc();
-    sendMessage({ type: 'switch-document', filename });
-    const tSend = performance.now();
-    (window as any).__lastSwitch.tSend = tSend;
-    console.log(`[Switch] SEND filename=${filename} clickToSend=${(tSend - tClick).toFixed(1)}ms`);
-  }, [flushCurrentDoc, sendMessage]);
+    // Bring in GitHub's changes first (briefly), so the doc opens as it is
+    // everywhere. adr: adr/two-way-sync.md
+    void pullBeforeOpen().then(() => {
+      sendMessage({ type: 'switch-document', filename });
+      const tSend = performance.now();
+      (window as any).__lastSwitch.tSend = tSend;
+      console.log(`[Switch] SEND filename=${filename} clickToSend=${(tSend - tClick).toFixed(1)}ms`);
+    });
+  }, [flushCurrentDoc, sendMessage, pullBeforeOpen]);
 
   // Pending scroll target — consumed by handleEditorReady after the new doc mounts.
   // Set by handleLinkClick on every doc-link navigation. `toTop` is the default
@@ -1227,7 +1233,8 @@ export default function App() {
   }, [metadata?.docId, docVersionRef]);
 
   const handleSync = useCallback(() => {
-    if (syncStatus.state === 'unconfigured') {
+    // Not set up yet, or the fix is to sign in or connect again: open setup.
+    if (syncStatus.state === 'unconfigured' || (syncStatus.state === 'error' && (syncStatus.fix === 'signin' || syncStatus.fix === 'setup'))) {
       setShowSyncSetup(true);
       return;
     }
@@ -1235,7 +1242,7 @@ export default function App() {
     flushCurrentDoc();
     sendMessage({ type: 'save' });
     fetch('/api/sync/push', { method: 'POST' }).catch(() => {});
-  }, [syncStatus.state, flushCurrentDoc, sendMessage]);
+  }, [syncStatus.state, syncStatus.fix, flushCurrentDoc, sendMessage]);
 
   return (
     <div className={`app${overlay ? ' app--overlay' : ''}`} ref={appRef}>

@@ -26,7 +26,7 @@ process.on('exit', () => { try { rmSync(home, { recursive: true, force: true });
 
 const { ROOT_DIR, setActiveProfile, ensureDataDir, getDataDir } = await import('../dist/server/helpers.js');
 if (!ROOT_DIR.startsWith(home)) { console.error(`Refusing to run: data root ${ROOT_DIR} is not in the temp folder`); process.exit(1); }
-const { load, clearAllCaches, cancelDebouncedSave, save, getPlainText } = await import('../dist/server/state.js');
+const { load, clearAllCaches, cancelDebouncedSave, debouncedSave, save, getPlainText } = await import('../dist/server/state.js');
 const { switchDocument } = await import('../dist/server/documents.js');
 const sync = await import('../../../plugins/github/dist/git-sync.js');
 const device = await import('../../../plugins/github/dist/device-flow.js');
@@ -183,6 +183,45 @@ const copies = await sync.connectExisting(remote);
 assert(read(C, 'Notes.md').includes('third copy'), "C's Notes.md is kept");
 assert(copies.length === 1 && read(C, copies[0]).includes('Notes written on B'), "GitHub's Notes.md is saved as a copy");
 assert(existsSync(join(C, 'Own.md')) && existsSync(join(C, 'Essay.md')), "C keeps its own doc and gets GitHub's");
+
+console.log('\nA save is committed here at once, offline too, signed by the device:');
+A = side('A');
+switchDocument('Scratch A.md');
+writeDoc(A, 'Notes.md', 'Notes', '0e7e0001', ['Notes written on A.', 'A saved paragraph.']);
+assert(await sync.commitSaved(), 'the save is committed without GitHub');
+assert(git(A, 'log', '-1', '--format=%an') === "Maya's laptop" && git(A, 'status', '--porcelain') === '', 'committed as the device, nothing left over');
+await sync.syncNow(noop);
+
+console.log("\nThe app's own files never sync:");
+writeFileSync(join(A, '.first-run'), '2026-10-23T00:00:00.000Z\nStart here.md\n');
+writeDoc(A, 'Start here.md', 'Start here', '5a5a0001', ['Welcome to OpenWriter.']);
+writeFileSync(join(A, 'server.lock'), '{"pid":1}');
+writeFileSync(join(A, 'config.json'), '{}');
+// An older version committed the lock file; it leaves GitHub but stays here.
+execFileSync('git', ['add', '-f', 'server.lock'], { cwd: A });
+execFileSync('git', ['-c', 'user.name=old', '-c', 'user.email=old@x', 'commit', '-q', '-m', 'old'], { cwd: A });
+r = await sync.syncNow(noop);
+assert(r.state === 'synced', 'A syncs');
+const onGitHub = git(remote, 'ls-tree', '-r', '--name-only', 'main').split('\n');
+for (const f of ['.first-run', 'Start here.md', 'server.lock', 'config.json', '.openwriter-device.json']) {
+  assert(!onGitHub.includes(f), `${f} is not on GitHub`);
+}
+assert(existsSync(join(A, 'server.lock')) && existsSync(join(A, 'Start here.md')), 'and they stay on this copy');
+B = side('B');
+writeFileSync(join(B, 'server.lock'), '{"pid":2}');
+await sync.syncNow(noop);
+assert(read(B, 'server.lock') === '{"pid":2}', "another copy's lock file is untouched by the pull");
+
+console.log('\nA pull waits while the writer types:');
+debouncedSave('human');
+r = await sync.pullNow(noop);
+assert(r.deferred === true, 'the pull is put off while typing');
+cancelDebouncedSave();
+
+console.log('\nFailures read as the writer would say them:');
+assert(sync.describeSyncError('fatal: unable to access https://github.com/x/y.git/: Could not resolve host: github.com').state === 'offline', 'no network is offline, not an error');
+const auth = sync.describeSyncError("remote: Invalid username or password.\nfatal: Authentication failed for 'https://github.com/x/y.git/'");
+assert(auth.error === 'GitHub sign-in expired' && auth.fix === 'signin', 'a refused sign-in says so and offers sign-in');
 
 console.log('\nA second device finds the documents already on GitHub (GitHub replies faked):');
 const realFetch = globalThis.fetch;

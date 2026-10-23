@@ -78,10 +78,15 @@ export interface PendingDocsPayload {
 }
 
 export interface SyncStatus {
-  state: 'unconfigured' | 'synced' | 'pending' | 'syncing' | 'error';
+  state: 'unconfigured' | 'synced' | 'pending' | 'syncing' | 'offline' | 'error';
   lastSyncTime?: string;
   pendingFiles?: number;
+  /** What went wrong, in the writer's words. adr: adr/two-way-sync.md */
   error?: string;
+  /** What fixes it: sign in again, connect again, or try again. */
+  fix?: 'signin' | 'setup' | 'retry';
+  /** A pull waited because the writer is typing; ask again after the pause. */
+  deferred?: boolean;
   /** Conflict copies the last sync saved (files changed on both sides). adr: adr/two-way-sync.md */
   conflicts?: string[];
 }
@@ -335,7 +340,8 @@ export function useWebSocket({ onNodeChanges, onAgentStatus, onDocumentSwitched,
           }
 
           if (msg.type === 'sync-status') {
-            onSyncStatusRef.current?.({ state: msg.state, lastSyncTime: msg.lastSyncTime, pendingFiles: msg.pendingFiles, error: msg.error });
+            const { type: _type, ...status } = msg;
+            onSyncStatusRef.current?.(status as SyncStatus);
           }
 
           if (msg.type === 'writing-started' && msg.title) {

@@ -201,3 +201,9 @@ the rail. Generic: any plugin with its own screens needs a way in that does not 
   `host.tools()`) is set for every plugin tool and unset for OpenWriter's own, so an embedder's
   agent can choose to offer only OpenWriter's document tools (a smaller request) without keeping a
   list of names. Generic: nothing in the local app reads it.
+
+### 2026-10-23 — the first-run marker names the documents it wrote
+`server/first-run.ts` now writes the seeded documents' file names on the marker's lines
+after the date. Generic: any plugin that copies the data folder elsewhere (the github
+sync plugin keeps them on this copy only) can tell the app's starter documents from the
+writer's. The marker still means "first run done"; readers of line one are unchanged.

@@ -21,6 +21,8 @@ import {
   connectExisting,
   connectRepo,
   findDocsRepos,
+  pullNow,
+  startAutoSync,
   saveDeviceName,
   suggestDeviceName,
   syncNow,
@@ -117,6 +119,7 @@ const plugin: OpenWriterPlugin = {
 
         const status = await getSyncStatus();
         await broadcast(status);
+        await startAutoSync((s) => { void broadcast(s); });
         res.json({ success: true, status, conflicts });
       } catch (err: any) {
         // Setup surfaces GitHub's own API feedback (e.g. "name already exists",
@@ -142,18 +145,31 @@ const plugin: OpenWriterPlugin = {
       catch (err: any) { fail(res, 'sync/device/poll', err, { status: 'error' }); }
     });
 
-    // Two-way sync (the route keeps its old name for existing clients).
+    const onStatus = (s: SyncStatus) => { void broadcast(s); };
+
+    // Two-way sync now: the status line's click, and the page's last word on
+    // close (sendBeacon). The route keeps its old name for existing clients.
     ctx.app.post('/api/sync/push', async (_req: Request, res: Response) => {
       try {
-        const result = await syncNow((s) => { void broadcast(s); });
+        const result = await syncNow(onStatus);
         res.json(result);
       } catch (err: any) {
         fail(res, 'sync/push', err, { state: 'error' });
       }
     });
 
+    // The browser catches up on open, on focus, before opening a document and
+    // every minute while it is connected. Waits (deferred) while the writer types.
+    ctx.app.post('/api/sync/pull', async (_req: Request, res: Response) => {
+      try { res.json(await pullNow(onStatus)); }
+      catch (err: any) { fail(res, 'sync/pull', err, { state: 'error' }); }
+    });
+
+    // Every save is committed here and sent after the writer pauses.
+    void startAutoSync(onStatus).catch((err: any) => console.error('[GitHub Plugin] auto-sync failed to start:', err?.message || err));
+
     // Opt-in: catch up with GitHub once at start-up, for an OpenWriter that is
-    // often started after edits elsewhere. Pull only; the writer's next Sync pushes.
+    // often started after edits elsewhere (an online copy waking up).
     if (ctx.config.pullOnStart === 'true' || ctx.config.pullOnStart === '1') {
       void (async () => {
         try {

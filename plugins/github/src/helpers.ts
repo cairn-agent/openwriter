@@ -22,6 +22,8 @@ export interface ServerModules {
   // After a GitHub pull: reload the changed files into the running server.
   // adr: adr/two-way-sync.md
   reloadChangedFiles: (changedPaths: string[]) => { restoredActive: string | null };
+  /** How long since the writer last edited in a browser; a pull waits while they type. */
+  msSinceHumanEdit: () => number;
   // ws.js
   broadcastSyncStatus: (status: any) => void;
   // After any tool mutates + persists doc metadata it must broadcast so every
@@ -94,6 +96,7 @@ export async function getServerModules(): Promise<ServerModules> {
     setMetadata: state.setMetadata,
     bumpDocVersion: state.bumpDocVersion,
     reloadChangedFiles: state.reloadChangedFiles,
+    msSinceHumanEdit: state.msSinceHumanEdit,
     broadcastSyncStatus: ws.broadcastSyncStatus,
     broadcastMetadataChanged: ws.broadcastMetadataChanged,
     broadcastDocumentsChanged: ws.broadcastDocumentsChanged,

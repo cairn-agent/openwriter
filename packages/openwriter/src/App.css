@@ -595,6 +595,7 @@ body {
 .sync-synced { background: var(--bg-surface); color: var(--color-pending-insert); border-color: var(--border); }
 .sync-pending { background: var(--bg-surface); color: var(--accent); border-color: var(--border); }
 .sync-syncing { background: var(--bg-surface); color: var(--ink-light); border-color: var(--border); opacity: 0.8; }
+.sync-offline { background: var(--bg-surface); color: var(--ink-light); border-color: var(--border); }
 .sync-error { background: var(--bg-surface); color: var(--color-pending-delete); border-color: var(--border); }
 
 .sync-btn-state:hover { background: var(--bg-hover); z-index: 1; }

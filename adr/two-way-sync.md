@@ -69,9 +69,37 @@ failure modes with ones that never drop a word.
   `user.name=<device name>`, `user.email=<id>@device.openwriter`, so history can say
   which device made a change. The name is asked at setup, prefilled from
   `OW_GITHUB_DEVICE_NAME` (a hosting program's choice) or "<first name>'s computer".
-- **Pull on start is opt-in.** With the plugin setting `pullOnStart` (or env
-  `OW_GITHUB_PULL_ON_START=1`) the plugin pulls once at start-up (commit and merge, no
-  push); otherwise only a Sync click pulls. No background timers.
+- **Sync is automatic, and only a connected browser drives the pulls.** A recursive
+  watch on the data folder (`startAutoSync`) commits every save about 1.5 s later, as
+  this device, with no network, so commit time is edit time and offline work is
+  already committed. A one-shot timer armed by that commit syncs (fetch, merge, push)
+  20 s after the last save. The browser (`useAutoSync`) pulls (`/api/sync/pull`) when
+  the app opens, on window focus, before a document opens (waiting at most 0.8 s),
+  and every 60 s while visible, and sends `/api/sync/push` by `sendBeacon` when the
+  page closes. Nothing repeats on the server, so a copy with no browser and no writing
+  runs no timers. `pullOnStart` (env `OW_GITHUB_PULL_ON_START=1`) still pulls once at
+  start-up. A push happens only when this copy is ahead of GitHub.
+- **Nothing changes under the writer's cursor.** `debouncedSave('human')` stamps the
+  last browser edit (`msSinceHumanEdit`); a pull within 3 s of it returns `deferred`
+  and the browser asks again 4 s later, and the push timer waits the same way. The
+  open document is reloaded in place only after the pause.
+- **This copy's own files never sync.** `.git/info/exclude` (local to the folder) lists
+  `config.json`, `.versions/`, `.openwriter-device.json`, `.first-run`, `server.lock`
+  and the documents named on the first-run marker's later lines (the "Start here"
+  document an embedding program seeds). One an older version committed is dropped
+  from the repo with `git rm --cached` and kept on disk; around every merge these
+  files are snapshotted and written back if the merge removed them.
+- **Configured means this folder has a remote.** Status reads the data folder (a git
+  repo with `origin`), not the shared config, so each profile syncs on its own; the
+  last sync time lives in `.git/openwriter-sync.json`.
+- **Status in the writer's words.** `/api/sync/status` and the `sync-status` broadcast
+  carry `state` (`synced`, `pending`, `syncing`, `offline`, `error`, `unconfigured`),
+  `lastSyncTime`, and for a failure `error` plus `fix` (`signin`, `setup`, `retry`).
+  `describeSyncError` maps git's output: no network is `offline` ("Offline, saved
+  here, will sync", retried in 60 s), a refused credential is "GitHub sign-in expired"
+  with `signin`. Git output never reaches the browser. The status line
+  (`SyncButton.tsx`) shows "Synced N min ago", "Syncing…", the offline line, or
+  "<reason> · <fix>"; its click opens setup when the fix is to sign in or connect.
 
 ## Decision log
 
@@ -102,3 +130,17 @@ each, the 30 most recently pushed) rather than a GitHub topic, because older rep
 no marker; new ones get a committed `.openwriter` file. Device flow is offered on the
 desktop too, with OpenWriter's public client id as the default. The device name is the
 commit author, not a synced file, so history keeps it with no extra format to merge.
+
+### 2026-10-23 — automatic sync, a status line, and app files kept local
+Writers forgot to click Sync. Saves are now committed by a folder watch and sent after a
+20 s pause; the browser pulls on open, focus, document open and every minute. The
+2026-10-10 rule against timers was about waking a sleeping machine and merging under an
+open editor: pull timers live in the browser (no browser, no timers), the server only
+arms one-shot timers after a save, and every pull waits while the writer typed in the
+last 3 s. A folder watch was chosen over hooking each server write path, because docs,
+pending changes, workspaces and images are written from many places. The Sync button
+became a status line with plain reasons and fixes; the pending-files list, which showed
+internal paths, is gone. Configured state and the last sync time moved from the shared
+config into the folder, because a pinned profile never writes the config and every
+profile shares it. `.git/info/exclude` keeps this copy's own files out of the repo
+without a synced rule that would also hide them on another copy.

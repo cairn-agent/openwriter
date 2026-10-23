@@ -1,19 +1,14 @@
 /**
- * Sync button cluster — sync state pill + (optional) details chevron + pending
- * changes dropdown. Lives in the right-rail topbar (post-2026-05-23 refactor).
- * Was previously in the titlebar; moved to mirror the left sidebar's pattern
- * where chrome controls live in the panel's own topbar, not in the global
- * titlebar.
+ * Sync status line in the right-rail topbar: always says where the writer's
+ * documents stand ("Synced 2 min ago", "Syncing…", "Offline, saved here, will
+ * sync") and, when something is wrong, the reason and the fix ("GitHub sign-in
+ * expired · Sign in again"). Sync runs by itself; a click syncs now, or opens
+ * setup when that is the fix. Never shows file paths.
  *
- * adr: adr/right-rail.md
+ * adr: adr/right-rail.md · adr: adr/two-way-sync.md
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { SyncStatus } from '../ws/client';
-
-interface PendingFile {
-  status: 'added' | 'modified' | 'deleted' | 'renamed';
-  file: string;
-}
 
 interface SyncButtonProps {
   syncStatus: SyncStatus;
@@ -33,10 +28,10 @@ const CloudCheckIcon = () => (
   </svg>
 );
 
-const CloudUpIcon = () => (
+const CloudOffIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
     <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M12 16v-5M9.5 13.5L12 11l2.5 2.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M4 4l16 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
   </svg>
 );
 
@@ -47,110 +42,61 @@ const CloudErrorIcon = () => (
   </svg>
 );
 
+const FIX_LABEL: Record<NonNullable<SyncStatus['fix']>, string> = {
+  signin: 'Sign in again',
+  setup: 'Connect again',
+  retry: 'Try again',
+};
+
+/** "just now", "4 min ago", "2 h ago", or the date. */
+export function syncedAgo(iso: string | undefined, now = Date.now()): string {
+  if (!iso) return '';
+  const min = Math.floor((now - new Date(iso).getTime()) / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min} min ago`;
+  if (min < 24 * 60) return `${Math.floor(min / 60)} h ago`;
+  return `on ${new Date(iso).toLocaleDateString()}`;
+}
+
+/** The status line's words for a sync status. */
+export function syncLine(s: SyncStatus, now = Date.now()): string {
+  switch (s.state) {
+    case 'unconfigured': return 'Sync with GitHub';
+    case 'syncing': return 'Syncing…';
+    case 'offline': return 'Offline, saved here, will sync';
+    case 'error': return `${s.error || 'Could not sync'} · ${FIX_LABEL[s.fix || 'retry']}`;
+    default: return s.lastSyncTime ? `Synced ${syncedAgo(s.lastSyncTime, now)}` : 'Saved here, syncing soon';
+  }
+}
+
 export default function SyncButton({ syncStatus, onSync }: SyncButtonProps) {
-  const [showPending, setShowPending] = useState(false);
-  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
-  const [loadingPending, setLoadingPending] = useState(false);
-  const pendingRef = useRef<HTMLDivElement>(null);
-
-  // Files that changed on both sides: the last sync kept ours and saved
-  // GitHub's version next to it. adr: adr/two-way-sync.md
-  const conflicts = syncStatus.conflicts ?? [];
-  const hasPending = syncStatus.state === 'pending' && !!syncStatus.pendingFiles;
-  const hasDetails = hasPending || conflicts.length > 0;
-
-  const togglePendingDetails = useCallback(() => {
-    if (showPending) {
-      setShowPending(false);
-      return;
-    }
-    setShowPending(true);
-    if (!hasPending) { setPendingFiles([]); return; }
-    setLoadingPending(true);
-    fetch('/api/sync/pending')
-      .then(r => r.json())
-      .then((files: PendingFile[]) => setPendingFiles(files))
-      .catch(() => setPendingFiles([]))
-      .finally(() => setLoadingPending(false));
-  }, [showPending, hasPending]);
-
-  // Close dropdown when there is nothing left to show (e.g. sync starts)
+  // "Synced N min ago" moves on by itself.
+  const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    if (!hasDetails || syncStatus.state === 'syncing') setShowPending(false);
-  }, [hasDetails, syncStatus.state]);
+    const t = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(t);
+  }, []);
 
-  // Close dropdown on click outside
-  useEffect(() => {
-    if (!showPending) return;
-    const handler = (e: MouseEvent) => {
-      if (pendingRef.current && !pendingRef.current.contains(e.target as Node)) {
-        setShowPending(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showPending]);
+  const { state } = syncStatus;
+  const title = state === 'unconfigured'
+    ? 'Keep your documents the same on every device'
+    : state === 'error' ? FIX_LABEL[syncStatus.fix || 'retry'] : 'Sync now';
 
   return (
-    <div className="sync-btn-group" ref={pendingRef}>
+    <div className="sync-btn-group">
       <button
-        className={`titlebar-btn sync-btn-state sync-${syncStatus.state}`}
+        className={`titlebar-btn sync-btn-state sync-${state}`}
         onClick={onSync}
-        disabled={syncStatus.state === 'syncing'}
-        title={`Sync with GitHub: get changes from GitHub and send yours${syncStatus.lastSyncTime ? `\nLast synced: ${new Date(syncStatus.lastSyncTime).toLocaleString()}` : ''}`}
+        disabled={state === 'syncing'}
+        title={title}
       >
-        {syncStatus.state === 'unconfigured' && <><CloudIcon /> Sync</>}
-        {syncStatus.state === 'synced' && <><CloudCheckIcon /> Synced</>}
-        {syncStatus.state === 'pending' && <><CloudUpIcon /> Sync{syncStatus.pendingFiles ? ` (${syncStatus.pendingFiles})` : ''}</>}
-        {syncStatus.state === 'syncing' && <><div className="sync-btn-spinner" /> Syncing...</>}
-        {syncStatus.state === 'error' && <><CloudErrorIcon /> Retry</>}
+        {state === 'unconfigured' && <CloudIcon />}
+        {(state === 'synced' || state === 'pending') && <CloudCheckIcon />}
+        {state === 'syncing' && <div className="sync-btn-spinner" />}
+        {state === 'offline' && <CloudOffIcon />}
+        {state === 'error' && <CloudErrorIcon />}
+        {syncLine(syncStatus, now)}
       </button>
-      {hasDetails && (
-        <button
-          className="sync-details-btn"
-          onClick={togglePendingDetails}
-          title={conflicts.length ? 'Some files changed in both places' : 'View changes not yet synced'}
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d={showPending ? 'M3 7.5L6 4.5L9 7.5' : 'M3 4.5L6 7.5L9 4.5'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-      )}
-      {showPending && (
-        <div className="sync-pending-dropdown">
-          {conflicts.length > 0 && (
-            <>
-              <div className="sync-pending-header">Changed in both places</div>
-              <div className="sync-pending-loading">
-                Your version was kept. GitHub's version was saved next to it:
-              </div>
-              <div className="sync-pending-list">
-                {conflicts.map((f) => (
-                  <div key={f} className="sync-pending-item sync-file-added">
-                    <span className="sync-file-badge">!</span>
-                    <span className="sync-file-name">{f}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-          {hasPending && <div className="sync-pending-header">Changes not yet synced</div>}
-          {!hasPending ? null : loadingPending ? (
-            <div className="sync-pending-loading">Loading...</div>
-          ) : pendingFiles.length === 0 ? (
-            <div className="sync-pending-loading">No changes</div>
-          ) : (
-            <div className="sync-pending-list">
-              {pendingFiles.map((f, i) => (
-                <div key={i} className={`sync-pending-item sync-file-${f.status}`}>
-                  <span className="sync-file-badge">{f.status[0].toUpperCase()}</span>
-                  <span className="sync-file-name">{f.file}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
