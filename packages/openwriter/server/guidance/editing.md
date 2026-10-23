@@ -1,9 +1,19 @@
 ---
-version: 1
+version: 2
 ---
 ## Editing and review notes
 
 Agent block edits normally arrive as proposals the user can accept or reject.
+`write_to_pad` and `edit_text` send only the blocks they change;
+`populate_document` takes a whole body and is how a new document is filled.
+
+A `rewrite` keeps the target block's type when its content is plain text: a
+heading stays a heading at its level, a list item or quote stays one. Content
+written as explicit markdown (`## Title`, `- item`) takes the type it names.
+Rewriting a block that already has a pending proposal replaces that proposal:
+it stays one change, judged against the block's accepted text, so the user need
+not accept the first version before it is revised. A pending insert rewritten
+stays an insert.
 Each `write_to_pad` change can carry an optional `feedback` string, up to 500
 characters. It appears as an Agent note beside that change in Review, and opens
 from Agent note in Focus mode. The same note accompanies any additional blocks

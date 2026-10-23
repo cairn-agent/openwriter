@@ -84,3 +84,10 @@ any longer.
   carries short guidance so an agent's first write can already use it correctly. The existing
   session/version envelope deduplicates editing independently of each format contract;
   internal calls still receive nothing and do not consume delivery.
+
+- **2026-10-23** — `editing` v2 carries the block-edit facts the bundled skill held under
+  Writing Strategy: write_to_pad and edit_text send only changed blocks while
+  populate_document takes a whole body; a plain-text rewrite keeps the block's type
+  (block-changes.ts); rewriting a pending block replaces its proposal against the accepted
+  text, and a pending insert stays an insert. An embedder's agent that does not load the skill
+  still gets them at first touch.
