@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Fixed
+- Publishing from the chat or an agent publishes the document it names, not whichever one is open. Tools that work on the open document (publish, unpublish, schedule, preview, test email, share link, stats, poll results) take the document to use, open it, then act.
+
 ## [0.49.0] - 2026-10-23
 
 ### Added

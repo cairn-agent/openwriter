@@ -106,6 +106,7 @@ export function sitePostsTools(config: Record<string, string>): PluginMcpTool[] 
 
     {
       name: 'preview_site_post',
+      onOpenDocument: true,
       description:
         'The post exactly as one kind of reader would get it, as its web page or its email: visitor (not subscribed), free, paid or founding. ' +
         'Returns the full HTML (for showing on a screen) with base_url for its links. Works on drafts without publishing them. ' +
@@ -131,6 +132,7 @@ export function sitePostsTools(config: Record<string, string>): PluginMcpTool[] 
 
     {
       name: 'send_test_email',
+      onOpenDocument: true,
       description:
         'Email the post to yourself (the signed-in writer only), marked [Test], as a free, paid or founding reader would get it. ' +
         'Works on drafts without publishing or emailing anyone else. Defaults to the active document\'s post, as a paid reader.',
@@ -156,6 +158,7 @@ export function sitePostsTools(config: Record<string, string>): PluginMcpTool[] 
 
     {
       name: 'get_post_share_link',
+      onOpenDocument: true,
       description:
         'A secret link to an unpublished post, to share a draft before publishing: anyone with it reads the whole draft (it is not listed or indexed). ' +
         'Once the post is published this returns its normal address. Defaults to the active document\'s post.',
@@ -174,6 +177,7 @@ export function sitePostsTools(config: Record<string, string>): PluginMcpTool[] 
 
     {
       name: 'revoke_post_share_link',
+      onOpenDocument: true,
       description: 'Stop a draft\'s secret link working. Asking for a link again later gives a new one.',
       inputSchema: {
         type: 'object',

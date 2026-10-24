@@ -25,29 +25,32 @@ export interface ServerModules {
   save: () => void;
   broadcastMetadataChanged: (metadata: Record<string, any>) => void;
   platformFetch: (path: string, options?: RequestInit) => Promise<Response>;
+  /** Open a document by docId in the editor, as switch_document does; throws for an unknown id. */
+  openDocument: (docId: string) => void;
 }
 
 let _cached: ServerModules | null = null;
 
 async function tryImport(base: string) {
-  const [markdown, state, helpers, connections, ws] = await Promise.all([
+  const [markdown, state, helpers, connections, ws, documents] = await Promise.all([
     import(base + 'markdown.js'),
     import(base + 'state.js'),
     import(base + 'helpers.js'),
     import(base + 'connections.js'),
     import(base + 'ws.js'),
+    import(base + 'documents.js'),
   ]);
-  return { markdown, state, helpers, connections, ws };
+  return { markdown, state, helpers, connections, ws, documents };
 }
 
 export async function getServerModules(): Promise<ServerModules> {
   if (_cached) return _cached;
   // Try npm package layout first, fall back to monorepo layout
-  let markdown, state, helpers, connections, ws;
+  let markdown, state, helpers, connections, ws, documents;
   try {
-    ({ markdown, state, helpers, connections, ws } = await tryImport(npmBase));
+    ({ markdown, state, helpers, connections, ws, documents } = await tryImport(npmBase));
   } catch {
-    ({ markdown, state, helpers, connections, ws } = await tryImport(monoBase));
+    ({ markdown, state, helpers, connections, ws, documents } = await tryImport(monoBase));
   }
   _cached = {
     tiptapToMarkdown: markdown.tiptapToMarkdown,
@@ -61,6 +64,10 @@ export async function getServerModules(): Promise<ServerModules> {
     save: state.save,
     broadcastMetadataChanged: ws.broadcastMetadataChanged,
     platformFetch: connections.platformFetch,
+    openDocument: (docId: string) => {
+      const opened = documents.switchDocument(documents.resolveDocId(docId));
+      ws.broadcastDocumentSwitched(opened.document, opened.title, opened.filename, undefined, 'open', 'all');
+    },
   };
   return _cached;
 }
@@ -78,6 +85,39 @@ export interface PluginMcpTool {
   description: string;
   inputSchema: Record<string, unknown>;
   handler: (params: Record<string, unknown>) => Promise<unknown>;
+  /** Works on the open document (its content, or the site post it was published as): takes docId too (withDocId). */
+  onOpenDocument?: boolean;
+}
+
+/**
+ * A tool that works on the open document, given an optional docId like every document tool: with
+ * one, that document is opened first, so the tool acts on the document the agent named and the
+ * writer sees it. Without one, the open document, as before. Agents name documents by docId
+ * everywhere else, and an agent that named one here and was given whatever happened to be open
+ * would publish the wrong post.
+ */
+export function withDocId(tool: PluginMcpTool): PluginMcpTool {
+  if (!tool.onOpenDocument) return tool;
+  const schema = tool.inputSchema as { properties?: Record<string, unknown> };
+  return {
+    ...tool,
+    inputSchema: {
+      ...tool.inputSchema,
+      properties: {
+        docId: { type: 'string', description: 'The document, by docId (8-char hex from list_documents). It opens in the editor first. Leave out for the open document.' },
+        ...schema.properties,
+      },
+    },
+    handler: async ({ docId, ...params }) => {
+      if (typeof docId === 'string' && docId) {
+        const server = await getServerModules();
+        if (server.getDocId() !== docId) {
+          try { server.openDocument(docId); } catch (err: any) { return { error: `No document ${docId}: ${err?.message ?? err}` }; }
+        }
+      }
+      return tool.handler(params);
+    },
+  };
 }
 
 export interface PluginRouteContext {

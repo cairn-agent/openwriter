@@ -316,6 +316,7 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
 
     {
       name: 'publish_to_site',
+      onOpenDocument: true,
       description:
         'Publish the active document as a post on the site, or update the post it was published as before. ' +
         'A line `<!-- paywall -->` in the document places the paywall: everything above it is the free preview for readers without access. ' +
@@ -526,6 +527,7 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
 
     {
       name: 'unpublish_site_post',
+      onOpenDocument: true,
       description: 'Take the active document\'s site post off the site (it becomes a draft). Emails already sent are not recalled.',
       inputSchema: {
         type: 'object',
@@ -555,6 +557,7 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
 
     {
       name: 'get_site_stats',
+      onOpenDocument: true,
       description:
         'Site numbers: subscriber counts by type and status, site totals, revenue, and stats for one post: post_id (any post, ' +
         'by id or slug), else the active document\'s post if it has one. A post\'s stats are views, subscribers gained after it ' +

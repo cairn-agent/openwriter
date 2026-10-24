@@ -47,3 +47,11 @@ Connections lists every X account with its own settings and disconnect, plus
 there is exactly one. Compose views show an account picker when two or more are
 connected and block Post until one is chosen. Platform-path media no longer
 depends on the x-api plugin when an account is named.
+
+### 2026-10-24 — Tools on the open document take a docId
+
+`schedule_post` and the other publish tools that act on the open document now
+take an optional `docId` (helpers.ts `withDocId`). Named, that document opens in
+the editor first and is the one used, so the chat never publishes whatever
+happened to be open. `schedule_post`'s account fallback then reads `xAccount`
+from the named document.

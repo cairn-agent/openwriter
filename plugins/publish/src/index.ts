@@ -1,5 +1,5 @@
 import type { OpenWriterPlugin, PluginHost, PluginMcpTool } from './helpers.js';
-import { getServerModules, publishFetch } from './helpers.js';
+import { getServerModules, publishFetch, withDocId } from './helpers.js';
 import { newsletterTools } from './newsletter-tools.js';
 import { siteGrowthTools } from './site-growth-tools.js';
 import { siteGrowthExtrasTools } from './site-growth-extras-tools.js';
@@ -68,7 +68,8 @@ const plugin: OpenWriterPlugin = {
   mcpTools(config: Record<string, string>, host: PluginHost): PluginMcpTool[] {
     const baseUrl = config['api-url'] || 'https://publish.openwriter.io';
 
-    return [
+    // Tools on the open document also take a docId (helpers.ts withDocId).
+    return ([
       {
         name: 'request_login_code',
         description:
@@ -300,6 +301,7 @@ const plugin: OpenWriterPlugin = {
       {
         name: 'schedule_post',
         description: 'Schedule the current document for posting. Reads content and content_type from the active document automatically. Default mode: queue (next available slot).',
+        onOpenDocument: true,
         inputSchema: {
           type: 'object',
           properties: {
@@ -850,7 +852,7 @@ const plugin: OpenWriterPlugin = {
           };
         },
       },
-    ];
+    ] as PluginMcpTool[]).map(withDocId);
   },
 };
 

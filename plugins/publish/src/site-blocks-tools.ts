@@ -13,6 +13,7 @@ export function siteBlocksTools(config: Record<string, string>): PluginMcpTool[]
   return [
     {
       name: 'get_poll_results',
+      onOpenDocument: true,
       description:
         'Results of the polls in a site post: each poll\'s question, total votes, and each choice\'s votes and percent. ' +
         'A poll is a line "[poll] Question" followed by a bulleted list of 2 to 6 choices in the post; readers vote once, on the post page or from the email. ' +
