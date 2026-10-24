@@ -273,7 +273,7 @@ export const TOOL_REGISTRY: ToolDef[] = [
   ...bookWorkspaceTools,
   {
     name: 'read_pad',
-    description: `Read a document by docId. Returns compact tagged-line format with [type:id] per node. Default: first ~${READ_PAD_MAX_WORDS} words. Three knobs for longer docs:\n• \`slice: { from, to }\` — read a percentile range (floats in [0,1]). \`{from:0.5, to:1}\` = back half, \`{from:0.25, to:0.75}\` = middle 50%, \`{from:0.0, to:0.1}\` then \`{from:0.1, to:0.2}\` … = sequential 10% chunks. Snaps to top-level node boundaries; subject to the word cap unless force is set.\n• \`force: true\` — bypass the cap, return the full requested region (whole doc or whole slice). Use for full-doc audits/rewrites where you've accepted the cost.\n• When the cap kicks in, the response includes \`lastNodeId\` + continuation hints to \`peek_doc\` / \`outline_doc\` / \`search_docs\` / another \`read_pad\` slice.`,
+    description: `Read a document by docId, in compact tagged lines ([type:id] per node). Returns the first ~${READ_PAD_MAX_WORDS} words unless you pass slice or force. When the cap cuts it off, the response gives lastNodeId and how to continue (peek_doc, outline_doc, search_docs or another slice).`,
     schema: {
       docId: z.string().describe('Target document by docId (8-char hex from list_documents).'),
       // Schemas use z.preprocess to coerce string inputs — some MCP clients
@@ -282,14 +282,14 @@ export const TOOL_REGISTRY: ToolDef[] = [
       slice: z.preprocess(
         (v) => (typeof v === 'string' && v.trim().startsWith('{')) ? (() => { try { return JSON.parse(v); } catch { return v; } })() : v,
         z.object({
-          from: z.number().min(0).max(1).describe('Start of the slice as a fraction of total word count (0 = beginning).'),
-          to: z.number().min(0).max(1).describe('End of the slice as a fraction of total word count (1 = end). Must be > from.'),
+          from: z.number().min(0).max(1).describe('Start, as a fraction of the word count (0 = beginning).'),
+          to: z.number().min(0).max(1).describe('End, as a fraction of the word count (1 = end); greater than from.'),
         }).optional(),
-      ).describe('Percentile range to read instead of the doc opening. Snaps to top-level node boundaries. Examples: { from: 0.5, to: 1 } = back half; { from: 0.25, to: 0.75 } = middle 50%.'),
+      ).describe('Read this fraction range instead of the opening: { from: 0.5, to: 1 } = back half, { from: 0.25, to: 0.75 } = middle 50%, { from: 0, to: 0.1 } then { from: 0.1, to: 0.2 } ... = 10% chunks in order. Snaps to top-level nodes; still capped unless force.'),
       force: z.preprocess(
         (v) => (typeof v === 'string') ? v === 'true' : v,
         z.boolean().optional(),
-      ).describe(`Bypass the ~${READ_PAD_MAX_WORDS}-word cap. Returns the full requested region in one call. Use for full-doc audits and rewrites where the cost is acknowledged.`),
+      ).describe(`Skip the ~${READ_PAD_MAX_WORDS}-word cap and return the whole doc or slice in one call. For full-doc audits and rewrites where the cost is accepted.`),
     },
     handler: async ({ docId, slice, force }: { docId: string; slice?: { from: number; to: number }; force?: boolean }) => {
       const target = resolveDocTarget(docId);
@@ -459,12 +459,12 @@ export const TOOL_REGISTRY: ToolDef[] = [
   },
   {
     name: 'outline_doc',
-    description: 'Get the structural skeleton of a doc — heading tree by default, optionally drill into one section. The right tool to orient on a long doc before reading anything. Heading tree only is ~5 tokens per heading vs read_pad\'s ~50–100 per block. For 1000-node docs the entire outline is typically <500 tokens. Drill into a section with `underHeading: nodeId` to see one section\'s block previews (~15 tokens/block). Falls back to top-level block previews when the doc has no headings. Use after `search_docs` finds the doc but before `read_pad` or `peek_doc`.',
+    description: 'Heading tree of a doc, about 5 tokens per heading (read_pad: 50 to 100 per block), usually under 500 for a 1000-node doc; or, with underHeading, one section\'s block previews (about 15 tokens a block). Without headings it lists top-level block previews. Use it to orient on a long doc: after search_docs finds it, before read_pad or peek_doc.',
     schema: {
       docId: z.string().describe('Target document by docId (8-char hex).'),
-      underHeading: z.string().optional().describe('Heading nodeId — drill into that section and return all blocks beneath it (until the next same-or-shallower heading).'),
-      depth: z.number().optional().describe('Cap on heading levels shown (1 = h1 only, 2 = h1+h2, etc.). Default 3. Ignored when underHeading is set.'),
-      offset: z.number().optional().describe('Pagination start index (default 0). Useful for very long unstructured docs.'),
+      underHeading: z.string().optional().describe('Heading nodeId: every block under it, up to the next heading of the same or a higher level.'),
+      depth: z.number().optional().describe('Heading levels shown (1 = h1 only, 2 = h1 and h2, ...). Default 3; ignored with underHeading.'),
+      offset: z.number().optional().describe('Pagination start (default 0), for very long unstructured docs.'),
       limit: z.number().optional().describe('Pagination max lines (default 200).'),
     },
     handler: async ({ docId, underHeading, depth, offset, limit }: { docId: string; underHeading?: string; depth?: number; offset?: number; limit?: number }) => {
@@ -550,21 +550,21 @@ export const TOOL_REGISTRY: ToolDef[] = [
   },
   {
     name: 'create_document',
-    description: 'Create a new document. content_type is REQUIRED — use "document" for plain docs, or "tweet"/"reply"/"quote"/"article"/"linkedin"/"newsletter"/"blog" for typed docs. Always provide a title. By default shows a sidebar spinner — call populate_document next to deliver content and clear it. This two-step flow is REQUIRED for all content documents: create_document → populate_document. Use empty=true ONLY for typed docs (tweets, articles) that start blank and get written to incrementally via write_to_pad. Placement accepts EITHER convention: name-based auto-create (workspace title + container name, created if absent) OR id-based targeting of existing items (workspaceFile + containerId, the same ids move_item/get_workspace_structure use). A placement param that cannot be honored (unknown workspaceFile/containerId, or a container with no workspace) is a hard error — the doc is never silently created unplaced. The result always states where the doc landed, or "UNFILED".',
+    description: 'Create a new document; always give a title. Content documents always take two steps: create_document shows a sidebar spinner, then populate_document delivers the content and clears it. empty: true is only for typed docs (tweets, articles) that start blank and are written into with write_to_pad. Place it by name (workspace title + container name, created if missing) or by id (workspaceFile + containerId, the ids move_item and get_workspace_structure use). A placement that cannot be honoured (unknown workspaceFile or containerId, or a container without a workspace) is an error; the doc is never created unplaced. The result says where it landed, or "UNFILED".',
     schema: {
-      title: z.string().optional().describe('Title for the new document. Defaults to "Untitled".'),
-      path: z.string().optional().describe('Absolute file path to create the document at (e.g. "C:/projects/doc.md"). If omitted, creates in ~/.openwriter/.'),
-      workspace: z.string().optional().describe('Workspace title to add this doc to. Creates the workspace if it doesn\'t exist.'),
-      container: z.string().optional().describe('Container name within the workspace (e.g. "Chapters", "Notes", "References"). Creates the container if it doesn\'t exist. Requires workspace.'),
-      workspaceFile: z.string().optional().describe('Existing workspace by manifest filename (the *.json id used by move_item / get_workspace_structure). Id-based alternative to "workspace" (title). Must already exist — errors if not found. Use when you already hold the workspaceFile from another tool.'),
-      containerId: z.string().optional().describe('Existing container by id (8-char hex, as used by move_item / get_workspace_structure). Id-based alternative to "container" (name). Must already exist in the resolved workspace — errors if not found. Requires a workspace (workspaceFile or workspace).'),
-      empty: z.boolean().optional().describe('ONLY for content_type template docs (tweets, articles) that start blank. Skips the spinner; never switches the user\'s view. Do NOT set this for content documents — use the two-step flow (create_document → populate_document) instead.'),
-      content_type: z.enum(['document', 'tweet', 'reply', 'quote', 'article', 'linkedin', 'newsletter', 'blog', 'manuscript']).describe('Required. Use "document" for plain documents. Tweet/reply/quote/article/linkedin/newsletter/blog set type-specific metadata automatically. "manuscript" = a binding doc whose body is an ordered list of [text](doc:ID) pointers under ## chapter headings; populate it with the manifest, then it compiles to EPUB/DOCX via the manuscript routes.'),
-      url: z.string().optional().describe('Tweet URL — REQUIRED for content_type "reply" or "quote" (e.g. "https://x.com/user/status/123"). Sets tweetContext.url automatically. Ignored for other content types.'),
-      afterId: z.string().optional().describe('Place the new doc immediately after this docId (8-char hex) or containerId inside its parent. Omit to append to the bottom of the parent (the default — matches ascending-order convention: newest at bottom). Requires workspace.'),
-      status: z.enum(['canonical', 'draft']).optional().describe('Agent-owned lifecycle. "canonical" = committed to spine / load-bearing for the workspace (use for Beats docs that have locked, Research Notes, Master References). "draft" = working / not load-bearing yet / scratch (DUMP docs, first-pass beats). Defaults to "draft" when omitted. Change later via set_metadata({ status: ... }) on lifecycle transitions. v0.19.0.'),
-      masterDocId: z.string().optional().describe('Make this doc a VARIANT of another doc. Pass the master doc\'s docId (8-char hex). The variant nests under its master in the sidebar (expandable tree). Use when creating a derivative — e.g. a tweet thread from a blog post. Pair with variantType. See docs/variants.md.'),
-      variantType: z.string().optional().describe('Label for what kind of variant this is (e.g. "tweet", "blog", "linkedin"). Shows as a badge in the sidebar. Only meaningful alongside masterDocId.'),
+      title: z.string().optional().describe('Defaults to "Untitled".'),
+      path: z.string().optional().describe('Absolute file path to create it at (e.g. "C:/projects/doc.md"). Default: ~/.openwriter/.'),
+      workspace: z.string().optional().describe('Workspace title; created if missing.'),
+      container: z.string().optional().describe('Container name in the workspace (e.g. "Chapters", "Notes"); created if missing. Requires workspace.'),
+      workspaceFile: z.string().optional().describe('Existing workspace by manifest filename (*.json, as move_item / get_workspace_structure use), instead of workspace, when you already have it. Errors if not found.'),
+      containerId: z.string().optional().describe('Existing container by id (8-char hex), instead of container. Must be in the resolved workspace (workspaceFile or workspace); errors if not found.'),
+      empty: z.boolean().optional().describe('Only for typed docs (tweets, articles) that start blank: no spinner, never switches the user\'s view. Never for content documents (use create_document → populate_document).'),
+      content_type: z.enum(['document', 'tweet', 'reply', 'quote', 'article', 'linkedin', 'newsletter', 'blog', 'manuscript']).describe('Required. "document" for plain documents; tweet/reply/quote/article/linkedin/newsletter/blog set their type metadata automatically. "manuscript": a binding doc whose body is an ordered list of [text](doc:ID) pointers under ## chapter headings; populate it with that manifest, then it compiles to EPUB/DOCX via the manuscript routes.'),
+      url: z.string().optional().describe('Tweet URL (e.g. "https://x.com/user/status/123"). Required for reply and quote, which set tweetContext.url from it; ignored otherwise.'),
+      afterId: z.string().optional().describe('Place it right after this docId or containerId (8-char hex) in its parent. Default: the bottom (newest last). Requires workspace.'),
+      status: z.enum(['canonical', 'draft']).optional().describe('Agent-owned lifecycle. "canonical": committed, load-bearing for the workspace (locked Beats docs, Research Notes, Master References). "draft" (default): working or scratch (DUMP docs, first-pass beats). Change it later with set_metadata({ status }).'),
+      masterDocId: z.string().optional().describe('Make this a variant of the doc with this docId (8-char hex); it nests under its master in the sidebar. For derivatives, e.g. a tweet thread from a blog post. Pair with variantType; see docs/variants.md.'),
+      variantType: z.string().optional().describe('Kind of variant, shown as a sidebar badge (e.g. "tweet", "blog", "linkedin"). Only with masterDocId.'),
     },
     handler: async ({ title, path, workspace, container, workspaceFile, containerId, empty, content_type, url, afterId, status, masterDocId, variantType }: { title?: string; path?: string; workspace?: string; container?: string; workspaceFile?: string; containerId?: string; empty?: boolean; content_type: string; url?: string; afterId?: string; status?: 'canonical' | 'draft'; masterDocId?: string; variantType?: string }) => {
       // Require url for reply/quote
@@ -1337,23 +1337,23 @@ export const TOOL_REGISTRY: ToolDef[] = [
   },
   {
     name: 'update_workspace_context',
-    description: 'Update workspace configuration. Accepts writing context (characters, settings, rules — merged into existing) plus config fields (logline, domain, schema, vocab, relatedWorkspaces, enrichmentVolumeThreshold, enrichmentDriftThreshold, enrichmentDisabled, autoSortDisabled — set on workspace top-level). Pass `null` to clear a field. Use this to opt a workspace out of enrichment (enrichmentDisabled: true) or auto-sort (autoSortDisabled: true), declare a closed vocab for domain classification, or set workspace-level loglines/schemas. One tool covers writing context + enrichment + sort config.',
+    description: 'Update a workspace\'s writing context, enrichment and sort config in one call. characters and settings merge into what is there; rules replace; the other fields are set on the workspace itself, and null clears one.',
     schema: {
       workspaceFile: z.string().describe('Workspace manifest filename'),
       context: z.object({
-        characters: z.record(z.string(), z.string()).optional().describe('Character name → description (merged)'),
-        settings: z.record(z.string(), z.string()).optional().describe('Setting name → description (merged)'),
-        rules: z.array(z.string()).optional().describe('Writing rules for this workspace (replaces)'),
-        logline: z.string().nullable().optional().describe('One-sentence "what this workspace is for". Set null to clear.'),
-        domain: z.string().nullable().optional().describe('Subject area (e.g. "Marine biology"). Set null to clear.'),
-        schema: z.string().nullable().optional().describe('Workspace kind: book / concept-library / inbox / social / reference. Set null to clear.'),
-        vocab: z.array(z.string()).nullable().optional().describe('Closed list of valid domain names — Haiku classifies docs INTO these. Set null to clear (opens vocab to free-form).'),
-        relatedWorkspaces: z.array(z.string()).nullable().optional().describe('Sibling workspace filenames. Set null to clear.'),
-        enrichmentVolumeThreshold: z.number().nullable().optional().describe('Volume-ratio threshold (default 1.5). Set null to revert.'),
-        enrichmentDriftThreshold: z.number().nullable().optional().describe('Jaccard-drift threshold (default 0.3). Set null to revert.'),
-        enrichmentDisabled: z.boolean().nullable().optional().describe('True = opt this workspace out of enrichment surfacing. Set null or false to re-enable.'),
-        autoSortDisabled: z.boolean().nullable().optional().describe('True = opt this workspace out of auto-sort; its sort-marked docs drop from list_pending_sorts so the sort minion never auto-files them (user handles them manually via the sidebar). Set null or false to re-enable.'),
-      }).describe('Writing context + enrichment + sort config to apply'),
+        characters: z.record(z.string(), z.string()).optional().describe('Name → description (merged).'),
+        settings: z.record(z.string(), z.string()).optional().describe('Name → description (merged).'),
+        rules: z.array(z.string()).optional().describe('Writing rules for this workspace (replace the current ones).'),
+        logline: z.string().nullable().optional().describe('One sentence: what this workspace is for.'),
+        domain: z.string().nullable().optional().describe('Subject area (e.g. "Marine biology").'),
+        schema: z.string().nullable().optional().describe('Workspace kind: book, concept-library, inbox, social or reference.'),
+        vocab: z.array(z.string()).nullable().optional().describe('Closed list of domain names Haiku classifies docs into; null opens it to free-form.'),
+        relatedWorkspaces: z.array(z.string()).nullable().optional().describe('Sibling workspace filenames.'),
+        enrichmentVolumeThreshold: z.number().nullable().optional().describe('Volume-ratio threshold (default 1.5); null reverts.'),
+        enrichmentDriftThreshold: z.number().nullable().optional().describe('Jaccard-drift threshold (default 0.3); null reverts.'),
+        enrichmentDisabled: z.boolean().nullable().optional().describe('true opts the workspace out of enrichment surfacing; false or null re-enables.'),
+        autoSortDisabled: z.boolean().nullable().optional().describe('true opts it out of auto-sort: its sort-marked docs leave list_pending_sorts, so the sort minion never files them and the user does it in the sidebar; false or null re-enables.'),
+      }).describe('What to change.'),
     },
     handler: async ({ workspaceFile, context }: any) => {
       updateWorkspaceContext(workspaceFile, context);
