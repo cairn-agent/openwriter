@@ -318,16 +318,18 @@ writeFileSync(join(A, '.first-run'), '2026-10-23T00:00:00.000Z\nStart here.md\n'
 writeDoc(A, 'Start here.md', 'Start here', '5a5a0001', ['Welcome to OpenWriter.']);
 writeFileSync(join(A, 'server.lock'), '{"pid":1}');
 writeFileSync(join(A, 'config.json'), '{}');
-// An older version committed the lock file; it leaves GitHub but stays here.
-execFileSync('git', ['add', '-f', 'server.lock'], { cwd: A });
+mkdirSync(join(A, 'voice'), { recursive: true });
+writeFileSync(join(A, 'voice', 'index.db'), 'SQLite format 3');
+// An older version committed the lock file and the voice index; they leave GitHub but stay here.
+execFileSync('git', ['add', '-f', 'server.lock', 'voice/index.db'], { cwd: A });
 execFileSync('git', ['-c', 'user.name=old', '-c', 'user.email=old@x', 'commit', '-q', '-m', 'old'], { cwd: A });
 r = await sync.syncNow(noop);
 assert(r.state === 'synced', 'A syncs');
 const onGitHub = git(remote, 'ls-tree', '-r', '--name-only', 'main').split('\n');
-for (const f of ['.first-run', 'Start here.md', 'server.lock', 'config.json', '.openwriter-device.json']) {
+for (const f of ['.first-run', 'Start here.md', 'server.lock', 'config.json', '.openwriter-device.json', 'voice/index.db']) {
   assert(!onGitHub.includes(f), `${f} is not on GitHub`);
 }
-assert(existsSync(join(A, 'server.lock')) && existsSync(join(A, 'Start here.md')), 'and they stay on this copy');
+assert(existsSync(join(A, 'server.lock')) && existsSync(join(A, 'Start here.md')) && existsSync(join(A, 'voice', 'index.db')), 'and they stay on this copy');
 B = side('B');
 writeFileSync(join(B, 'server.lock'), '{"pid":2}');
 await sync.syncNow(noop);

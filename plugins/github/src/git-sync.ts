@@ -44,11 +44,13 @@ const MARKER_FILE = '.openwriter';
 const FIRST_RUN_MARKER = '.first-run';
 /**
  * Files that belong to this copy only: settings, this device, the running
- * server's lock, local versions, the first-run marker, and the voice index's
- * open-database journals (only meaningful to the process holding the file).
+ * server's lock, local versions, the first-run marker, and the voice index
+ * with its open-database journals (an index each copy builds from the
+ * documents; a binary database cannot merge, and its journals only mean
+ * something to the process holding the file).
  * Listed in .git/info/exclude, which is never synced; the first-run documents join them.
  */
-const LOCAL_ONLY = ['config.json', '.versions/', DEVICE_FILE, FIRST_RUN_MARKER, 'server.lock', 'voice/index.db-shm', 'voice/index.db-wal'];
+const LOCAL_ONLY = ['config.json', '.versions/', DEVICE_FILE, FIRST_RUN_MARKER, 'server.lock', 'voice/index.db', 'voice/index.db-shm', 'voice/index.db-wal'];
 /** Per-document append-only logs: merged by keeping both sides' lines (.gitattributes, synced). */
 const UNION_MERGED = ['_history/*.jsonl merge=union', '_commits/*.jsonl merge=union', '*.log merge=union'];
 /** When this copy last synced. Inside .git, so it is never synced either. */

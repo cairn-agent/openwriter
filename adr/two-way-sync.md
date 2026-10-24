@@ -107,8 +107,9 @@ failure modes with ones that never drop a word.
   and the browser asks again 4 s later, and the push timer waits the same way. The
   open document is reloaded in place only after the pause.
 - **This copy's own files never sync.** `.git/info/exclude` (local to the folder) lists
-  `config.json`, `.versions/`, `.openwriter-device.json`, `.first-run`, `server.lock`
-  and the documents named on the first-run marker's later lines (the "Start here"
+  `config.json`, `.versions/`, `.openwriter-device.json`, `.first-run`, `server.lock`,
+  the voice index `voice/index.db` with its `-shm` / `-wal` journals (each copy builds
+  its own from the documents), and the documents named on the first-run marker's later lines (the "Start here"
   document an embedding program seeds). One an older version committed is dropped
   from the repo with `git rm --cached` and kept on disk; around every merge these
   files are snapshotted and written back if the merge removed them.
@@ -206,3 +207,13 @@ editing one document clashed on its `_blame/` attribution cache and left a copy 
 The "deleted on <device>" notice blinked out during every sync because the syncing
 status carried no notices; it now does. The device name field under "Other ways to
 connect" starts with the suggested name, as the sign-in path already did.
+
+### 2026-10-24 — the voice index stays on each copy
+The voice index database (`voice/index.db`) was still synced; only its journals were
+local. It is a binary SQLite file that git cannot merge, it changes whenever Learn my
+voice runs, and each copy rebuilds it from the documents, so two copies would clash on
+it and push megabytes on every run. It joins `LOCAL_ONLY`: a repo that already holds it
+drops it with `git rm --cached` and every copy keeps its own. The voice profile
+(`voice/profile.json`) and the `_blame/` attribution cache keep syncing as before: the
+profile is the writer's, and the blame cache already keeps ours on a clash. Test:
+`packages/openwriter/scripts/test-github-sync.mjs` ("The app's own files never sync").
