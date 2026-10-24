@@ -213,3 +213,10 @@ writer's. The marker still means "first run done"; readers of line one are uncha
 presenting the app its own way can show it too without polling. Generic: a local plugin
 that lays out its own screen needs it as much as an embedder; nothing changes for the
 local app.
+
+**2026-10-24: the plugin host names the open document and a workspace.** `PluginHost` gains
+`activeDocument()` (docId and title of the document tools act on when a call names none) and
+`workspaceTitle(filename)`. A plugin that asks the writer before a tool runs (the web chat's
+confirm card, or any local plugin with its own approval step) can then say what the call will
+touch: "Publish to site: Parity test", "Delete workspace: Parity WS", instead of a bare action
+or a manifest filename. Read-only lookups over state OpenWriter already exposes to agents.

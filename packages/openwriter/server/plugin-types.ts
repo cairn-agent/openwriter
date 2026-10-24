@@ -74,6 +74,10 @@ export interface PluginHost {
   pendingDocs(): ReturnType<typeof import('./state.js').getPendingDocInfo>;
   /** A document's title as the sidebar shows it, or null when no document has this docId. */
   documentTitle(docId: string): string | null;
+  /** The document open in the editor, the one tools act on when a call names none. */
+  activeDocument(): { docId: string; title: string } | null;
+  /** A workspace's title from its manifest filename, or null when there is no such workspace. */
+  workspaceTitle(filename: string): string | null;
   /** OpenWriter's data folder (~/.openwriter, or OW_DATA_DIR). */
   rootDir: string;
 }

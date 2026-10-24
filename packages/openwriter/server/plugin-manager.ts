@@ -12,9 +12,9 @@ import { registerPluginTools, removePluginTools, TOOL_REGISTRY } from './mcp.js'
 import { readConfig, saveConfig, getDataDir, getConfigFile, ROOT_DIR } from './helpers.js';
 import type { OpenWriterPlugin, PluginConfigField, PluginContextMenuItem, PluginHost, PluginSidebarMenuItem } from './plugin-types.js';
 import { createDocumentFromRequest } from './document-create.js';
-import { getPendingDocInfo } from './state.js';
+import { getDocId, getPendingDocInfo, getTitle } from './state.js';
 import { filenameByDocId } from './documents.js';
-import { getDocTitle } from './workspaces.js';
+import { getDocTitle, getWorkspace } from './workspaces.js';
 import { embedOptions } from './embed-options.js';
 import { broadcastPluginsChanged } from './ws.js';
 import { isAllowedPublishApiUrl } from './connections.js';
@@ -151,6 +151,13 @@ export class PluginManager {
       documentTitle: (docId) => {
         const filename = filenameByDocId(docId);
         return filename ? getDocTitle(filename) : null;
+      },
+      activeDocument: () => {
+        const docId = getDocId();
+        return docId ? { docId, title: getTitle() } : null;
+      },
+      workspaceTitle: (filename) => {
+        try { return getWorkspace(filename).title || null; } catch { return null; }
       },
       rootDir: ROOT_DIR,
     };
