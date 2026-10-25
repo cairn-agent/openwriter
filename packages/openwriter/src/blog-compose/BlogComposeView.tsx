@@ -378,8 +378,8 @@ export default function BlogComposeView({ children, title, onTitleChange, blogCo
   const descCharCount = description.length;
   const descOverLimit = descCharCount > 160;
 
-  // Editor surface inherits the global Appearance panel's typeface + spacing
-  // (data-typeface / data-spacing on documentElement) like every other editor.
+  // Editor surface inherits the type style
+  // (data-type-style on documentElement) like every other editor.
   // The blog has no per-doc font/width/spacing axis — those only ever restyled
   // the editor, never the published Astro output, which made them misleading.
   const wrapperClass = 'blog-compose-wrapper';

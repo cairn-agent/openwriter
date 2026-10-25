@@ -1,26 +1,14 @@
-export type Typeface = 'charter' | 'source-serif' | 'plex-mono' | 'crimson' | 'inter' | 'baskerville' | 'grotesk' | 'literata' | 'dm-sans';
+/** The three type styles a published site uses (type-styles.css), so the editor shows what readers get. */
+export type TypeStyle = 'classic' | 'editorial' | 'modern';
 export type ThemeMode = 'light' | 'dark';
 export type SidebarMode = 'timeline' | 'board' | 'files';
 export type SidebarDensity = 'full' | 'compact' | 'minimal';
 export type CanvasStyle = 'seamless' | 'outline' | 'page' | 'paper';
-export type SpacingPreset = 'default' | 'butterick' | 'web' | 'blog';
 
-export interface TypefaceInfo {
-  id: Typeface;
-  label: string;
-  description: string;
-}
-
-export const TYPEFACES: TypefaceInfo[] = [
-  { id: 'charter', label: 'Charter', description: 'Charter serif' },
-  { id: 'source-serif', label: 'Source Serif', description: 'Source Serif 4' },
-  { id: 'plex-mono', label: 'Plex Mono', description: 'IBM Plex Mono' },
-  { id: 'crimson', label: 'Crimson', description: 'Crimson Pro' },
-  { id: 'inter', label: 'Inter', description: 'Inter sans-serif' },
-  { id: 'baskerville', label: 'Baskerville', description: 'Libre Baskerville' },
-  { id: 'grotesk', label: 'Grotesk', description: 'Space Grotesk' },
-  { id: 'literata', label: 'Literata', description: 'Literata serif' },
-  { id: 'dm-sans', label: 'DM Sans', description: 'DM Sans + Serif' },
+export const TYPE_STYLES: { id: TypeStyle; label: string; description: string }[] = [
+  { id: 'classic', label: 'Classic', description: 'Source Serif throughout' },
+  { id: 'editorial', label: 'Editorial', description: 'Playfair Display titles, Newsreader text' },
+  { id: 'modern', label: 'Modern', description: 'Inter throughout' },
 ];
 
 export const SIDEBAR_MODES: { id: SidebarMode; label: string; icon: string }[] = [
@@ -36,59 +24,33 @@ export const CANVAS_STYLES: { id: CanvasStyle; label: string }[] = [
   { id: 'paper', label: 'Paper' },
 ];
 
-export const SPACING_PRESETS: { id: SpacingPreset; label: string }[] = [
-  { id: 'default', label: 'Default' },
-  { id: 'web', label: 'Web' },
-  { id: 'blog', label: 'Blog' },
-  { id: 'butterick', label: 'Butterick' },
-];
-
 const SIDEBAR_DENSITIES: SidebarDensity[] = ['full', 'compact', 'minimal'];
 
 const KEYS = {
-  typeface: 'ow-typeface',
+  typeStyle: 'ow-type-style',
   mode: 'ow-theme-mode',
   sidebarMode: 'ow-sidebar-mode',
   sidebarDensity: 'ow-sidebar-density',
-  spacing: 'ow-spacing',
   canvas: 'ow-canvas',
 } as const;
 
-// Migration: old ow-theme → ow-typeface (color axis removed)
-const TYPEFACE_MIGRATION: Record<string, Typeface> = {
-  ink: 'charter',
-  novel: 'source-serif',
-  mono: 'plex-mono',
-  editorial: 'crimson',
-  studio: 'inter',
-  prose: 'baskerville',
-};
+// The nine typefaces before the type styles: the sans ones become modern, the rest classic.
+const SANS_TYPEFACES = ['inter', 'grotesk', 'dm-sans'];
 
 function migrateIfNeeded(): void {
-  // Migrate ow-theme → ow-typeface
-  const oldTheme = localStorage.getItem('ow-theme');
-  if (oldTheme && !localStorage.getItem(KEYS.typeface)) {
-    const tf = TYPEFACE_MIGRATION[oldTheme];
-    if (tf) localStorage.setItem(KEYS.typeface, tf);
-    localStorage.removeItem('ow-theme');
+  const oldTypeface = localStorage.getItem('ow-typeface');
+  if (oldTypeface && !localStorage.getItem(KEYS.typeStyle)) {
+    localStorage.setItem(KEYS.typeStyle, SANS_TYPEFACES.includes(oldTypeface) ? 'modern' : 'classic');
   }
-
-  // Clean up stale keys
-  localStorage.removeItem('ow-color');
-  localStorage.removeItem('ow-sidebar-style');
-
-  // Migrate ow-typography → ow-spacing
-  const oldTypography = localStorage.getItem('ow-typography');
-  if (oldTypography && !localStorage.getItem(KEYS.spacing)) {
-    localStorage.setItem(KEYS.spacing, oldTypography);
-    localStorage.removeItem('ow-typography');
+  for (const stale of ['ow-typeface', 'ow-spacing', 'ow-typography', 'ow-theme', 'ow-color', 'ow-sidebar-style']) {
+    localStorage.removeItem(stale);
   }
 }
 
-export function getTypeface(): Typeface {
-  const stored = localStorage.getItem(KEYS.typeface);
-  if (stored && TYPEFACES.some(t => t.id === stored)) return stored as Typeface;
-  return 'charter';
+export function getTypeStyle(): TypeStyle {
+  const stored = localStorage.getItem(KEYS.typeStyle);
+  if (stored && TYPE_STYLES.some(t => t.id === stored)) return stored as TypeStyle;
+  return 'classic';
 }
 
 export function getMode(): ThemeMode {
@@ -114,12 +76,6 @@ export function setSidebarDensity(density: SidebarDensity): void {
   document.documentElement.setAttribute('data-sidebar-density', density);
 }
 
-export function getSpacing(): SpacingPreset {
-  const stored = localStorage.getItem(KEYS.spacing);
-  if (stored && SPACING_PRESETS.some(t => t.id === stored)) return stored as SpacingPreset;
-  return 'default';
-}
-
 export function getCanvasStyle(): CanvasStyle {
   const stored = localStorage.getItem(KEYS.canvas);
   if (stored && CANVAS_STYLES.some(c => c.id === stored)) return stored as CanvasStyle;
@@ -127,32 +83,23 @@ export function getCanvasStyle(): CanvasStyle {
 }
 
 export function applyAppearance(
-  typeface: Typeface,
+  typeStyle: TypeStyle,
   mode: ThemeMode,
   sidebarMode: SidebarMode,
-  spacing: SpacingPreset = 'default',
   canvas: CanvasStyle = 'seamless',
 ): void {
   const el = document.documentElement;
-  el.setAttribute('data-typeface', typeface);
+  el.setAttribute('data-type-style', typeStyle);
   el.setAttribute('data-mode', mode);
   el.setAttribute('data-sidebar-mode', sidebarMode);
-  if (spacing === 'default') {
-    el.removeAttribute('data-spacing');
-  } else {
-    el.setAttribute('data-spacing', spacing);
-  }
   if (canvas === 'seamless') {
     el.removeAttribute('data-canvas');
   } else {
     el.setAttribute('data-canvas', canvas);
   }
-  // Clean up old data-color attribute
-  el.removeAttribute('data-color');
-  localStorage.setItem(KEYS.typeface, typeface);
+  localStorage.setItem(KEYS.typeStyle, typeStyle);
   localStorage.setItem(KEYS.mode, mode);
   localStorage.setItem(KEYS.sidebarMode, sidebarMode);
-  localStorage.setItem(KEYS.spacing, spacing);
   localStorage.setItem(KEYS.canvas, canvas);
 }
 
@@ -161,13 +108,12 @@ export const APPEARANCE_CHANGE_EVENT = 'ow-appearance-change';
 
 /** Change some settings and keep the rest. */
 export function updateAppearance(patch: Partial<{
-  typeface: Typeface; mode: ThemeMode; sidebarMode: SidebarMode; spacing: SpacingPreset; canvas: CanvasStyle;
+  typeStyle: TypeStyle; mode: ThemeMode; sidebarMode: SidebarMode; canvas: CanvasStyle;
 }>): void {
   applyAppearance(
-    patch.typeface ?? getTypeface(),
+    patch.typeStyle ?? getTypeStyle(),
     patch.mode ?? getMode(),
     patch.sidebarMode ?? getSidebarMode(),
-    patch.spacing ?? getSpacing(),
     patch.canvas ?? getCanvasStyle(),
   );
   if (patch.sidebarMode) window.dispatchEvent(new CustomEvent('ow-sidebar-mode-change', { detail: patch.sidebarMode }));
@@ -176,6 +122,6 @@ export function updateAppearance(patch: Partial<{
 
 export function initAppearance(): void {
   migrateIfNeeded();
-  applyAppearance(getTypeface(), getMode(), getSidebarMode(), getSpacing(), getCanvasStyle());
+  applyAppearance(getTypeStyle(), getMode(), getSidebarMode(), getCanvasStyle());
   document.documentElement.setAttribute('data-sidebar-density', getSidebarDensity());
 }

@@ -73,3 +73,8 @@ on `filename` change — once the user touched any field, the loop self-sustaine
   did. `tags` and `draft` still follow the read-directly-from-`ctx` invariant
   above; this change only drops the `style` consumer, so the no-feedback-loop
   invariant is unaffected (one fewer field, same pattern).
+
+### 2026-10-25 — Typeface and spacing become the type style
+- Change: the blog editor inherits the type style (`data-type-style` on `<html>`,
+  adr/type-styles.md) in place of the typeface and spacing attributes. Comment-only change here;
+  the save loop is untouched.

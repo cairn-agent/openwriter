@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
 import {
-  APPEARANCE_CHANGE_EVENT, getCanvasStyle, getMode, getSidebarMode, getSpacing, getTypeface,
+  APPEARANCE_CHANGE_EVENT, getCanvasStyle, getMode, getSidebarMode, getTypeStyle,
 } from './appearance-store';
 
 function read() {
   return {
-    typeface: getTypeface(),
+    typeStyle: getTypeStyle(),
     mode: getMode(),
     sidebarMode: getSidebarMode(),
-    spacing: getSpacing(),
     canvas: getCanvasStyle(),
   };
 }

@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Changed
+- The editor uses the same three type styles as your site and its emails: Classic (Source Serif), Editorial (Playfair Display titles, Newsreader text) and Modern (Inter), at the sizes readers see. Pick one in the Aa menu; with a site, the choice changes the site and its emails too. Fonts are sharper (title and text cuts of each face, accented letters included) and no longer jump while loading. The nine typefaces and four spacing presets are gone; a sans typeface becomes Modern, any other Classic.
+
 ### Fixed
 - A browser tab closing or going to the background no longer saves its text into a different document. Its last edits now go only to the document it was showing. Before, they went to whichever document was open on the server, which after a restart or with two tabs open could be another one.
 - Publishing from the chat or an agent publishes the document it names, not whichever one is open. Tools that work on the open document (publish, unpublish, schedule, preview, test email, share link, stats, poll results) take the document to use, open it, then act.

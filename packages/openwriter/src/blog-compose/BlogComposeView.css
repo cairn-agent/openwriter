@@ -32,7 +32,7 @@
 
 /* =============================================================
    Editor typography — font, size, line-height all INHERIT the
-   global Appearance panel (data-typeface / data-spacing on
+   type style (data-type-style on
    <html>), same as every other editor. The blog has no per-doc
    font/width/spacing axis: those only restyled the editor and
    never the published Astro output. Only structural defaults

@@ -439,3 +439,8 @@ Sync itself is automatic (adr/two-way-sync.md); a click syncs now or opens setup
 The Versions tab gains a section under the local versions, rendered by
 `sync/SyncHistory.tsx` only when sync is set up: every device's versions of the open
 document with Restore, and "Roll back everything to…" (adr/two-way-sync.md).
+
+### 2026-10-25 — Aa menu shows the type style
+The Aa menu's Typeface and Spacing sections become one Style section with the site's three
+type styles (adr/type-styles.md). Picking one also sets the writer's site and its emails, so
+the "only you see this" note now sits under Canvas alone.

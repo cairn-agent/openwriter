@@ -47,7 +47,7 @@ export function postImages(html: string, imageFields: unknown[], dataDir?: strin
   return extractLocalImages([html, ...local].join(' '), dataDir);
 }
 
-const FONTS = ['source-serif', 'literata', 'newsreader', 'playfair-display', 'inter', 'serif', 'sans', 'mono'];
+const TYPE_STYLES = ['classic', 'editorial', 'modern'];
 
 const LINKS = (what: string) => ({
   type: 'array',
@@ -133,7 +133,7 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
       name: 'get_site',
       description:
         'Show the active profile\'s site: address, name, tagline, about, logo, cover, publication settings (default audience, auto-paywall, double opt-in, welcome page and the welcome emails, comments, mailing address, the email header, footer and banner, reply-to, subscriber notices), ' +
-        'design (accent_color, heading_font, body_font, wordmark_url, wordmark_dark_url, home_layout, nav_links, home_links), tracking (google_analytics_id, plausible_domain, block_ai_training) ' +
+        'design (accent_color, type_style, wordmark_url, wordmark_dark_url, home_layout, nav_links, home_links), tracking (google_analytics_id, plausible_domain, block_ai_training) ' +
         'and reader switches (show_likes, show_bylines, comment_images, allow_cross_posts, language) in site.settings, the site\'s own terms and privacy pages (site.terms, site.privacy; null = none), ' +
         'sending (status "review" = new site that can email daily_cap people a day until OpenWriter approves it, see request_site_review; "active" = no daily limit; "suspended" = cannot send; review_requested_at = when review was last asked for), ' +
         'payments: whether Stripe is connected, the 7-day trial, and the paid plans (amounts in cents), ' +
@@ -192,7 +192,7 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
     {
       name: 'update_site_settings',
       description:
-        'Update publication settings, the site\'s design (accent colour, typefaces, wordmark, homepage layout, links) and tracking. Only the fields you pass change. A mailing address is required before the first email goes out. ' +
+        'Update publication settings, the site\'s design (accent colour, type style, wordmark, homepage layout, links) and tracking. Only the fields you pass change. A mailing address is required before the first email goes out. ' +
         'A private site is readable by approved subscribers only: readers ask to subscribe, and the writer approves or denies each request (list_subscribe_requests). ' +
         'Post emails can carry a header, footer and banner, the same for everyone or different for free and paid readers; they appear only in emails. ' +
         'A tracking ID adds that provider\'s tag to the site\'s pages only, never to emails or previews. ' +
@@ -236,11 +236,10 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
           notify_paid_subscribers: { type: 'string', enum: NOTICE_MODES, description: 'Email about new paid subscribers. Default each.' },
           notify_cancellations: { type: 'string', enum: NOTICE_MODES, description: 'Email about paid subscribers who cancel. Default each.' },
           accent_color: { type: 'string', description: 'Colour of buttons and links on the site and in its emails, as #rrggbb. Adjusted per theme so it stays readable. An empty string restores the default blue.' },
-          heading_font: {
-            type: 'string', enum: FONTS,
-            description: 'Typeface for titles and headings: source-serif (default), literata, newsreader, playfair-display, inter, or the reader\'s own serif, sans or mono.',
+          type_style: {
+            type: 'string', enum: TYPE_STYLES,
+            description: 'The type the site, its emails and the editor share: classic (Source Serif throughout; default), editorial (Playfair Display titles, Newsreader text) or modern (Inter throughout).',
           },
-          body_font: { type: 'string', enum: FONTS, description: 'Typeface for post text and subtitles, from the same list.' },
           wordmark_url: {
             type: 'string',
             description: 'An image of the publication\'s name, shown at the top of the site instead of the name in type: an http(s) URL or a picture in this OpenWriter (/_images/...). Use a transparent PNG or SVG drawn for a light page. An empty string removes it.',
@@ -284,7 +283,7 @@ export function siteTools(config: Record<string, string>): PluginMcpTool[] {
           'recommendation_digest_days', 'welcome_email', 'welcome_email_paid',
           'welcome_email_founding', 'welcome_email_imported', 'comments_enabled', 'mailing_address', 'private',
           'notify_subscribe_requests', 'author_name', 'email_header', 'email_footer', 'email_banner', 'reply_to',
-          'notify_free_subscribers', 'notify_paid_subscribers', 'notify_cancellations', 'accent_color', 'heading_font', 'body_font',
+          'notify_free_subscribers', 'notify_paid_subscribers', 'notify_cancellations', 'accent_color', 'type_style',
           'wordmark_url', 'wordmark_dark_url', 'home_layout', 'nav_links', 'home_links', 'google_analytics_id', 'plausible_domain', 'block_ai_training',
           'show_likes', 'show_bylines', 'comment_images', 'allow_cross_posts', 'language',
         ]);

@@ -1,0 +1,83 @@
+/* type-styles.css — the three type styles: the faces, sizes and reading scale a
+   published OpenWriter site and its emails use, so what the writer sees is what
+   readers get. Set by data-type-style on <html> (appearance-store.ts).
+   classic: Source Serif throughout. editorial: Playfair Display titles,
+   Newsreader text. modern: Inter throughout.
+   --read-scale brings each text face's lowercase to Source Serif's height, so
+   20px reads as 20px in every style (Newsreader is drawn small, Inter large).
+   Titles keep their face's own size. Reading text is a little lighter in dark
+   mode: light text on a dark page reads heavier. adr: adr/type-styles.md
+   ──────────────────────────────────────────────────────────────────── */
+
+[data-type-style][data-type-style] {
+  --editor-font-size: calc(20px * var(--read-scale));
+  --editor-line-height: 1.72;
+  --editor-letter-spacing: 0;
+  --editor-max-width: 680px;
+  --editor-font-weight: 400;
+  --h1-size: 32px;
+  --h1-weight: 600;
+  --h1-spacing: -0.012em;
+  --h1-line-height: 1.18;
+  --h1-style: normal;
+  --h2-size: 27px;
+  --h2-weight: 600;
+  --h2-spacing: -0.01em;
+  --h2-line-height: 1.25;
+  --h3-size: 22px;
+  --h3-weight: 600;
+  --h3-spacing: 0;
+  --h3-line-height: 1.3;
+  --h3-transform: none;
+  --h3-border-width: 0;
+  --h3-border-style: none;
+  --h3-pb: 0;
+  --h3-display: block;
+  --blockquote-opacity: 1;
+  --blockquote-font-size: inherit;
+  --blockquote-border-width: 2px;
+}
+
+[data-mode="dark"][data-type-style] {
+  --editor-font-weight: 370;
+}
+
+/* The site's phone sizes (below 640px). */
+@media (max-width: 640px) {
+  [data-type-style][data-type-style] {
+    --editor-font-size: calc(18.5px * var(--read-scale));
+    --editor-line-height: 1.66;
+    --h1-size: 29px;
+    --h2-size: 23px;
+    --h3-size: 20px;
+  }
+}
+
+[data-type-style="classic"][data-type-style="classic"] {
+  --editor-font: "Source Serif", "Source Serif Fallback", Georgia, Cambria, "Times New Roman", serif;
+  --font-heading-h1: "Source Serif", "Source Serif Fallback", Georgia, Cambria, "Times New Roman", serif;
+  --font-heading-h2: var(--font-heading-h1);
+  --font-heading-h3: var(--font-heading-h1);
+  --read-scale: 1;
+}
+
+[data-type-style="editorial"][data-type-style="editorial"] {
+  --editor-font: "Newsreader", "Newsreader Fallback", Georgia, Cambria, "Times New Roman", serif;
+  --font-heading-h1: "Playfair Display", "Playfair Display Fallback", Georgia, Cambria, "Times New Roman", serif;
+  --font-heading-h2: var(--font-heading-h1);
+  --font-heading-h3: var(--font-heading-h1);
+  --read-scale: 1.115;
+}
+
+[data-type-style="modern"][data-type-style="modern"] {
+  --editor-font: "Inter", "Inter Fallback", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-heading-h1: "Inter", "Inter Fallback", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-heading-h2: var(--font-heading-h1);
+  --font-heading-h3: var(--font-heading-h1);
+  --read-scale: 0.87;
+}
+
+/* The Aa menu shows each style's name in its own title face. */
+.appearance-option--type-classic { font-family: "Source Serif", "Source Serif Fallback", Georgia, serif; font-size: 14px; }
+.appearance-option--type-editorial { font-family: "Playfair Display", "Playfair Display Fallback", Georgia, serif; font-size: 14px; }
+.appearance-option--type-modern { font-family: "Inter", "Inter Fallback", system-ui, sans-serif; font-size: 13px; }

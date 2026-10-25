@@ -440,8 +440,12 @@ body {
   padding: 0 1rem;
   font-family: var(--editor-font);
   font-size: var(--editor-font-size);
+  font-weight: var(--editor-font-weight, 400);
   line-height: var(--editor-line-height);
   letter-spacing: var(--editor-letter-spacing);
+  font-kerning: normal;
+  font-feature-settings: "kern", "liga";
+  hanging-punctuation: first allow-end;
   color: var(--editor-color);
   outline: none;
 }
