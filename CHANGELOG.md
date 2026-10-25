@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.50.0] - 2026-10-25
+
 ### Added
 - Publish to your openwriter.io site by clicking, no agent needed. Your site and Publish are in the title bar: publish or schedule a document, preview it, send yourself a test email, and manage posts, subscribers, stats, comments, surveys, growth, money and settings. These are the same screens as OpenWriter on the web. Sign in with your email from Your site. The Publish plugin is now on unless you turned it off.
 
