@@ -10,7 +10,7 @@ Without an invariant on the writer side, every plugin enable/disable, config edi
 
 ## Current invariants
 
-- **The plugin slot is owned by the plugin, not by PluginManager.** PluginManager owns exactly two keys per slot — `enabled` and `config`. Everything else on the slot is plugin-private and must survive any state-save PluginManager performs.
+- **The plugin slot is owned by the plugin, not by PluginManager.** PluginManager owns exactly three keys per slot — `enabled`, `config` and `turnedOff` (set when the writer switches the plugin off, cleared when it is switched on). Everything else on the slot is plugin-private and must survive any state-save PluginManager performs.
 - **`savePluginState` reads-before-write.** It loads the current on-disk plugins record, spreads each existing slot's keys into the rebuilt slot, then overwrites only `enabled` and `config`. This preserves `blogSites` (github), and any future plugin-owned keys, across every plugin manager save.
 - **PluginManager only asserts `enabled` for plugins it actually loaded.** A plugin that failed to import (`managed.plugin === undefined`) sits in the map with the default `enabled === false`. `savePluginState` must NOT persist that default over the on-disk value — for unloaded plugins it preserves `prior.enabled`. Without this, a load failure (e.g. running from an unbuilt worktree) is silently recorded as a deliberate disable and sticks forever, since startup only re-enables plugins marked `true`. A genuinely user-disabled plugin keeps `managed.plugin` set (`disable()` never clears it), so deliberate `false` still persists.
 - **Plugins that store nested data write through their own helper, not through PluginManager.** The github plugin uses `writeBlogSites` (in `plugins/github/src/helpers.ts`), which does the same read-before-write pattern on its slot. PluginManager's writes and plugin-owned writes must both follow this pattern — neither can rebuild the slot from scratch.
@@ -53,3 +53,7 @@ Without an invariant on the writer side, every plugin enable/disable, config edi
 ### 2026-10-25 — on-by-default plugins read the saved enabled value (no change to this invariant)
 
 - `PluginManager.enableDefaults` turns on a bundled plugin whose manifest says `enabledByDefault` only when its slot holds no boolean `enabled`, so a deliberate `false` written by `savePluginState` keeps it off. Slot persistence is unchanged.
+
+### 2026-10-25 — `turnedOff` says the writer switched a plugin off
+
+- Found on the operator's own install after 0.50.0: `enableDefaults` skipped any slot with a boolean `enabled`, but every loaded plugin had always been saved as `enabled: false`, touched or not, so the on-by-default publish plugin stayed off on every existing install. `disable()` now sets the slot's `turnedOff: true` and `enable()` clears it; `enableDefaults` skips only `turnedOff` plugins. A plugin switched off before this change turns on once.

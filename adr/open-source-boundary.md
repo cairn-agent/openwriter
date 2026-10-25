@@ -228,3 +228,8 @@ belongs here: it moved into the publish plugin as its `clientModule` (adr/site-d
 and the web app loads it from there. Bundled plugins gain a manifest flag, `enabledByDefault`:
 on for a writer who never switched the plugin, while a saved off sticks
 (`PluginManager.enableDefaults`). Plugins a writer installs never turn themselves on.
+
+### 2026-10-25 — on by default reads the writer's own switch
+`enableDefaults` follows the slot's `turnedOff` (written only when the writer switches a plugin
+off), not its `enabled`, which older versions saved as false for every plugin
+(adr/plugin-slot-nested-data.md).

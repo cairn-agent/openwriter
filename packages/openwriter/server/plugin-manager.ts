@@ -70,6 +70,8 @@ interface ManagedPlugin {
   toolNames: string[];
   /** Handed over in-process by the program running OpenWriter: part of it, so it cannot be disabled. */
   required?: boolean;
+  /** The writer switched it off (disable()); on (enable()) clears it. Saved as the slot's turnedOff. */
+  turnedOff?: boolean;
 }
 
 export class PluginManager {
@@ -125,14 +127,15 @@ export class PluginManager {
   }
 
   /**
-   * Turn on each bundled plugin that is on by default (manifest `enabledByDefault`) for a writer
-   * who never switched it: config.json holds no enabled value for it. Off, once chosen, sticks.
+   * Turn on each bundled plugin that is on by default (manifest `enabledByDefault`) unless the
+   * writer switched it off (the slot's `turnedOff`, written by disable()). The slot's `enabled`
+   * cannot say this: before 0.50.1 every loaded plugin was saved as enabled: false, touched or not.
    */
   async enableDefaults(): Promise<void> {
-    const saved = (readConfig().plugins || {}) as Record<string, { enabled?: boolean }>;
+    const saved = (readConfig().plugins || {}) as Record<string, { turnedOff?: boolean }>;
     for (const [name, managed] of this.plugins) {
       if (!managed.discovered.enabledByDefault || managed.enabled) continue;
-      if (typeof saved[name]?.enabled === 'boolean') continue;
+      if (saved[name]?.turnedOff === true) continue;
       const result = await this.enable(name);
       if (!result.success) console.error(`[Plugin] ${result.error}`);
     }
@@ -209,6 +212,7 @@ export class PluginManager {
     }
 
     managed.enabled = true;
+    managed.turnedOff = false;
     managed.config = resolvedConfig;
     this.savePluginState();
     broadcastPluginsChanged();
@@ -231,6 +235,7 @@ export class PluginManager {
     }
 
     managed.enabled = false;
+    managed.turnedOff = true;
     this.savePluginState();
     broadcastPluginsChanged();
 
@@ -367,6 +372,7 @@ export class PluginManager {
         ...prior,                 // preserve blogSites + any other plugin-owned data
         enabled,                  // overwrite managed fields (only when actually loaded)
         config: managed.config,
+        ...(managed.turnedOff === undefined ? {} : { turnedOff: managed.turnedOff }),
       };
     }
 
