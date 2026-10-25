@@ -16,7 +16,6 @@ import FocusInstructionsModal from './FocusInstructionsModal';
 import SchedulePostModal from './SchedulePostModal';
 import PostToBlogModal from './PostToBlogModal';
 import { TAB_HEADER } from '../ws/client';
-import NewsletterAnalyticsModal from '../newsletter/NewsletterAnalyticsModal';
 import { showToast } from '../utils/toast';
 
 export interface DocMenuTarget {
@@ -122,7 +121,6 @@ export default function DocContextMenu({ menu, onClose, docs, workspaces, action
   const [focusModal, setFocusModal] = useState<{ action: string; label: string; filename: string; title: string } | null>(null);
   const [scheduleModal, setScheduleModal] = useState<{ filename: string; title: string } | null>(null);
   const [postBlogModal, setPostBlogModal] = useState<{ filename: string; title: string; isActive: boolean } | null>(null);
-  const [analyticsModal, setAnalyticsModal] = useState<{ docId: string; title: string } | null>(null);
   const activeDoc = docs.find(d => d.isActive);
 
   const handlePluginAction = useCallback((action: string, item: SidebarMenuItem, filename: string, title: string, instructions?: string) => {
@@ -185,12 +183,11 @@ export default function DocContextMenu({ menu, onClose, docs, workspaces, action
             onClose();
           } : undefined}
           isAlreadyPublished={menu.contentType === 'blog' && !!menu.postedUrl}
-          onViewAnalytics={menu.docId && menu.lastSent && (menu.postedUrl || menu.isNewsletter) ? () => {
-            if (menu.isNewsletter) setAnalyticsModal({ docId: menu.docId!, title: menu.title });
-            else if (menu.postedUrl) window.open(menu.postedUrl, '_blank');
+          onViewAnalytics={menu.docId && menu.lastSent && menu.postedUrl ? () => {
+            window.open(menu.postedUrl, '_blank');
             onClose();
           } : undefined}
-          viewAnalyticsLabel={menu.isNewsletter ? 'View Analytics' : menu.contentType === 'blog' && menu.postedUrl ? 'View Post' : menu.postedUrl ? 'View on X' : 'View Analytics'}
+          viewAnalyticsLabel={menu.contentType === 'blog' ? 'View Post' : 'View on X'}
           isApproved={actions.getDocTags(menu.filename).includes('✓')}
           onToggleApprove={() => {
             const tags = actions.getDocTags(menu.filename);
@@ -274,9 +271,6 @@ export default function DocContextMenu({ menu, onClose, docs, workspaces, action
             setFocusModal(null);
           }}
         />
-      )}
-      {analyticsModal && (
-        <NewsletterAnalyticsModal docId={analyticsModal.docId} title={analyticsModal.title} onClose={() => setAnalyticsModal(null)} />
       )}
       {scheduleModal && (
         <SchedulePostModal filename={scheduleModal.filename} title={scheduleModal.title} onClose={() => setScheduleModal(null)} />

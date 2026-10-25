@@ -148,6 +148,8 @@ export interface OpenWriterPlugin {
   registerRoutes?(ctx: PluginRouteContext): void | Promise<void>;
   mcpTools?(config: Record<string, string>, host: PluginHost): PluginMcpTool[];
   sidebarMenuItems?(): PluginSidebarMenuItem[];
+  /** A browser module OpenWriter imports at page load (server/plugin-types.ts). */
+  clientModule?: { dir: string; entry: string };
 }
 
 // markdown-it instance matching export-routes.ts configuration

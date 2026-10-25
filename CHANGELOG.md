@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Added
+- Publish to your openwriter.io site by clicking, no agent needed. Your site and Publish are in the title bar: publish or schedule a document, preview it, send yourself a test email, and manage posts, subscribers, stats, comments, surveys, growth, money and settings. These are the same screens as OpenWriter on the web. Sign in with your email from Your site. The Publish plugin is now on unless you turned it off.
+
+### Removed
+- The old Newsletter connection and its setup window, the newsletter analytics window and the "Sent to N subscribers" badge. Your site's sending domain and its emails are set up from Your site.
+
 ### Changed
 - The editor uses the same three type styles as your site and its emails: Classic (Source Serif), Editorial (Playfair Display titles, Newsreader text) and Modern (Inter), at the sizes readers see. Pick one in the Aa menu; with a site, the choice changes the site and its emails too. Fonts are sharper (title and text cuts of each face, accented letters included) and no longer jump while loading. The nine typefaces and four spacing presets are gone; a sans typeface becomes Modern, any other Classic.
 

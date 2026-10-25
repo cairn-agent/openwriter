@@ -124,6 +124,20 @@ export class PluginManager {
     });
   }
 
+  /**
+   * Turn on each bundled plugin that is on by default (manifest `enabledByDefault`) for a writer
+   * who never switched it: config.json holds no enabled value for it. Off, once chosen, sticks.
+   */
+  async enableDefaults(): Promise<void> {
+    const saved = (readConfig().plugins || {}) as Record<string, { enabled?: boolean }>;
+    for (const [name, managed] of this.plugins) {
+      if (!managed.discovered.enabledByDefault || managed.enabled) continue;
+      if (typeof saved[name]?.enabled === 'boolean') continue;
+      const result = await this.enable(name);
+      if (!result.success) console.error(`[Plugin] ${result.error}`);
+    }
+  }
+
   /** Enable a plugin: import, register routes + tools, save state. */
   async enable(name: string): Promise<{ success: boolean; error?: string }> {
     const managed = this.plugins.get(name);

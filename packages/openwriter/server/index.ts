@@ -1149,6 +1149,7 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
       if (!result.success) console.error(`[Plugin] ${result.error}`);
     }
   }
+  await pluginManager.enableDefaults();
 
   // Migration: existing docs-sync users (config.gitConfigured === true from
   // before the github-plugin lift) get the plugin auto-enabled so /api/sync/*

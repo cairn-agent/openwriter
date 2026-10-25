@@ -24,7 +24,8 @@ import { siteSendingTools } from './site-sending-tools.js';
 import { siteAccountTools } from './site-account-tools.js';
 import { siteExtrasTools } from './site-extras-tools.js';
 import { readFileSync, existsSync } from 'fs';
-import { join, extname } from 'path';
+import { join, extname, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 /**
  * Which connection to post with when the caller named none. The document's chosen
@@ -48,8 +49,12 @@ async function pickConnection(provider: string, preferredId?: unknown): Promise<
 const plugin: OpenWriterPlugin = {
   name: '@openwriter/plugin-publish',
   version: '0.1.0',
-  description: 'OpenWriter Publish — newsletter, custom domains, publishing',
+  description: 'OpenWriter Publish: your openwriter.io site, its screens and its tools',
   category: 'publishing',
+
+  // The site screens: Your site and Publish in the title bar, the dashboard at /site/<page>
+  // (client/, built by vite to dist/client). adr: adr/site-dashboard.md
+  clientModule: { dir: join(dirname(fileURLToPath(import.meta.url)), 'client'), entry: 'site.js' },
 
   configSchema: {
     'api-url': {
@@ -59,8 +64,7 @@ const plugin: OpenWriterPlugin = {
     },
     'api-key': {
       type: 'string',
-      required: true,
-      description: 'API key (ow_live_...)',
+      description: 'API key (ow_live_...). Filled in when you sign in from Your site.',
       env: 'PUBLISH_API_KEY',
     },
   },

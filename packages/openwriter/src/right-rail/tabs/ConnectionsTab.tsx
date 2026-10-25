@@ -1,15 +1,15 @@
 /**
- * Connections tab — list account connections (X, LinkedIn, GitHub, Newsletter).
+ * Connections tab — list account connections (X, LinkedIn). The writer's
+ * openwriter.io site, its sending domain included, is set up from Your site.
  * Migrated from src/connections/ConnectionsPanel.tsx (titlebar dropdown).
  *
- * NewsletterSetupModal + ConnectionConfigModal remain modals (they overlay
- * the whole app, not the rail). Only the panel chrome moves.
+ * ConnectionConfigModal remains a modal (it overlays the whole app, not the
+ * rail). Only the panel chrome moves.
  *
  * adr: adr/right-rail.md
  */
 import { useEffect, useRef, useState } from 'react';
 import type { JSX } from 'react';
-import NewsletterSetupModal from '../../connections/NewsletterSetupModal';
 import ConnectionConfigModal from '../../connections/ConnectionConfigModal';
 import type { RightRailTabProps } from '../types';
 import './ConnectionsTab.css';
@@ -26,9 +26,8 @@ interface Connection {
 }
 
 const ALL_PROVIDERS = [
-  { id: 'x', label: 'X (Twitter)', oauth: true },
-  { id: 'linkedin', label: 'LinkedIn', oauth: true },
-  { id: 'newsletter', label: 'Newsletter', oauth: false },
+  { id: 'x', label: 'X (Twitter)' },
+  { id: 'linkedin', label: 'LinkedIn' },
 ] as const;
 
 function providerIcon(provider: string): JSX.Element {
@@ -41,12 +40,6 @@ function providerIcon(provider: string): JSX.Element {
     case 'linkedin': return (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
         <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-      </svg>
-    );
-    case 'newsletter': return (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="4" width="20" height="16" rx="2" />
-        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
       </svg>
     );
     default: return (
@@ -77,10 +70,9 @@ export default function ConnectionsTab(_props: RightRailTabProps) {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [connecting, setConnecting] = useState<string | null>(null);
-  const [showSetup, setShowSetup] = useState<'new' | 'edit' | null>(null);
   const [configConnection, setConfigConnection] = useState<{ id: string; provider: string; display_name: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const setupHint = useUiText('connections.setupHint', <>Set up the <strong>Publish</strong> plugin to get started.</>);
+  const setupHint = useUiText('connections.setupHint', <>Sign in from <strong>Your site</strong> at the top to get started.</>);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function fetchConnections(): Promise<Connection[]> {
@@ -161,12 +153,8 @@ export default function ConnectionsTab(_props: RightRailTabProps) {
     await fetchConnections();
   }
 
-  const connectionsByProvider = new Map<string, Connection>();
   const allConnectionsByProvider = new Map<string, Connection[]>();
   for (const conn of connections) {
-    if (!connectionsByProvider.has(conn.provider)) {
-      connectionsByProvider.set(conn.provider, conn);
-    }
     const list = allConnectionsByProvider.get(conn.provider) || [];
     list.push(conn);
     allConnectionsByProvider.set(conn.provider, list);
@@ -182,13 +170,6 @@ export default function ConnectionsTab(_props: RightRailTabProps) {
           provider={configConnection.provider}
           displayName={configConnection.display_name}
           onClose={() => setConfigConnection(null)}
-          onSaved={() => fetchConnections()}
-        />
-      )}
-      {showSetup && (
-        <NewsletterSetupModal
-          existingConnection={showSetup === 'edit' ? connectionsByProvider.get('newsletter') : null}
-          onClose={() => setShowSetup(null)}
           onSaved={() => fetchConnections()}
         />
       )}
@@ -231,13 +212,7 @@ export default function ConnectionsTab(_props: RightRailTabProps) {
                   <div className="connections-dropdown__actions">
                     <button
                       className="connections-dropdown__action-btn"
-                      onClick={() => {
-                        if (p.id === 'newsletter') {
-                          setShowSetup('edit');
-                        } else {
-                          setConfigConnection({ id: conn.id, provider: p.id, display_name: conn.display_name || p.label });
-                        }
-                      }}
+                      onClick={() => setConfigConnection({ id: conn.id, provider: p.id, display_name: conn.display_name || p.label })}
                       title="Settings"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -280,37 +255,19 @@ export default function ConnectionsTab(_props: RightRailTabProps) {
 
             if (conns.length > 0) return rows;
 
-            if (p.oauth) {
-              return [(
-                <div key={p.id} className="connections-dropdown__item connections-dropdown__item--disconnected">
-                  <div className="connections-dropdown__icon">{providerIcon(p.id)}</div>
-                  <div className="connections-dropdown__info">
-                    <div className="connections-dropdown__name">{p.label}</div>
-                    <div className="connections-dropdown__type">Not connected</div>
-                  </div>
-                  <button
-                    className="connections-dropdown__connect-inline-btn"
-                    onClick={() => startOAuth(p.id)}
-                    disabled={connecting !== null}
-                  >
-                    {connecting === p.id ? 'Connecting…' : 'Connect'}
-                  </button>
-                </div>
-              )];
-            }
-
             return [(
               <div key={p.id} className="connections-dropdown__item connections-dropdown__item--disconnected">
                 <div className="connections-dropdown__icon">{providerIcon(p.id)}</div>
                 <div className="connections-dropdown__info">
                   <div className="connections-dropdown__name">{p.label}</div>
-                  <div className="connections-dropdown__type">Built-in · Not configured</div>
+                  <div className="connections-dropdown__type">Not connected</div>
                 </div>
                 <button
                   className="connections-dropdown__connect-inline-btn"
-                  onClick={() => setShowSetup('new')}
+                  onClick={() => startOAuth(p.id)}
+                  disabled={connecting !== null}
                 >
-                  Configure
+                  {connecting === p.id ? 'Connecting…' : 'Connect'}
                 </button>
               </div>
             )];

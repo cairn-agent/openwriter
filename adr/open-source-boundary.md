@@ -220,3 +220,11 @@ local app.
 confirm card, or any local plugin with its own approval step) can then say what the call will
 touch: "Publish to site: Parity test", "Delete workspace: Parity WS", instead of a bare action
 or a manifest filename. Read-only lookups over state OpenWriter already exposes to agents.
+
+### 2026-10-25 — the site screens are local, so they are public
+The site dashboard (Your site, Publish, /site/<page>) was built in the web app, but a desktop
+writer needs the same screens to publish without an agent, so by this repository's rule it
+belongs here: it moved into the publish plugin as its `clientModule` (adr/site-dashboard.md),
+and the web app loads it from there. Bundled plugins gain a manifest flag, `enabledByDefault`:
+on for a writer who never switched the plugin, while a saved off sticks
+(`PluginManager.enableDefaults`). Plugins a writer installs never turn themselves on.

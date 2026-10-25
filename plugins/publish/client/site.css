@@ -1,0 +1,361 @@
+/* The site dashboard (client/site): a full page over the editor in OpenWriter's own colours
+   (its theme variables, so light and dark follow the app). Every rule is under .ows-. */
+
+html.ow-site-open, html.ow-site-open body { overflow: hidden; }
+
+.ows-app {
+  --ows-red: var(--color-pending-delete, #c0392b);
+  --ows-green: var(--color-pending-insert, #16a34a);
+  --ows-warn: #b45309;
+  --ows-radius: 8px;
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary, #fff);
+  color: var(--ink-body, #333);
+  font-family: var(--font-body, system-ui, sans-serif);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.ows-top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 48px;
+  padding: 0 16px;
+  padding-top: env(safe-area-inset-top, 0px);
+  border-bottom: 1px solid var(--border, #e5e5e5);
+  background: var(--bg-titlebar, var(--bg-primary));
+  flex: none;
+}
+.ows-back {
+  border: 0;
+  background: none;
+  color: var(--ink-dark, #111);
+  font: 500 14px/1 var(--font-body, inherit);
+  cursor: pointer;
+  padding: 8px 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.ows-back:hover { background: var(--bg-hover, #f2f2f2); }
+.ows-top-site { display: flex; align-items: center; gap: 12px; min-width: 0; margin-left: auto; }
+.ows-top-link { color: var(--ink-light); text-decoration: none; white-space: nowrap; font-size: 13px; }
+.ows-top-link:hover { color: var(--link-color, var(--accent)); }
+.ows-picker {
+  max-width: 220px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--ink-dark);
+  font: inherit;
+}
+
+.ows-body { display: flex; flex: 1; min-height: 0; }
+.ows-nav {
+  flex: none;
+  width: 196px;
+  padding: 16px 10px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+.ows-nav-item {
+  text-align: left;
+  border: 0;
+  background: none;
+  color: var(--ink-body);
+  font: 500 14px/1 var(--font-body, inherit);
+  padding: 9px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.ows-nav-item:hover { background: var(--bg-hover); }
+.ows-nav-item--on { background: var(--bg-hover); color: var(--ink-dark); font-weight: 600; }
+.ows-main { flex: 1; min-width: 0; overflow-y: auto; overscroll-behavior: contain; }
+
+.ows-page { max-width: 920px; margin: 0 auto; padding: 28px 32px 96px; }
+.ows-narrow { max-width: 440px; }
+.ows-page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.ows-page-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.ows-h1 { margin: 0; font-size: 24px; line-height: 1.25; font-weight: 650; color: var(--ink-dark); overflow-wrap: anywhere; }
+.ows-h2 { margin: 0; font-size: 16px; font-weight: 600; color: var(--ink-dark); }
+.ows-sub { margin: 4px 0 8px; color: var(--ink-light); font-size: 13px; }
+.ows-sub a { color: inherit; }
+
+.ows-section { margin-top: 28px; }
+.ows-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+
+.ows-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 8px 0 4px; }
+.ows-stat { border: 1px solid var(--border); border-radius: var(--ows-radius); padding: 14px 16px; background: var(--bg-surface); }
+.ows-stat-value { font-size: 22px; font-weight: 650; color: var(--ink-dark); font-variant-numeric: tabular-nums; }
+.ows-stat-label { color: var(--ink-body); font-weight: 500; margin-top: 2px; }
+.ows-stat-sub { color: var(--ink-light); font-size: 12px; margin-top: 2px; }
+
+.ows-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 10px 0;
+  background: var(--bg-surface);
+  color: var(--ink-dark);
+}
+.ows-notice a { color: var(--link-color, var(--accent)); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
+.ows-notice--warn { border-left-color: var(--ows-warn); }
+.ows-notice--error { border-left-color: var(--ows-red); }
+
+.ows-empty { color: var(--ink-light); padding: 22px 4px; }
+
+.ows-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--ink-dark);
+  font: 500 13px/1 var(--font-body, inherit);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.ows-btn:hover:not(:disabled) { background: var(--bg-hover); }
+.ows-btn:disabled { opacity: 0.55; cursor: default; }
+.ows-btn--primary { background: var(--ink-dark); color: var(--bg-primary); border-color: var(--ink-dark); }
+.ows-btn--primary:hover:not(:disabled) { background: var(--ink-dark); opacity: 0.88; }
+.ows-btn--danger { color: var(--ows-red); }
+.ows-btn--quiet { border-color: transparent; background: none; }
+.ows-link { border: 0; background: none; padding: 0; color: var(--link-color, var(--accent)); font: inherit; cursor: pointer; text-decoration: underline; }
+
+.ows-confirm { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ows-confirm-q { color: var(--ink-dark); font-weight: 500; max-width: 520px; }
+.ows-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+
+.ows-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 4px 0 14px; }
+.ows-tab {
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--ink-body);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font: 500 13px/1.2 var(--font-body, inherit);
+  cursor: pointer;
+}
+.ows-tab:hover { background: var(--bg-hover); }
+.ows-tab--on, .ows-tab--on:hover { background: var(--ink-dark); border-color: var(--ink-dark); color: var(--bg-primary); }
+
+.ows-rows { border: 1px solid var(--border); border-radius: var(--ows-radius); overflow: hidden; }
+.ows-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--border); background: var(--bg-surface); flex-wrap: wrap; }
+.ows-row:first-child { border-top: 0; }
+.ows-row-main { flex: 1 1 260px; min-width: 0; }
+.ows-row-title { color: var(--ink-dark); font-weight: 550; overflow-wrap: anywhere; }
+.ows-row-title--btn { border: 0; background: none; padding: 0; font: inherit; font-weight: 550; text-align: left; cursor: pointer; color: var(--ink-dark); }
+.ows-row-title--btn:hover { text-decoration: underline; }
+.ows-row-meta { color: var(--ink-light); font-size: 13px; margin-top: 2px; }
+.ows-row-aside { color: var(--ink-body); font-size: 13px; white-space: nowrap; }
+.ows-row-stats { font-variant-numeric: tabular-nums; }
+.ows-row-actions { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.ows-comment { font-weight: 400; white-space: pre-wrap; }
+
+.ows-field { display: flex; flex-direction: column; gap: 4px; margin: 12px 0; }
+.ows-field-label { font-weight: 550; color: var(--ink-dark); }
+.ows-field-hint { color: var(--ink-light); font-size: 12px; }
+.ows-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--ink-dark);
+  font: 14px/1.4 var(--font-body, inherit);
+}
+.ows-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+textarea.ows-input { resize: vertical; }
+.ows-code { font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; }
+.ows-mono { font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; overflow-wrap: anywhere; }
+.ows-select-sm { width: auto; }
+.ows-suffix { display: flex; align-items: center; gap: 6px; }
+.ows-suffix span { color: var(--ink-light); white-space: nowrap; }
+.ows-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+.ows-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 16px; }
+.ows-inline { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+.ows-inline .ows-input { max-width: 320px; }
+.ows-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 22px 0 10px; }
+.ows-filters .ows-tabs { margin: 0; }
+.ows-search { max-width: 280px; }
+
+.ows-toggle { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+.ows-toggle-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.ows-toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.ows-switch { flex: none; width: 36px; height: 20px; border-radius: 999px; background: var(--border); position: relative; transition: background 0.15s; }
+.ows-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.15s; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+.ows-toggle input:checked + .ows-switch { background: var(--ows-green); }
+.ows-toggle input:checked + .ows-switch::after { transform: translateX(16px); }
+.ows-toggle input:focus-visible + .ows-switch { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ows-toggle input:disabled + .ows-switch { opacity: 0.5; }
+
+.ows-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--ows-radius); }
+.ows-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.ows-table th, .ows-table td { text-align: left; padding: 10px 12px; border-top: 1px solid var(--border); vertical-align: top; }
+.ows-table thead th { border-top: 0; color: var(--ink-light); font-weight: 500; font-size: 12px; white-space: nowrap; }
+.ows-cell-title { color: var(--ink-dark); font-weight: 550; }
+.ows-cell-sub { color: var(--ink-light); font-size: 12px; }
+
+.ows-cover-row { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+.ows-cover {
+  flex: none;
+  width: 160px;
+  height: 90px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  background: var(--bg-surface) center / cover no-repeat;
+  color: var(--ink-light);
+  font: 500 13px/1 var(--font-body, inherit);
+  cursor: pointer;
+}
+.ows-cover--set { border-style: solid; }
+.ows-pic-row { display: flex; align-items: center; gap: 8px; }
+.ows-pic { width: 96px; height: 54px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border); }
+.ows-pic--logo { width: 54px; height: 54px; }
+.ows-publish-bar {
+  position: sticky;
+  bottom: 0;
+  margin-top: 28px;
+  padding: 14px 0;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ows-dialog-back {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  background: rgba(0, 0, 0, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.ows-dialog {
+  width: 100%;
+  max-width: 560px;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  color: var(--ink-body);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  font-family: var(--font-body, system-ui, sans-serif);
+  font-size: 14px;
+}
+.ows-dialog--wide { max-width: 980px; height: 100%; }
+.ows-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.ows-dialog-body { padding: 12px 16px; overflow: auto; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.ows-dialog-foot { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+.ows-preview-bar { display: flex; flex-wrap: wrap; gap: 12px; }
+.ows-preview-bar .ows-tabs { margin-bottom: 8px; }
+.ows-preview-frame { flex: 1; min-height: 360px; width: 100%; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+.ows-preview-frame--email { max-width: 680px; align-self: center; }
+
+/* Narrow screens (and the phone layout): the pages go above the content as a scrolling strip. */
+@media (max-width: 767.5px) {
+  .ows-top { height: auto; min-height: 48px; padding-top: calc(env(safe-area-inset-top, 0px) + 4px); padding-bottom: 4px; flex-wrap: wrap; gap: 8px; }
+  .ows-top-site { margin-left: 0; flex: 1; justify-content: flex-end; }
+  .ows-top-link { display: none; }
+  .ows-body { flex-direction: column; }
+  .ows-nav { width: auto; flex-direction: row; border-right: 0; border-bottom: 1px solid var(--border); padding: 8px 12px; overflow-x: auto; overflow-y: hidden; gap: 4px; scrollbar-width: none; }
+  .ows-nav-item { white-space: nowrap; padding: 8px 12px; }
+  .ows-page { padding: 18px 16px calc(96px + env(safe-area-inset-bottom, 0px)); }
+  .ows-grid2, .ows-grid3 { grid-template-columns: 1fr; }
+  .ows-input { font-size: 16px; }
+  .ows-row-actions { justify-content: flex-start; width: 100%; }
+  .ows-dialog-back { padding: 0; }
+  .ows-dialog, .ows-dialog--wide { max-width: none; height: 100%; border-radius: 0; }
+  .ows-search { max-width: none; flex: 1 1 100%; }
+}
+
+/* Charts and bars (Stats). */
+.ows-chart { margin: 4px 0 0; }
+.ows-chart svg { width: 100%; height: 180px; display: block; }
+.ows-chart-grid { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.ows-chart-axis { fill: var(--ink-light); font-size: 11px; font-family: var(--font-body, inherit); }
+.ows-chart-legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--ink-body); font-size: 12px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.ows-chart-legend i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.ows-bars { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.ows-bar { display: grid; grid-template-columns: 180px 1fr 44px; align-items: center; gap: 10px; }
+.ows-bar-label { color: var(--ink-dark); font-size: 13px; }
+.ows-bar-track { height: 8px; border-radius: 999px; background: var(--bg-hover); overflow: hidden; }
+.ows-bar-fill { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.ows-bar-value { text-align: right; font-size: 13px; color: var(--ink-body); font-variant-numeric: tabular-nums; }
+
+/* Settings pieces. */
+.ows-color { width: 44px; height: 32px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: none; cursor: pointer; }
+.ows-choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ows-choice { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 12px; border: 1px solid var(--border); border-radius: var(--ows-radius); background: var(--bg-surface); color: var(--ink-body); font: 13px/1.4 var(--font-body, inherit); cursor: pointer; }
+.ows-choice strong { color: var(--ink-dark); font-size: 14px; }
+.ows-choice--on { border-color: var(--ink-dark); box-shadow: inset 0 0 0 1px var(--ink-dark); }
+.ows-pic--wordmark { width: auto; max-width: 180px; height: 40px; object-fit: contain; background: var(--bg-primary); }
+.ows-subsection { padding: 4px 0 8px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+
+@media (max-width: 767.5px) {
+  .ows-bar { grid-template-columns: 110px 1fr 40px; }
+  .ows-choices { grid-template-columns: 1fr; }
+  .ows-inline { flex-wrap: wrap; }
+  .ows-inline .ows-input { max-width: none; }
+}
+
+/* Tags. */
+.ows-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.ows-tagchip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-surface); color: var(--ink-dark); font-size: 13px; }
+.ows-tagchip button { border: 0; background: none; color: var(--ink-light); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 4px; }
+.ows-h3 { margin: 18px 0 8px; font-size: 14px; font-weight: 600; color: var(--ink-dark); }
+
+/* QR codes. */
+.ows-qr { display: flex; gap: 16px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+.ows-qr img { width: 180px; height: 180px; background: #fff; padding: 8px; border-radius: 6px; border: 1px solid var(--border); }
+
+/* The right-click Insert block panel (in the editor's context menu, outside the dashboard). */
+.ows-blocks { display: flex; flex-direction: column; min-width: 260px; padding: 4px; font-family: var(--font-body, system-ui, sans-serif); }
+.ows-block-item { display: flex; flex-direction: column; gap: 1px; text-align: left; border: 0; background: none; padding: 7px 10px; border-radius: 6px; cursor: pointer; color: var(--ink-dark); }
+.ows-block-item:hover:not(:disabled) { background: var(--bg-hover); }
+.ows-block-item:disabled { opacity: 0.6; cursor: default; }
+.ows-block-label { font-size: 13px; font-weight: 500; }
+.ows-block-hint { font-size: 12px; color: var(--ink-light); }
+.ows-block-note { margin: 6px 10px 4px; font-size: 11px; color: var(--ink-light); }
+
+/* Written by picker (Publish). */
+.ows-pick { padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-surface); color: var(--ink-body); font-size: 13px; cursor: pointer; }
+.ows-pick--on { border-color: var(--ink-dark); color: var(--ink-dark); box-shadow: inset 0 0 0 1px var(--ink-dark); font-weight: 500; }
+
+/* Poll results. */
+.ows-poll { margin-bottom: 14px; }
+.ows-poll-row { position: relative; display: flex; justify-content: space-between; gap: 12px; padding: 7px 10px; margin-bottom: 4px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; font-size: 13px; color: var(--ink-dark); }
+.ows-poll-bar { position: absolute; inset: 0 auto 0 0; background: var(--bg-hover); z-index: 0; }
+.ows-poll-text, .ows-poll-num { position: relative; z-index: 1; }
+.ows-poll-num { color: var(--ink-light); white-space: nowrap; }
+
+/* Surveys. */
+.ows-question { display: flex; flex-direction: column; gap: 8px; padding: 12px; margin-bottom: 10px; border: 1px solid var(--border); border-radius: var(--ows-radius); }
+.ows-question-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.ows-question-tools { display: flex; gap: 2px; }
+.ows-answers { margin: 0; padding-left: 18px; color: var(--ink-body); font-size: 14px; line-height: 1.5; }
+.ows-answers li { margin-bottom: 6px; white-space: pre-wrap; }
+.ows-answer strong { color: var(--ink-dark); font-weight: 500; margin-right: 4px; }

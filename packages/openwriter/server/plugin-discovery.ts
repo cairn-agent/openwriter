@@ -29,6 +29,11 @@ export interface DiscoveredPlugin {
   displayName?: string;
   /** Category from openwriter manifest */
   category?: PluginCategory;
+  /**
+   * A bundled plugin on for a writer who never switched it (manifest `enabledByDefault`).
+   * Turning it off sticks. Plugins a writer installs never turn themselves on.
+   */
+  enabledByDefault?: boolean;
   /** Absolute path to the plugin directory (for path-based imports) */
   pluginDir: string;
 }
@@ -61,7 +66,7 @@ function discoverBundledPlugins(): DiscoveredPlugin[] {
       const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
       if (!pkg.name) continue;
 
-      const manifest = pkg.openwriter as { displayName?: string; category?: PluginCategory } | undefined;
+      const manifest = pkg.openwriter as { displayName?: string; category?: PluginCategory; enabledByDefault?: boolean } | undefined;
 
       results.push({
         name: pkg.name,
@@ -71,6 +76,7 @@ function discoverBundledPlugins(): DiscoveredPlugin[] {
         source: 'bundled',
         displayName: manifest?.displayName,
         category: manifest?.category,
+        enabledByDefault: manifest?.enabledByDefault === true,
         pluginDir,
       });
     } catch {

@@ -444,3 +444,8 @@ document with Restore, and "Roll back everything to…" (adr/two-way-sync.md).
 The Aa menu's Typeface and Spacing sections become one Style section with the site's three
 type styles (adr/type-styles.md). Picking one also sets the writer's site and its emails, so
 the "only you see this" note now sits under Canvas alone.
+
+### 2026-10-25 — Connections lists only social accounts
+The Newsletter row and its setup window leave Settings > Connections: the writer's openwriter.io
+site, its sending domain included, is set up from Your site (adr/site-dashboard.md). Without an
+OpenWriter sign-in the tab says to sign in from Your site.

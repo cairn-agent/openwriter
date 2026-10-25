@@ -16,7 +16,6 @@ export interface NewsletterContext {
   active?: boolean;
   subject?: string;
   previewText?: string;
-  lastSend?: { sentCount: number; sentAt: string; issueId?: string };
 }
 
 // ─── Metadata persistence ───────────────────────────────────────
@@ -31,13 +30,6 @@ function saveNewsletterMeta(partial: Partial<NewsletterContext>) {
 
 // ─── Newsletter Compose View ────────────────────────────────────
 
-interface NewsletterConnection {
-  id: string;
-  provider: string;
-  display_name: string;
-  status: string;
-}
-
 interface NewsletterComposeViewProps {
   children: ReactNode;
   newsletterContext?: NewsletterContext;
@@ -50,11 +42,8 @@ export function TextNewsletterView({ children, newsletterContext, filename, titl
   const ctx = newsletterContext || {};
   const [subject, setSubject] = useState(ctx.subject || '');
   const [previewText, setPreviewText] = useState(ctx.previewText || '');
-  const [connections, setConnections] = useState<NewsletterConnection[]>([]);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const publishHint = useUiText('newsletter.publishHint', 'To email your readers, ask your agent to publish this to your site.');
-  // Sends made with the retired old newsletter send, kept in the doc's metadata.
-  const lastSend = ctx.lastSend?.sentAt ? ctx.lastSend : null;
+  const publishHint = useUiText('newsletter.publishHint', 'To email your readers, choose Publish at the top.');
   // Track last subject value we auto-synced to the title
   const autoSyncedSubject = useRef<string | null>(null);
   const prevFilename = useRef(filename);
@@ -85,17 +74,6 @@ export function TextNewsletterView({ children, newsletterContext, filename, titl
       }
     }
   }, [newsletterContext, filename]);
-
-  // A connected publish platform can email this doc as a site post
-  useEffect(() => {
-    fetch('/api/connections')
-      .then(r => r.json())
-      .then(data => {
-        const conns = (data.connections || []).filter((c: any) => c.provider === 'newsletter' && c.status === 'active');
-        setConnections(conns);
-      })
-      .catch(() => {});
-  }, []);
 
   const canSave = !!newsletterContext?.active;
 
@@ -138,14 +116,6 @@ export function TextNewsletterView({ children, newsletterContext, filename, titl
 
   return (
     <div className="nl-compose-wrapper">
-      {lastSend && (
-        <div className="nl-sent-status">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-          Sent {new Date(lastSend.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} to {lastSend.sentCount} subscriber{lastSend.sentCount !== 1 ? 's' : ''}
-        </div>
-      )}
       <div className="nl-compose-content">
         <input
           className="nl-subject-input"
@@ -178,7 +148,7 @@ export function TextNewsletterView({ children, newsletterContext, filename, titl
 
       {filename && (
         <div className="nl-compose-footer">
-          {connections.length > 0 && publishHint && (
+          {publishHint && (
             <span className="nl-footer-hint">{publishHint}</span>
           )}
           <button className="nl-footer-btn" onClick={() => setShowScheduleModal(true)}>

@@ -49,3 +49,7 @@ Without an invariant on the writer side, every plugin enable/disable, config edi
 ### 2026-10-11 — in-process plugins and a wider host (no change to this invariant)
 
 - `PluginManager.addInProcess` registers a plugin object handed over by a program embedding OpenWriter; it is saved into its config slot like any other, through the same read-before-write merge. `PluginHost` gains `tools()`, `pendingDocs()` and `rootDir`, and a plugin may declare a `clientModule` served under `/plugin-client/<plugin>/`. See [adr/open-source-boundary.md](open-source-boundary.md). Slot persistence is unchanged.
+
+### 2026-10-25 — on-by-default plugins read the saved enabled value (no change to this invariant)
+
+- `PluginManager.enableDefaults` turns on a bundled plugin whose manifest says `enabledByDefault` only when its slot holds no boolean `enabled`, so a deliberate `false` written by `savePluginState` keeps it off. Slot persistence is unchanged.
