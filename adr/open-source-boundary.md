@@ -233,3 +233,8 @@ on for a writer who never switched the plugin, while a saved off sticks
 `enableDefaults` follows the slot's `turnedOff` (written only when the writer switches a plugin
 off), not its `enabled`, which older versions saved as false for every plugin
 (adr/plugin-slot-nested-data.md).
+
+### 2026-10-25 — in-process plugins with nothing to set are not listed
+Settings > Plugins leaves out a plugin that is part of the embedding program (no switch) and has
+no settings: the writer can do nothing with it. Settings tabs can be opened by id through
+`openRailTab` ('billing', 'accounts', 'plugins').

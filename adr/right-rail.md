@@ -449,3 +449,13 @@ the "only you see this" note now sits under Canvas alone.
 The Newsletter row and its setup window leave Settings > Connections: the writer's openwriter.io
 site, its sending domain included, is set up from Your site (adr/site-dashboard.md). Without an
 OpenWriter sign-in the tab says to sign in from Your site.
+
+### 2026-10-25 — Settings gets tabs: Billing, Accounts, Plugins
+Settings stacked Claude, Connections and Plugins in one long scroll, with eight controls under
+Claude alone. It now has three tabs along its top, one shown at a time: Billing (the balance,
+then the writer's own key as the other way to pay, then the writing model, since the model is a
+cost choice), Accounts (X, LinkedIn) and Plugins. The last tab looked at is remembered;
+`openRailTab('billing' | 'accounts' | 'plugins')`, and the old ids plugins and connections, open
+Settings on that tab (`requestSettingsSection` in `right-rail/types.ts`). The balance shows its
+last five charges with See more. A plugin that is part of the embedding program and has nothing
+to set is no longer listed under Plugins.

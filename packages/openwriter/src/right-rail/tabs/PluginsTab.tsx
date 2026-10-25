@@ -80,7 +80,10 @@ export default function PluginsTab(_props: RightRailTabProps) {
   const fetchPlugins = useCallback(() => {
     fetch('/api/available-plugins')
       .then((r) => r.json())
-      .then((data) => setPlugins(data.plugins || []))
+      // A plugin that is part of the program running OpenWriter (no switch) and has nothing to
+      // set gives the writer nothing to do here, so it is not listed.
+      .then((data) => setPlugins(((data.plugins || []) as AvailablePlugin[])
+        .filter((p) => !(p.required && Object.keys(p.configSchema || {}).length === 0))))
       .catch(() => {});
   }, []);
 

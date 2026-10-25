@@ -1,5 +1,5 @@
 /**
- * Settings > Claude: the writer's Claude API key and writing model, used by Enhance and the other
+ * Settings > Billing: the writer's Claude API key and writing model, used by Enhance and the other
  * right-click writing actions, Learn my voice from this, and the transforms. The server keeps the
  * key; this panel only ever sees whether one is saved and its last four characters. Without a key,
  * a writer signed in to OpenWriter sees their OpenWriter balance instead (ClaudeBalance).
@@ -67,8 +67,9 @@ export default function ClaudeSettings() {
   return (
     <div className="claude-settings plugin-config">
       {intro && <p className="claude-settings-note">{intro}</p>}
-      {panels.map((p) => <PluginMount key={p.id} mount={p.mount} ctx={panelCtx} />)}
+      {/* The balance first, then the other way to pay: the writer's own key. */}
       {state.balance && <ClaudeBalance />}
+      {panels.map((p) => <PluginMount key={p.id} mount={p.mount} ctx={panelCtx} />)}
       {!state.saved && !state.signedIn && signInHint && (
         <p className="claude-settings-note">{signInHint}</p>
       )}

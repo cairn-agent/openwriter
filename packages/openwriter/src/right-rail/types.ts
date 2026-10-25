@@ -16,11 +16,43 @@ export type TabId =
   | 'activity'
   | 'settings';
 
-/** Tabs merged into Settings (2026-10-12): a saved or requested old id opens Settings. */
-const MERGED_INTO_SETTINGS = new Set(['plugins', 'connections', 'appearance']);
+/** The three tabs along the top of Settings (SettingsTab.tsx). */
+export type SettingsSection = 'billing' | 'accounts' | 'plugins';
+
+/**
+ * Ids that open Settings, and the Settings tab each opens on: the tabs merged into Settings
+ * (2026-10-12), when saved or asked for, and the Settings tabs' own names.
+ */
+const MERGED_INTO_SETTINGS: Record<string, SettingsSection | null> = {
+  plugins: 'plugins', connections: 'accounts', appearance: null, billing: 'billing', accounts: 'accounts',
+};
 
 export function canonicalTabId(id: string): string {
-  return MERGED_INTO_SETTINGS.has(id) ? 'settings' : id;
+  return Object.hasOwn(MERGED_INTO_SETTINGS, id) ? 'settings' : id;
+}
+
+const SETTINGS_SECTION_EVENT = 'ow-settings-section';
+let requestedSection: SettingsSection | null = null;
+
+/** Asked for by id (openRailTab('billing')): Settings opens on that tab. */
+export function requestSettingsSection(id: string): void {
+  const section = Object.hasOwn(MERGED_INTO_SETTINGS, id) ? MERGED_INTO_SETTINGS[id] : null;
+  if (!section) return;
+  requestedSection = section;
+  window.dispatchEvent(new CustomEvent(SETTINGS_SECTION_EVENT, { detail: section }));
+}
+
+/** The Settings tab asked for since Settings last looked, once. */
+export function takeSettingsSection(): SettingsSection | null {
+  const s = requestedSection;
+  requestedSection = null;
+  return s;
+}
+
+export function onSettingsSection(fn: (s: SettingsSection) => void): () => void {
+  const listener = (e: Event) => { requestedSection = null; fn((e as CustomEvent<SettingsSection>).detail); };
+  window.addEventListener(SETTINGS_SECTION_EVENT, listener);
+  return () => window.removeEventListener(SETTINGS_SECTION_EVENT, listener);
 }
 
 /**

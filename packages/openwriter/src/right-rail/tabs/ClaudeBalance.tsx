@@ -39,6 +39,7 @@ export default function ClaudeBalance() {
   const [b, setB] = useState<Balance | null>(null);
   const [saveCard, setSaveCard] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [allRecent, setAllRecent] = useState(false);
 
   const load = useCallback(() => {
     fetch('/api/voice/balance').then(async (r) => {
@@ -136,8 +137,11 @@ export default function ClaudeBalance() {
         <div className="plugin-config-field">
           <span className="plugin-config-label">Recent</span>
           <ul className="claude-balance-recent">
-            {b.recent.slice(0, 8).map((r, i) => <li key={i}>{line(r)}</li>)}
+            {b.recent.slice(0, allRecent ? 8 : 5).map((r, i) => <li key={i}>{line(r)}</li>)}
           </ul>
+          {!allRecent && b.recent.length > 5 && (
+            <button type="button" className="claude-settings-remove" onClick={() => setAllRecent(true)}>See more</button>
+          )}
         </div>
       )}
       {error && <div className="claude-settings-error">{error}</div>}

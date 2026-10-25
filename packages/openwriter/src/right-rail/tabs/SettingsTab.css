@@ -1,14 +1,24 @@
-/* Settings tab: Connections and Plugins stacked as groups. Each group title
-   is a panel heading (themes/rails.css), like the Timeline's header. */
-.settings-group + .settings-group {
-  border-top: 1px solid var(--border);
-}
-
-.settings-group-title {
-  margin: 0;
-  padding: 10px var(--rail-inset);
+/* Settings tab: Billing, Accounts and Plugins as tabs along the top, one shown at a time. */
+.settings-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px var(--rail-inset);
   border-bottom: 1px solid var(--border);
 }
+.settings-tabs-btn {
+  flex: 1;
+  height: 26px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-light);
+  font-family: var(--font-body);
+  font-size: 12px;
+  cursor: pointer;
+}
+.settings-tabs-btn:hover { background: var(--bg-hover); color: var(--ink-body); }
+.settings-tabs-btn--on, .settings-tabs-btn--on:hover { background: var(--bg-hover); color: var(--ink-dark); font-weight: 500; }
 
 /* Settings > Claude (ClaudeSettings.tsx). */
 .claude-settings {

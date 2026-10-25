@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Changed
+- Settings has three tabs along its top, so you see one thing at a time: Billing (your OpenWriter balance, your own Claude key and the writing model), Accounts (X and LinkedIn) and Plugins. It remembers the tab you were on. The balance shows your last five charges, with See more.
+
 ## [0.50.1] - 2026-10-25
 
 ### Fixed

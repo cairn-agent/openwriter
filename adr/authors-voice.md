@@ -153,3 +153,7 @@ The prompts are the refined part and are copied, never paraphrased:
   `balanceAccess(call)` (exported, adr/open-source-boundary.md), which holds the pinned server,
   the job headers and the account key; `AiCall.job` takes any job name the server prices besides
   rewrite, learn and transform. Behaviour of every local call is unchanged.
+
+### 2026-10-25 — Settings > Claude is now Settings > Billing
+The section became the Billing tab of Settings (adr/right-rail.md). Order: the OpenWriter balance,
+then an embedder's key controls and the key field, then the writing model.

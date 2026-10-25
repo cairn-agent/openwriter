@@ -780,7 +780,7 @@ Every site tool takes an optional `site` (a site's name or id from `list_my_site
 
 ## Writing in the user's voice
 
-The editor's right-click actions (Enhance, Modify, Shrink, Expand, Insert, Fill paragraph, Fill sentence) and the sidebar's transforms (Vary, Shrinkify, Expandify, Threadify, Storify, Emailify, Postify) are the user's, run from the browser on their own Claude key or their OpenWriter balance (Settings > Claude). The user teaches it their voice by right-clicking documents > "Learn my voice from this". There are no agent tools for these; point the user to them when they ask.
+The editor's right-click actions (Enhance, Modify, Shrink, Expand, Insert, Fill paragraph, Fill sentence) and the sidebar's transforms (Vary, Shrinkify, Expandify, Threadify, Storify, Emailify, Postify) are the user's, run from the browser on their own Claude key or their OpenWriter balance (Settings > Billing). The user teaches it their voice by right-clicking documents > "Learn my voice from this". There are no agent tools for these; point the user to them when they ask.
 
 When you draft in the user's voice yourself, use the Author's Voice skill (see the writer skills above). Afterwards the user can right-click any paragraph > Enhance to bring it closer to their voice.
 

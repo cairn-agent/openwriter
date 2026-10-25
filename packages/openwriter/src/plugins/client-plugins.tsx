@@ -19,7 +19,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { DOMSerializer } from '@tiptap/pm/model';
 import { showToast } from '../utils/toast';
 import { TAB_ID, type SyncStatus } from '../ws/client';
-import { canonicalTabId } from '../right-rail/types';
+import { canonicalTabId, requestSettingsSection } from '../right-rail/types';
 
 /** A plugin's mounted view. `update` receives fresh context; `unmount` tears it down. */
 export interface MountedView<C> {
@@ -310,6 +310,7 @@ const api: ClientPluginApi = {
     update({ uiText: { ...registry.uiText, ...text } });
   },
   openRailTab(id) {
+    requestSettingsSection(id);
     railOpener?.(resolveTabId(id));
   },
   showToast,
