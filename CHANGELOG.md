@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.50.1] - 2026-10-25
+
+### Fixed
+- Publish now turns on for existing installs too, so Your site and Publish appear after updating. Before, an install that had never touched the Publish plugin kept it off. If you switch it off, it stays off.
+
 ## [0.50.0] - 2026-10-25
 
 ### Added
