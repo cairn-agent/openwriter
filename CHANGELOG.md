@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### Fixed
+- A browser tab closing or going to the background no longer saves its text into a different document. Its last edits now go only to the document it was showing. Before, they went to whichever document was open on the server, which after a restart or with two tabs open could be another one.
 - Publishing from the chat or an agent publishes the document it names, not whichever one is open. Tools that work on the open document (publish, unpublish, schedule, preview, test email, share link, stats, poll results) take the document to use, open it, then act.
 
 ## [0.49.0] - 2026-10-23

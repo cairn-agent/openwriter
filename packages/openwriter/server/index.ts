@@ -9,7 +9,7 @@ import type { Server as HttpServer } from 'http';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { existsSync, readFileSync } from 'fs';
-import { setupWebSocket, broadcastAgentStatus, broadcastDocumentSwitched, broadcastDocumentsChanged, broadcastWorkspacesChanged, broadcastMetadataChanged, broadcastPendingDocsChanged, broadcastSyncStatus, broadcastWritingStarted, broadcastWritingFinished, broadcastCommentsChanged, broadcastActivityLogSeed, refreshLiveDocViewers } from './ws.js';
+import { setupWebSocket, broadcastAgentStatus, broadcastDocumentSwitched, broadcastDocumentsChanged, broadcastWorkspacesChanged, broadcastMetadataChanged, broadcastPendingDocsChanged, broadcastSyncStatus, broadcastWritingStarted, broadcastWritingFinished, broadcastCommentsChanged, broadcastActivityLogSeed, refreshLiveDocViewers, applyTabFlush } from './ws.js';
 import { TOOL_REGISTRY, appendDocGuidance } from './mcp.js';
 import { z } from 'zod';
 import { save, cancelDebouncedSave, load, getDocument, getTitle, getFilePath, getDocId, getMetadata, getStatus, updateDocument, setMetadata, applyTextEdits, isAgentLocked, getPendingDocInfo, getDocTagsByFilename, addDocTag, removeDocTag, updatePendingCacheForActiveDoc, removePendingCacheEntry, clearAllCaches, stripPendingAttrs, stripPendingAttrsFromFile, setAutoAcceptOnFile, setSortRequestOnFile, clearSortRequestOnFile, bumpDocVersion, extractText } from './state.js';
@@ -472,23 +472,10 @@ export async function startHttpServer(options: { server: HttpServer; port?: numb
 
   // Beacon-based flush: browser sends this on beforeunload/visibilitychange
   // Client sends as application/json Blob (non-CORS-safelisted, so cross-origin sendBeacon is blocked)
+  // It lands on the doc the tab names, never the live doc (ws.ts applyTabFlush). adr: adr/per-tab-view.md
   app.post('/api/flush', (req, res) => {
     try {
-      if (isAgentLocked(getActiveFilename())) {
-        console.log('[Flush] Blocked (agent write lock active)');
-        res.status(204).end();
-        return;
-      }
-      const msg = req.body;
-      if (msg.document) {
-        updateDocument(msg.document);
-        save();
-      } else if (msg.markdown) {
-        const parsed = markdownToTiptap(msg.markdown);
-        updateDocument(parsed.document);
-        if (parsed.title !== 'Untitled') setMetadata({ title: parsed.title });
-        save();
-      }
+      applyTabFlush(req.body ?? {});
       res.status(204).end();
     } catch {
       res.status(400).end();

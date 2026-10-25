@@ -518,5 +518,15 @@ export function useWebSocket({ onNodeChanges, onAgentStatus, onDocumentSwitched,
       wsRef.current!.send(JSON.stringify({ type: 'save-view', requestId, docId, document }));
     });
   }, []);
-  return { connected, sendMessage, docVersionRef, saveView };
+
+  /** The tab's unsent edits as it closes or hides, by beacon: they name the doc
+   *  they belong to and the revision they were built on, so the server applies
+   *  them to that doc and never to whichever doc is live. adr: adr/per-tab-view.md */
+  const flushBeacon = useCallback((docId: string, document: any): void => {
+    if (!seededRef.current || !docId) return;
+    const payload = JSON.stringify({ type: 'flush', tab: TAB_ID, docId, rev: revRef.current, document });
+    // application/json is not CORS-safelisted, so a cross-origin beacon is blocked by the browser
+    navigator.sendBeacon('/api/flush', new Blob([payload], { type: 'application/json' }));
+  }, []);
+  return { connected, sendMessage, docVersionRef, saveView, flushBeacon };
 }

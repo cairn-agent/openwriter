@@ -179,3 +179,19 @@ holds the same document, saves through the existing path, and verifies a disk
 read before acknowledging. It neither writes a new snapshot nor navigates other
 tabs. Lost connections reject pending acknowledgments instead of replaying them.
 The outline build waits for this barrier; see [outline-editor.md](outline-editor.md).
+
+### 2026-10-24 — A closing tab's flush names its document
+
+`POST /api/flush` (the beacon a tab sends on close or hide) wrote into whatever
+doc was live, the one door that ignored the tab's view. Seen live on the Test
+profile: after a restart the server opened the most recently changed doc
+("Email fonts check"), and an old page still showing "Cooking without a recipe"
+flushed on unload; its text replaced the other doc on disk (snapshot at boot
++1.3s, actor human). The same happens with two tabs on two docs whenever the
+hidden one flushes. The beacon now carries the docId, the tab id and the
+revision it was built on (`client.ts` `flushBeacon`), only when the tab holds
+edits it has not sent. `applyTabFlush` in `ws.ts` resolves that doc, refuses a
+stale revision from another tab, makes the doc live like any tab write, then
+applies. A flush that names no doc, or an unknown one, writes nothing.
+`tabOf` keeps each socket's tab id after it closes, since the beacon can
+arrive after its socket is gone.

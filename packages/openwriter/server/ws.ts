@@ -84,6 +84,8 @@ let currentAgentConnected = false;
 // showing it, so no tab works from an old copy. adr: adr/per-tab-view.md
 const views = new Map<WebSocket, string>();
 const tabSockets = new Map<string, WebSocket>();
+// Each socket's tab id, kept after it closes: a closing tab's flush names its tab, not its socket.
+const tabOf = new WeakMap<WebSocket, string>();
 // The live doc as last delivered to tabs: the doc a 'viewers' switch moves them from.
 let liveKey = '';
 
@@ -130,13 +132,43 @@ export function refreshLiveDocViewers(): void {
 
 /** A tab changed the live doc: record it, and give the other tabs showing
  *  that doc the new copy. */
-function afterTabWrite(by: WebSocket): void {
+function afterTabWrite(by: WebSocket | null): void {
   const key = getActiveFilename();
   bumpRev(key, by);
   const others = viewersOf(key).filter((t) => t !== by && t.readyState === WebSocket.OPEN);
   if (others.length === 0) return;
   const msg = liveDocRefresh();
   for (const t of others) t.send(msg);
+}
+
+/**
+ * A tab's unsent edits, sent as it closes or hides (POST /api/flush, a
+ * beacon). It names the doc it holds (docId), never "the live doc": after a
+ * restart, or with another tab on another doc, the live doc is a different
+ * one. Same rules as a doc-update: made live first, refused when built on a
+ * revision another tab or an agent has since replaced. adr: adr/per-tab-view.md
+ */
+export function applyTabFlush(msg: { tab?: unknown; docId?: unknown; rev?: unknown; document?: any }): boolean {
+  if (typeof msg.docId !== 'string' || !msg.document || !Array.isArray(msg.document.content)) return false;
+  let target: string;
+  try { target = canonicalizeIdentifier(resolveDocId(msg.docId)); } catch { return false; }
+  const cur = revs.get(target);
+  const byTab = typeof msg.tab === 'string' ? msg.tab : null;
+  if (cur && typeof msg.rev === 'number' && msg.rev !== cur.rev && (!cur.by || tabOf.get(cur.by) !== byTab)) {
+    diagLog(`[Flush] REFUSED stale rev=${msg.rev} current=${cur.rev} filename=${target}`);
+    return false;
+  }
+  if (isAgentLocked(target)) return false;
+  if (target !== getActiveFilename()) {
+    switchDocument(target);
+    liveKey = getActiveFilename();
+  }
+  msg.document.content = msg.document.content.filter((n: any) => n.type !== 'imageLoading');
+  updateDocument(msg.document);
+  updatePendingCacheForActiveDoc();
+  save('human');
+  afterTabWrite(byTab ? tabSockets.get(byTab) ?? null : null);
+  return true;
 }
 
 /** Who follows a document-switched:
@@ -378,7 +410,7 @@ export function setupWebSocket(server: Server): void {
     const query = new URL(req.url || '/', 'http://localhost').searchParams;
     const tabId = query.get('tab');
     const view = query.get('view');
-    if (tabId) tabSockets.set(tabId, ws);
+    if (tabId) { tabSockets.set(tabId, ws); tabOf.set(ws, tabId); }
 
     // Send current agent status to newly connected client
     ws.send(JSON.stringify({ type: 'agent-status', agentConnected: currentAgentConnected }));

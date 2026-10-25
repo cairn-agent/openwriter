@@ -608,7 +608,7 @@ export default function App() {
     pendingDocsSeeded.current = true;
   }, []);
 
-  const { connected, sendMessage, docVersionRef, saveView } = useWebSocket({
+  const { connected, sendMessage, docVersionRef, saveView, flushBeacon } = useWebSocket({
     onNodeChanges: (changes) => {
       const editors = allEditorsRef.current;
       if (editors.length <= 1) {
@@ -729,10 +729,9 @@ export default function App() {
       // Use lastDocJson (covers tweet compose where editorRef is only the first tweet's editor)
       const doc = lastDocJson.current || editorRef.current?.getJSON();
       if (!doc) return;
-      // Use sendBeacon with JSON Blob — application/json is not CORS-safelisted,
-      // so cross-origin sendBeacon is blocked by the browser automatically
-      const payload = JSON.stringify({ type: 'flush', document: doc });
-      navigator.sendBeacon('/api/flush', new Blob([payload], { type: 'application/json' }));
+      // Only edits the server has not had: a flush of an unchanged doc is a write that saves nothing.
+      if (docKey(doc) === lastSentDocJson.current) return;
+      flushBeacon(currentDocId.current, doc);
     };
 
     const handleVisibilityChange = () => {
