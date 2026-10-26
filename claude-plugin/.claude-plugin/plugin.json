@@ -5,10 +5,10 @@
   "description": "A local markdown editor your agent writes in. Claude drafts and edits documents through MCP tools, and you accept or reject each change in your browser. Plain .md files on your disk.",
   "author": {
     "name": "OpenWriter",
-    "url": "https://github.com/travsteward/openwriter"
+    "url": "https://openwriter.io"
   },
-  "homepage": "https://github.com/travsteward/openwriter",
-  "repository": "https://github.com/travsteward/openwriter",
+  "homepage": "https://openwriter.io",
+  "repository": "https://openwriter.io",
   "license": "MIT",
   "icon": "./logo.png",
   "keywords": [
