@@ -19,9 +19,14 @@ try {
     $primary = Get-CimInstance Win32_Process -Filter "ProcessId=$($listeners[0])"
     if (!(Test-DeliveryListenerEntry -CommandLine $primary.CommandLine -Entry $entry)) { throw 'Port 5050 is not the canonical OpenWriter entrypoint.' }
   }
-  Push-Location (Join-Path $delivery.root 'packages/openwriter')
-  try { Invoke-DeliveryCommand -File npm -Arguments @('run', 'build') } finally { Pop-Location }
-  Invoke-DeliveryCommand -File node -Arguments @('scripts/stamp-build.mjs', $sha)
+  # A release has just built and stamped this same commit here; ship that build unless dist/ changed since.
+  if (Test-DeliveryCommand -File node -Arguments @('scripts/stamp-build.mjs', $sha, '--reuse')) {
+    Write-Output "Reusing the build already stamped at $sha."
+  } else {
+    Push-Location (Join-Path $delivery.root 'packages/openwriter')
+    try { Invoke-DeliveryCommand -File npm -Arguments @('run', 'build') } finally { Pop-Location }
+    Invoke-DeliveryCommand -File node -Arguments @('scripts/stamp-build.mjs', $sha)
+  }
   $stamp = Get-Content -Raw packages/openwriter/dist/build-info.json | ConvertFrom-Json
 
   $activeDocId = $null

@@ -21,6 +21,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync, execFileSync } = require('child_process');
+const { createHash } = require('crypto');
 
 const pluginsRoot = path.resolve('../../plugins');
 if (!fs.existsSync(pluginsRoot)) {
@@ -45,8 +46,36 @@ if (tscProjects.length > 0) {
   const tsc = require.resolve('typescript/bin/tsc', { paths: [process.cwd()] });
   execFileSync(process.execPath, [tsc, '-b', ...tscProjects.map((p) => p.pluginDir)], { stdio: 'inherit' });
 }
+// Any other build script (the publish plugin's tsc + vite) has no build mode of its own, so it
+// is skipped the same way by hand: when its sources, package.json and the lockfile hash the same
+// as at its last build and its dist/ is untouched since. The record lives outside dist/ so it
+// never ships.
+const records = path.resolve('node_modules/.cache/build-plugins');
+function hashTree(root, skip) {
+  const hash = createHash('sha256');
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      if (skip.has(entry.name)) continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else hash.update(path.relative(root, full)).update('\0').update(fs.readFileSync(full));
+    }
+  };
+  if (fs.existsSync(root)) walk(root);
+  return hash.digest('hex');
+}
 for (const { name, pluginDir } of custom) {
+  const record = path.join(records, `${name}.json`);
+  const inputs = hashTree(pluginDir, new Set(['dist', 'node_modules']))
+    + createHash('sha256').update(fs.readFileSync(path.resolve('../../package-lock.json'))).digest('hex');
+  const last = fs.existsSync(record) ? JSON.parse(fs.readFileSync(record, 'utf-8')) : null;
+  if (last && last.inputs === inputs && last.output === hashTree(path.join(pluginDir, 'dist'), new Set())) {
+    console.log(`[build-plugins] ${name} unchanged since its last build`);
+    continue;
+  }
   console.log(`[build-plugins] building ${name}`);
   execSync('npm run build', { cwd: pluginDir, stdio: 'inherit' });
+  fs.mkdirSync(records, { recursive: true });
+  fs.writeFileSync(record, JSON.stringify({ inputs, output: hashTree(path.join(pluginDir, 'dist'), new Set()) }) + '\n');
 }
 console.log(`[build-plugins] built ${tscProjects.length + custom.length} plugin(s)`);

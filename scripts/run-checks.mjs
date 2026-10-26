@@ -34,6 +34,7 @@ const GATES = [
   'check-skill-privacy.mjs',
   'check-fixture-provenance.mjs',
   'check-lockfile-sync.mjs',
+  'check-plugin-types.mjs',
   ['build-claude-plugin.mjs', '--check'],
 ];
 

@@ -248,3 +248,14 @@ scripts/test-npm-approval.ps1 now runs the real check through the real npm
 against a local done link that, like the registry after approval, answers 404
 to a request without the account's login. The previous code fails it with the
 same message the release printed.
+
+### 2026-10-26 — One build per release
+
+A release plus the desktop update built the same commit two or three times
+(about 33 s each). The desktop update now ships the release's build when
+`stamp-build.mjs <sha> --reuse` proves dist/ is the build stamped at that commit
+and version with an unchanged artifact hash; anything else rebuilds as before.
+The publish plugin (tsc + vite, no build mode) is skipped by build-plugins.cjs
+when its sources, package.json and the lockfile hash as at its last build and its
+dist/ is untouched; the record sits under node_modules/.cache so it never ships.
+Its screens' type check left the build for `npm test` (check-plugin-types.mjs).
