@@ -89,7 +89,7 @@ assert.match(g, /## X quote post/);
 const plain = idOf(await tool('create_document').handler({ title: 'Notes', content_type: 'document', empty: true }));
 assert.match(extra(await agent('c', 'read_pad', { docId: plain })), /## Editing and review notes/);
 const linkedin = idOf(await tool('create_document').handler({ title: 'Post', content_type: 'linkedin', empty: true }));
-assert.match(extra(await agent('c', 'read_pad', { docId: linkedin })), /editing v2.*arrived earlier/);
+assert.match(extra(await agent('c', 'read_pad', { docId: linkedin })), /editing v3.*arrived earlier/);
 assert.match(extra(await agent('new-editor', 'read_pad', { docId: linkedin })), /## Editing and review notes/);
 assert.equal(extra(await agent('c', 'list_documents', {})), '');
 assert.equal(extra(await agent('c', 'read_pad', { docId: 'ffffffff' }).catch(() => ({ content: [{ text: 'Error' }] }))), '');

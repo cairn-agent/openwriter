@@ -24,30 +24,26 @@ Markdown is the native language of AI. Every model reads it, writes it, works in
 
 ## Quick Start
 
-One command installs the skill, wires up the MCP server, and gets your agent (Claude Code, Cursor, Codex, and 20+ others) ready to write:
+One command installs OpenWriter and connects it to Claude Code:
 
 ```bash
 npx openwriter setup
 ```
 
-That's everything. Restart your agent and start writing — your agent drives the editor, opens documents, and proposes changes you accept or reject.
+That's everything. Restart your agent and start writing — your agent drives the editor, opens documents, and proposes changes you accept or reject. There is no skill to install: OpenWriter tells the agent how to use it as it works, through its tools and the guidance that arrives with each document.
 
 > Just want to see the editor first? `npm install -g openwriter && openwriter` opens it at `localhost:5050` — no agent needed. Documents save as markdown files in `~/.openwriter/`; open any `.md` from disk or drag files into the sidebar.
 
 <details>
 <summary>Prefer to wire your agent up by hand?</summary>
 
-Install the skill:
+Install OpenWriter, then add its MCP server to your agent:
 ```bash
-npx skills add https://github.com/travsteward/openwriter --skill openwriter
-```
-
-Then add the MCP server for the editing tools:
-```bash
+npm install -g openwriter
 claude mcp add -s user openwriter -- openwriter --no-open
 ```
 
-The skill teaches your agent how to use OpenWriter well. The MCP server gives it the document-editing tools. For other MCP agents and the full setup, see the [reference](REFERENCE.md#connect-your-agent).
+For Codex, OpenCode, Cursor and other MCP agents, see the [reference](REFERENCE.md#connect-your-agent).
 </details>
 
 ---

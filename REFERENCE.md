@@ -19,19 +19,20 @@ Agents write in markdown or TipTap JSON. The server converts, assigns node IDs, 
 
 ### Connect your agent
 
-**Install the skill** (Claude Code, Cursor, Codex, and 20+ agents):
+An agent needs only OpenWriter's MCP server. There is no skill to install: the tool descriptions, the server's instructions and the guidance that arrives with each document tell the agent how to use OpenWriter as it works.
+
+**Claude Code** — one command installs OpenWriter globally, registers the MCP server, and adds two background subagents (sorting and enrichment) to `~/.claude/agents/`:
 ```bash
-npx skills add https://github.com/travsteward/openwriter --skill openwriter
+npx openwriter setup
 ```
 
-Then add the MCP server for the 24 editing tools:
+By hand:
 ```bash
+npm install -g openwriter
 claude mcp add -s user openwriter -- openwriter --no-open
 ```
 
-The skill teaches your agent how to use OpenWriter's tools effectively: writing strategy, review etiquette, and troubleshooting. The MCP server provides the actual document editing capabilities.
-
-**Other MCP agents** (Cursor, OpenCode, etc.) — add to your MCP config:
+If `claude mcp add` can't run, add `openwriter` as the first entry under `mcpServers` in `~/.claude.json` (servers load in order):
 
 ```json
 {
@@ -43,6 +44,35 @@ The skill teaches your agent how to use OpenWriter's tools effectively: writing 
   }
 }
 ```
+
+On Windows, if the global `openwriter` command isn't found, use `"command": "cmd"` with `"args": ["/c", "openwriter", "--no-open"]`.
+
+**Codex** — register the same stdio server (check `codex mcp add --help` for your version):
+```bash
+npm install -g openwriter
+codex mcp add openwriter -- openwriter --no-open
+```
+
+Start a fresh Codex task so the tools load. Codex has no subagents, so it files sort requests and refreshes summaries inline; the server's notices say how.
+
+**OpenCode** — add to `opencode.json` at the project root:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "openwriter": {
+      "type": "local",
+      "command": ["openwriter", "--no-open"],
+      "enabled": true
+    }
+  }
+}
+```
+
+**Other MCP agents** (Cursor, etc.) — add to your MCP config the same `mcpServers` entry shown for Claude Code above.
+
+After connecting, restart the agent (MCP servers load when a session starts) and open [localhost:5050](http://localhost:5050) to review its changes. A second agent session reuses the editor already running on port 5050.
 
 ---
 
@@ -231,8 +261,8 @@ Options:
   --plugins <names>     Comma-separated plugin names
 
 Subcommands:
-  setup                 Install the skill, wire up the MCP server, and prepare your agent
-                        (alias: install-skill)
+  setup                 Install OpenWriter, register its MCP server with Claude Code,
+                        and add its background agents (alias: install-skill)
 ```
 
 ---

@@ -15,7 +15,7 @@ An active agent supplies the logline; no background model account is required.
 - Empty claims end the batch. Retry hints do not mean poll or spawn more workers.
   A later authorized interaction can resume work.
 
-See [the worker](../skills/openwriter/agents/openwriter-enrichment-minion.md) and
+See [the worker](../packages/openwriter/agents/openwriter-enrichment-minion.md) and
 [decision record](../adr/enrichment-claims.md). Old tokenless completion fails
 schema validation; clients must discover the new claim tool.
 

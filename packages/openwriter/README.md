@@ -38,17 +38,17 @@ Already have markdown files? Open them directly — the agent can use `open_file
 
 ### Connect Your Agent
 
-**Install the skill** (Claude Code, Cursor, Codex, and 20+ agents):
+**Claude Code** — one command installs OpenWriter, registers its MCP server and adds its background agents:
 ```bash
-npx skills add https://github.com/travsteward/openwriter --skill openwriter
+npx openwriter setup
 ```
 
-Then add the MCP server for the 24 editing tools:
+Or register the MCP server by hand:
 ```bash
 claude mcp add -s user openwriter -- npx openwriter --no-open
 ```
 
-The skill teaches your agent how to use OpenWriter's tools effectively — writing strategy, review etiquette, and troubleshooting. The MCP server provides the actual document editing capabilities.
+There is no skill to install. OpenWriter tells the agent how to use it as it works: the tool descriptions, the server's instructions, and guidance that arrives with each document the agent opens.
 
 **Other MCP agents** (Cursor, OpenCode, etc.) — add to your MCP config:
 
@@ -260,7 +260,8 @@ Options:
   --profile <name>      Run on this profile only, without changing the one OpenWriter normally opens
 
 Subcommands:
-  install-skill         Install Claude Code companion skill to ~/.claude/skills/openwriter/
+  setup                 Install OpenWriter, register its MCP server with Claude Code,
+                        and add its background agents (alias: install-skill)
 ```
 
 ---

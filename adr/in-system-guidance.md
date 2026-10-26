@@ -42,7 +42,15 @@ any longer.
 - **The contract is an extra content block** after the tool's own result, so a caller reading
   `content[0]` (JSON results, compact reads) is unaffected.
 - **MCP instructions say contracts arrive with the document** (`GUIDANCE_NOTICE`, in both the
-  stdio server and the client-mode proxy).
+  stdio server and the client-mode proxy). They also carry the few working norms an agent needs
+  before it touches any document: writing for the user goes into a document, the user's
+  browser view is shared so the agent never opens the editor itself, and a document mentioned
+  to the user is linked with get_doc_link.
+- **OpenWriter has no skill.** An agent with only the MCP server gets everything it needs from
+  tool descriptions, the server instructions, contracts and tool results. Nothing installs or
+  offers a skill; `openwriter setup` installs the package, the MCP registration and the two
+  background subagents (`packages/openwriter/agents/`), and removes a copy of the old skill
+  that an earlier setup wrote.
 
 ## Decision log
 
@@ -91,3 +99,22 @@ any longer.
   (block-changes.ts); rewriting a pending block replaces its proposal against the accepted
   text, and a pending insert stays an insert. An embedder's agent that does not load the skill
   still gets them at first touch.
+
+- **2026-10-26** — Retired the /openwriter skill (operator: eliminate the skill and let the
+  agent discover what it needs as it uses OpenWriter; point people at installing OpenWriter,
+  not the skill). Audit of the skill against what the system already delivers: its tool
+  tables, read ladder, two-step creation, placement, variants, enrichment and sort procedures
+  were already in tool descriptions and notices; its publish section was stale (send_newsletter
+  does not exist; userSignaledReview is not returned). Moved into the system: the working
+  norms (writing goes in a document, never open the editor in a browser, link with
+  get_doc_link) into GUIDANCE_NOTICE; `editing` v3 adds what re-populating does (keeps every
+  existing block and adds the body, so it duplicates), pendingChanges and autoAccept, why
+  generic titles get renamed (and that an agent retitle is proposed), and footnote syntax;
+  populate_document and get_comments descriptions carry the same facts at the tool; the sort
+  signal names the inline fallback for harnesses without the subagent. Dropped as judgment
+  owned elsewhere or not about using OpenWriter: book-workspace organising (/book-writer),
+  companion-skill install lines, the first-run welcome document, the tasks reminder.
+  Removed `skills/openwriter`, `packages/openwriter/skill`, `claude-plugin/skills`, the skill
+  copy in prepublish, and install-skill.ts (now setup.ts, `install-skill` stays as an alias).
+  The subagents moved to `packages/openwriter/agents/`, the one source for setup, the npm
+  package and the Claude plugin.

@@ -15,8 +15,8 @@ edits arrive and accept or reject them. Workspaces, version history, comments,
 and tweet and article drafting are all available from the same tools.
 
 The plugin works in Claude Code, and in Cowork when the session runs on your
-own computer. In claude.ai chat, the skill loads but the editor does not,
-because the editor is a program that runs on your machine.
+own computer. It does not work in claude.ai chat, because the editor is a
+program that runs on your machine.
 
 ## What it runs
 
@@ -25,8 +25,9 @@ because the editor is a program that runs on your machine.
   It runs on your computer and serves the editor at `localhost:5050`. If an
   OpenWriter server is already running there, the new one passes its tool calls
   to the running one instead of starting a second editor.
-- **One skill and two background workers.** The `openwriter` skill teaches
-  Claude how to edit through the tools. The workers refresh document summaries
+- **Two background workers.** There is no skill: the tools, the server's
+  instructions and guidance that arrives with each document tell Claude how to
+  edit. The workers refresh document summaries
   and file documents you mark for sorting; they only call OpenWriter's own tools.
 
 ## Data
@@ -50,7 +51,7 @@ account and sends no telemetry. It contacts the network only for these:
 ## Already using OpenWriter?
 
 If you installed OpenWriter with `npx openwriter setup`, you already have the
-server and skill. Adding this plugin as well is harmless (both talk to the same
+server and workers. Adding this plugin as well is harmless (both talk to the same
 editor), but one or the other is enough.
 
 ## License

@@ -65,9 +65,11 @@ proposals-that-never-get-accepted (same queue, one step downstream).
   auto-files them — they fall back to manual handling. Default = false =
   auto-sort on. Mirrors `enrichmentDisabled` exactly (workspace top-level
   field, `null` clears, set via `update_workspace_context`).
-- **Skill rule reflects the rail.** SKILL.md firm rule 6 is "dispatch the
-  sort minion reflexively," paralleling firm rule 5 (enrichment) — not
-  "handle inline, no minion."
+- **The signal carries its own fallback.** There is no skill: after the
+  `Agent(...)` dispatch, the footer and notice name the bounded inline batch
+  (at most 12: list_pending_sorts, move_item, mark_sorted) for a harness
+  without the subagent. The subagent's one source is
+  `packages/openwriter/agents/`.
 
 ## Decision log
 
@@ -104,3 +106,14 @@ proposals-that-never-get-accepted (same queue, one step downstream).
 - **Verification.** Live MCP: with 3 docs pending, dispatch minion → docs
   filed into sensible containers, marks cleared, `list_pending_sorts`
   returns 0. autoSortDisabled on a workspace drops its docs from the list.
+
+### 2026-10-26 — The signal states the non-Claude path; the skill is gone
+
+- The /openwriter skill carried firm rule 6 and the per-harness fallback
+  (Codex and others run one bounded inline batch). With the skill retired
+  (adr/in-system-guidance.md), `sortFooter()` and `buildSortInstructions()`
+  share one `SORT_DISPATCH` text: the Claude dispatch, then the inline
+  fallback, so any agent reading the signal knows what to do.
+- The minion file moved from `skills/openwriter/agents/` to
+  `packages/openwriter/agents/`; setup, the npm package and the Claude plugin
+  read it there.

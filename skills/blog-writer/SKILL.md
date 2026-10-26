@@ -35,7 +35,7 @@ Channel-master skill for long-form blog content. Owns ideation → beats → dra
 
 This skill obeys the shared writer contract at [WRITER-CONVENTION.md](../WRITER-CONVENTION.md). Brief shape and return shape match that doc. Sub-form values: `long` | `short` | `tutorial` | `announcement`.
 
-**OpenWriter pad mechanics are canonical in [/openwriter](../openwriter/SKILL.md) — read it, don't re-derive from tool descriptions.** The load-bearing rule: `populate_document` is **create-only, used ONCE**; it re-sends the whole body, so calling it again to "fix" a doc appends a duplicate. All edits (rewrite / insert / delete) go through `write_to_pad` on fresh node IDs. Plus the read ladder (`outline_doc` → `search_docs` → `peek_doc` → `read_pad`).
+OpenWriter's own editing rules arrive with its tools and documents.
 
 **Blog posts ship SEO-complete in the FIRST pass.** A blog post almost always carries SEO — internal/cluster links, meta + slug + tags, snippet-targeted headings, FAQ/schema-eligible content all go into the *initial* draft (the minion brief + first `populate_document`), never bolted on after. Bolting SEO on later forces an edit (→ `write_to_pad`, never a 2nd populate). SEO-strategy-led posts (pillar / landing / comparison) front-end through `/seo-writer` if you have it installed (not bundled with OpenWriter).
 

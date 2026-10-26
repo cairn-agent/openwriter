@@ -50,10 +50,10 @@ const args = process.argv.slice(2);
 
 // Subcommands (run and exit, don't start server)
 // `setup` is the canonical one-time bootstrap verb (installs the package,
-// wires MCP, drops the skill). `install-skill` is kept as a hidden alias for
-// backwards compatibility with existing links/docs.
+// wires MCP, adds the background subagents). `install-skill` is kept as a
+// hidden alias for backwards compatibility with existing links/docs.
 if (args[0] === 'setup' || args[0] === 'install-skill') {
-  import('../server/install-skill.js').then(m => m.installSkill());
+  import('../server/setup.js').then(m => m.runSetup());
 } else if (args[0] === 'plugin') {
   import('../server/plugin-install.js').then(m => m.handlePluginCommand(args.slice(1)));
 } else {

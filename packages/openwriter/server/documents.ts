@@ -347,8 +347,20 @@ export interface PendingSortEntry {
 export function sortFooter(): string {
   const count = listPendingSorts().length;
   if (count === 0) return '';
-  return `\n\n⚠ ${count} doc${count === 1 ? '' : 's'} awaiting sort. Dispatch:\nAgent(\n  subagent_type: "openwriter-sort-minion",\n  description: "File pending sorts",\n  prompt: "File pending sorts.",\n  run_in_background: true\n)`;
+  return `\n\n⚠ ${count} doc${count === 1 ? '' : 's'} awaiting sort. Dispatch:\n${SORT_DISPATCH}`;
 }
+
+/** The Claude Code dispatch, then what any other harness does instead: the
+ *  same bounded batch inline. `npx openwriter setup` installs the subagent. */
+const SORT_DISPATCH = [
+  'Agent(',
+  '  subagent_type: "openwriter-sort-minion",',
+  '  description: "File pending sorts",',
+  '  prompt: "File pending sorts.",',
+  '  run_in_background: true',
+  ')',
+  'Where that subagent is not available (another harness, or `npx openwriter setup` not run), file at most 12 inline instead: list_pending_sorts, read each doc, move_item to the best workspace and container, then mark_sorted. Report what moved in one line.',
+].join('\n');
 
 /** Session-start sort notice — stacks with buildEnrichmentInstructions inside
  *  the MCP `instructions` field. Empty when no sorts pending. Mirrors
@@ -362,12 +374,7 @@ export function buildSortInstructions(): string {
     '',
     `SORT_STATUS: ${pending.length} doc${pending.length === 1 ? '' : 's'} awaiting sort.`,
     'Dispatch the minion now — it self-discovers via list_pending_sorts, picks a destination for each doc, files it (move_item), retires the request (mark_sorted), and reports what moved:',
-    'Agent(',
-    '  subagent_type: "openwriter-sort-minion",',
-    '  description: "File pending sorts",',
-    '  prompt: "File pending sorts.",',
-    '  run_in_background: true',
-    ')',
+    SORT_DISPATCH,
   ].join('\n');
 }
 

@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
-// Only files consumed by the app/plugin build or shipped skill are artifact
+// Only files consumed by the app/plugin build or shipped agents are artifact
 // inputs. Unrelated notes, local configuration and old tarballs do not gate it.
 export const buildInputs = [
   'package.json', 'tsconfig.base.json', '.greprag/delivery.json',
@@ -11,7 +11,7 @@ export const buildInputs = [
   'packages/openwriter/package.json', 'packages/openwriter/vite.config.ts',
   'packages/openwriter/tsconfig.json', 'packages/openwriter/tsconfig.server.json',
   'packages/openwriter/scripts/build-plugins.cjs', 'packages/openwriter/scripts/prepublish.cjs',
-  'plugins', 'skills/openwriter',
+  'packages/openwriter/agents', 'plugins',
 ];
 export function assertBuildInputs() {
   const dirt = execFileSync('git', ['status', '--porcelain', '--untracked-files=all', '--', ...buildInputs], { encoding: 'utf8' }).trim();

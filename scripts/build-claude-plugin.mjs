@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Builds claude-plugin/, the folder Anthropic's plugin directory installs.
 //
-// The directory installs only the plugin folder, so the skill and agents have to
-// be real copies inside it, not links. Copies drift, so every copy is generated
-// here from its one source and `--check` (run by npm test) fails when the
+// The directory installs only the plugin folder, so the agents have to be real
+// copies inside it, not links. There is no skill: the tools and the guidance
+// that arrives with each document carry it (adr/in-system-guidance.md).
+// Copies drift, so every copy is generated here from its one source and `--check` (run by npm test) fails when the
 // committed folder no longer matches. README.md is the only hand-written file.
 //
 // The MCP server runs the npm release pinned to this repo's version, because the
@@ -18,11 +19,8 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'claude-plugin');
-const SKILL = join(ROOT, 'skills', 'openwriter');
+const AGENTS = join(ROOT, 'packages', 'openwriter', 'agents');
 const HAND_WRITTEN = new Set(['README.md']);
-
-// Same public-safe allowlist the npm package ships (packages/openwriter/scripts/prepublish.cjs).
-const SKILL_DOCS = ['welcome.md', 'setup.md', 'enrichment.md', 'footnotes.md', 'harness-claude.md', 'harness-codex.md'];
 
 const pkg = JSON.parse(readFileSync(join(ROOT, 'packages', 'openwriter', 'package.json'), 'utf8'));
 const read = (path) => readFileSync(path, 'utf8');
@@ -56,15 +54,11 @@ files.set('.mcp.json', json({
 }));
 
 files.set('LICENSE', read(join(ROOT, 'LICENSE')));
-files.set('skills/openwriter/SKILL.md', read(join(SKILL, 'SKILL.md')));
-for (const doc of SKILL_DOCS) {
-  files.set(`skills/openwriter/docs/${doc}`, read(join(SKILL, 'docs', doc)));
-}
 
 // A plugin's MCP tools are namespaced by plugin, so an agent's tool allowlist
 // written for a user-scope server would grant nothing here.
-for (const agent of readdirSync(join(SKILL, 'agents')).filter((f) => f.endsWith('.md'))) {
-  files.set(`agents/${agent}`, read(join(SKILL, 'agents', agent)).replaceAll('mcp__openwriter__', 'mcp__plugin_openwriter_openwriter__'));
+for (const agent of readdirSync(AGENTS).filter((f) => f.endsWith('.md'))) {
+  files.set(`agents/${agent}`, read(join(AGENTS, agent)).replaceAll('mcp__openwriter__', 'mcp__plugin_openwriter_openwriter__'));
 }
 
 function listOnDisk(dir) {

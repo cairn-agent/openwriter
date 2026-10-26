@@ -109,7 +109,7 @@
   },
   "files": [
     "dist/",
-    "skill/",
+    "agents/",
     "package.json"
   ]
 }

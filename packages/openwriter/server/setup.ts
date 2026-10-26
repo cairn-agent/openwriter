@@ -120,46 +120,33 @@ function configureMcp(useNpx: boolean): boolean {
   }
 }
 
-export function installSkill(): void {
-  // Step 1: Copy SKILL.md
-  log('① Installing OpenWriter skill...');
-  const source = path.join(__dirname, '../../skill/SKILL.md');
-  const targetDir = path.join(os.homedir(), '.claude', 'skills', 'openwriter');
-  const target = path.join(targetDir, 'SKILL.md');
-
-  if (!fs.existsSync(source)) {
-    log(`  Error: SKILL.md not found at ${source}`);
-    process.exit(1);
-  }
-
-  fs.mkdirSync(targetDir, { recursive: true });
-  fs.copyFileSync(source, target);
-  log(`  ✓ Skill installed to ${target}`);
-
-  // Copy docs/ directory (welcome doc, etc.)
-  const docsSource = path.join(__dirname, '../../skill/docs');
-  const docsTarget = path.join(targetDir, 'docs');
-  if (fs.existsSync(docsSource)) {
-    fs.mkdirSync(docsTarget, { recursive: true });
-    for (const file of fs.readdirSync(docsSource)) {
-      fs.copyFileSync(path.join(docsSource, file), path.join(docsTarget, file));
-    }
-    log(`  ✓ Skill docs copied to ${docsTarget}`);
-  }
-
-  // Install custom Claude Code subagents to ~/.claude/agents/. These have
+/**
+ * `openwriter setup`: install the package, register the MCP server with Claude Code and add the
+ * background subagents. No skill: the tools, server instructions and the guidance that arrives
+ * with each document carry what an agent needs. adr: adr/in-system-guidance.md
+ */
+export function runSetup(): void {
+  // Step 1: Install custom Claude Code subagents to ~/.claude/agents/. These have
   // allowlist-restricted tools so the main agent can dispatch them without
   // loading the full MCP tool registry into the subagent's context
   // (~50K tokens of overhead avoided per spawn).
-  const agentsSource = path.join(__dirname, '../../skill/agents');
-  if (fs.existsSync(agentsSource)) {
-    const agentsTarget = path.join(os.homedir(), '.claude', 'agents');
-    fs.mkdirSync(agentsTarget, { recursive: true });
-    for (const file of fs.readdirSync(agentsSource)) {
-      if (!file.endsWith('.md')) continue;
-      fs.copyFileSync(path.join(agentsSource, file), path.join(agentsTarget, file));
-      log(`  ✓ Subagent installed: ${file}`);
-    }
+  log('① Installing OpenWriter background agents...');
+  const agentsSource = path.join(__dirname, '../../agents');
+  const agentsTarget = path.join(os.homedir(), '.claude', 'agents');
+  fs.mkdirSync(agentsTarget, { recursive: true });
+  for (const file of fs.readdirSync(agentsSource)) {
+    if (!file.endsWith('.md')) continue;
+    fs.copyFileSync(path.join(agentsSource, file), path.join(agentsTarget, file));
+    log(`  ✓ Subagent installed: ${file}`);
+  }
+
+  // Earlier versions copied an OpenWriter skill here. It is retired and the copy
+  // goes stale, so remove the copy setup made, recognised by its repository line.
+  const oldSkill = path.join(os.homedir(), '.claude', 'skills', 'openwriter');
+  const oldSkillFile = path.join(oldSkill, 'SKILL.md');
+  if (fs.existsSync(oldSkillFile) && fs.readFileSync(oldSkillFile, 'utf-8').includes('repository: https://github.com/travsteward/openwriter')) {
+    fs.rmSync(oldSkill, { recursive: true, force: true });
+    log(`  ✓ Removed the retired OpenWriter skill from ${oldSkill}`);
   }
 
   // Step 2: Global install or update
@@ -189,6 +176,7 @@ export function installSkill(): void {
 
   // Done
   log('\n✓ OpenWriter is ready!');
-  log('  Restart Claude Code, then type /openwriter to start writing.\n');
+  log('  Restart Claude Code, then ask it to write something in OpenWriter.');
+  log('  Your documents open at http://localhost:5050.\n');
   process.exit(0);
 }

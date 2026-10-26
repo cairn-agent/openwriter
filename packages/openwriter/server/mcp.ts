@@ -709,7 +709,7 @@ export const TOOL_REGISTRY: ToolDef[] = [
   },
   {
     name: 'populate_document',
-    description: 'Populate a document with content. Use after create_document (without content) to complete the two-step creation flow. Content appears as pending decorations for user review. Clears the sidebar creation spinner and shows the document. Pass the docId from create_document\'s response to ensure content goes to the right doc even if the user switched away.',
+    description: 'Populate a document with content. Use after create_document (without content) to complete the two-step creation flow. Content appears as pending decorations for user review. Clears the sidebar creation spinner and shows the document. Pass the docId from create_document\'s response to ensure content goes to the right doc even if the user switched away. On a document that already has content it keeps every existing block and adds the new body, so it cannot fix or replace a body: use write_to_pad.',
     schema: {
       content: z.any().describe('Document content: markdown string (preferred) or TipTap JSON doc object.'),
       docId: z.string().optional().describe('Target document by docId (8-char hex from create_document or list_documents). If provided and differs from the active doc, writes directly to disk without switching the user\'s view. Recommended — prevents race conditions when the user navigates during content generation.'),
@@ -1838,7 +1838,7 @@ export const TOOL_REGISTRY: ToolDef[] = [
   },
   {
     name: 'get_comments',
-    description: 'Get inline reader comments left by the user. Users select text in the editor, right-click → Comment, and leave a note for the agent. Returns comments grouped by document with text, note, nodeId, and a relative age. Default scope is "workspace" when docId is provided — comments for every doc in the same project. Pass scope:"document" to narrow to one doc, or scope:"all" to span every document on disk. Call resolve_comments after addressing each comment.',
+    description: 'Get inline reader comments left by the user. Users select text in the editor, right-click → Comment, and leave a note for the agent. Returns comments grouped by document with text, note, nodeId, and a relative age. Default scope is "workspace" when docId is provided — comments for every doc in the same project. Pass scope:"document" to narrow to one doc, or scope:"all" to span every document on disk. A comment with an empty note marks text the user wants fixed, left to your judgment. Call resolve_comments after addressing each comment.',
     schema: {
       docId: z.string().optional().describe('Target document by docId (8-char hex). When provided, default scope is "workspace".'),
       scope: z.enum(['workspace', 'document', 'all']).optional().describe('Filter scope. Default: "workspace" when docId is given, otherwise "all".'),

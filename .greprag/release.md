@@ -9,16 +9,13 @@ project notes.
 
 1. Resolve [delivery.json](delivery.json). Work from the canonical main checkout
    only after changes have been committed, tested, and merged under its lock.
-2. Confirm the public OpenWriter skill source is current and generic. The repo
-   copy under skills/openwriter is the bundle source; never copy a private local
-   adapter or personal worked examples over it.
-3. Update the app version and lock metadata, run
+2. Update the app version and lock metadata, run
    node scripts/build-claude-plugin.mjs so the Claude plugin pins the new
    version (npm test fails until it does), move Unreleased changelog entries
    into that version's section, commit, integrate, and tag the release commit.
    The Claude directory picks up the plugin from main on its own.
-4. Run the release wrapper. It checks the tag, builds, runs the existing privacy
-   and skill/plugin bundler, stamps the build, packs one tarball, pushes the
+3. Run the release wrapper. It checks the tag, builds, runs the existing privacy
+   and plugin bundler, stamps the build, packs one tarball, pushes the
    branch/tag, records and publishes that exact tarball, proves the registry
    serves it, creates the GitHub release from public notes, then records the
    shipped commit.
@@ -34,7 +31,7 @@ publish, GitHub release, deployment record — marked done or pending. It touche
 nothing. Use it before and after any run to see exactly what is left.
 
 The wrapper deliberately invokes prepublish.cjs before packing: this machine's
-global npm ignore-scripts setting must not skip skill/plugin preparation. The
+global npm ignore-scripts setting must not skip plugin preparation. The
 tested tarball is published with lifecycle scripts disabled so it cannot change
 between packing and publication. Never replace the existing npm development
 link; local runtime deployment uses [deploy.ps1](../scripts/deploy.ps1).
@@ -87,5 +84,5 @@ waiting, the bound, and the mismatch and missing-record refusals against its own
 temporary records. It contacts no registry and publishes nothing.
 
 After release, verify the registry version/integrity, GitHub tag and release,
-public skill and all bundled plugins. Deploy the local-app target separately if
+the Claude plugin and all bundled plugins. Deploy the local-app target separately if
 the local linked process also needs the new runtime.

@@ -1,5 +1,5 @@
 /**
- * Prepublish script: copies skill files and bundles plugins into dist/plugins/
+ * Prepublish script: runs the privacy gate and bundles plugins into dist/plugins/
  * so they ship with the npm package.
  */
 
@@ -15,40 +15,6 @@ const repoRoot = path.resolve('../..');
 console.log('[prepublish] Privacy gate (whole-repo scan)…');
 execSync('node scripts/check-skill-privacy.mjs', { stdio: 'inherit', cwd: repoRoot });
 execSync('node scripts/check-fixture-provenance.mjs', { stdio: 'inherit', cwd: repoRoot });
-
-// --- Copy skill files ---
-const skillRoot = path.resolve('../../skills/openwriter');
-const skillSrc = path.join(skillRoot, 'SKILL.md');
-if (fs.existsSync(skillSrc)) {
-  fs.copyFileSync(skillSrc, 'skill/SKILL.md');
-
-  // Public-safe docs only (excludes changelog.md, publish-gotchas.md)
-  fs.mkdirSync('skill/docs', { recursive: true });
-  for (const doc of ['welcome.md', 'setup.md', 'enrichment.md', 'footnotes.md', 'harness-claude.md', 'harness-codex.md']) {
-    const src = path.join(skillRoot, 'docs', doc);
-    if (fs.existsSync(src)) fs.copyFileSync(src, path.join('skill/docs', doc));
-  }
-
-  // Voice frames (5 files, all public-safe)
-  const voicesSrc = path.join(skillRoot, 'voices');
-  if (fs.existsSync(voicesSrc)) {
-    fs.mkdirSync('skill/voices', { recursive: true });
-    for (const f of fs.readdirSync(voicesSrc)) {
-      if (f.endsWith('.md')) fs.copyFileSync(path.join(voicesSrc, f), path.join('skill/voices', f));
-    }
-  }
-
-  // Custom Claude Code subagents (e.g. enrichment minion). Installed to
-  // ~/.claude/agents/ by install-skill so the main agent can dispatch them
-  // via subagent_type. Allowlist-restricted tools keep their context lean.
-  const agentsSrc = path.join(skillRoot, 'agents');
-  if (fs.existsSync(agentsSrc)) {
-    fs.mkdirSync('skill/agents', { recursive: true });
-    for (const f of fs.readdirSync(agentsSrc)) {
-      if (f.endsWith('.md')) fs.copyFileSync(path.join(agentsSrc, f), path.join('skill/agents', f));
-    }
-  }
-}
 
 // --- Bundle plugins into dist/plugins/ ---
 const pluginsRoot = path.resolve('../../plugins');
