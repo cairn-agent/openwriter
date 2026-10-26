@@ -1,75 +1,130 @@
-# OpenWriter
+<h1 align="center">OpenWriter</h1>
 
-**Your agent writes. You decide.**
+<p align="center"><strong>Write and publish with your agent.</strong></p>
 
-The open-source writing surface for the agentic era.
+<p align="center">
+Turn your ideas into posts, newsletters and books. Your agent drafts and edits, you review every change, and you publish to your site, your subscribers' inboxes, X and LinkedIn from the same place.
+</p>
 
-OpenWriter is a markdown-native rich text editor built for humans and agents working side by side. Your agent writes, and you review and approve every change before it lands. Documents are plain `.md` files on disk, so there's no database and no lock-in, and it works with any MCP-compatible agent.
+<p align="center">
+<a href="https://openwriter.io">Website</a> ·
+<a href="https://app.openwriter.io/_auth/signin">Write in your browser</a> ·
+<a href="https://openwriter.io/docs/getting-started/">Docs</a> ·
+<a href="https://github.com/travsteward/openwriter/blob/main/REFERENCE.md">Reference</a>
+</p>
 
-![OpenWriter: your agent writes, you review](assets/screenshot.png)
+<p align="center">
+<a href="https://www.npmjs.com/package/openwriter"><img src="https://img.shields.io/npm/v/openwriter?color=111&label=npm" alt="npm version"></a>
+<a href="https://github.com/travsteward/openwriter/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-111" alt="MIT license"></a>
+</p>
 
----
+![Claude beside OpenWriter: Claude reports three changes, and the draft shows an insertion, a rewrite and a deletion waiting for review. On the phone, the finished article as a reader sees it.](https://raw.githubusercontent.com/travsteward/openwriter/main/assets/readme/hero.webp)
 
-## Why OpenWriter?
-
-Coding agents like Claude Code, Codex, and OpenCode changed how people build software. That power never reached writing. Ask an agent to edit your essay and you're stuck reading raw markdown in a terminal, with no surface to review changes and no real workflow.
-
-Every writing tool is racing to bolt on its own weak agent. They have it backwards. The strongest agents already exist, and they're built to drive tools rather than sit trapped inside one. OpenWriter ships no agent of its own. It's the writing surface built for the agent you already run, with a review system that keeps you the author of every word.
-
-Markdown is the native language of AI. Every model reads it, writes it, works in it. OpenWriter treats `.md` as a first-class citizen. Your documents are plain markdown on disk, and the editor adds rich formatting, workspaces, version history, and agent review on top. No proprietary format. No database. Just files.
-
-**The agent writes. You accept or reject. That's it.**
-
----
-
-## Quick Start
-
-One command installs OpenWriter and connects it to Claude Code:
+## Install
 
 ```bash
 npx openwriter setup
 ```
 
-That's everything. Restart your agent and start writing — your agent drives the editor, opens documents, and proposes changes you accept or reject. There is no skill to install: OpenWriter tells the agent how to use it as it works, through its tools and the guidance that arrives with each document.
-
-> Just want to see the editor first? `npm install -g openwriter && openwriter` opens it at `localhost:5050` — no agent needed. Documents save as markdown files in `~/.openwriter/`; open any `.md` from disk or drag files into the sidebar.
+Installs the editor and connects it to Claude Code. Restart Claude Code and ask it to write something in OpenWriter. The editor opens at `localhost:5050`, and your documents are plain Markdown files in `~/.openwriter/`.
 
 <details>
-<summary>Prefer to wire your agent up by hand?</summary>
+<summary>Codex, Cursor, OpenCode and other agents</summary>
 
-Install OpenWriter, then add its MCP server to your agent:
 ```bash
 npm install -g openwriter
-claude mcp add -s user openwriter -- openwriter --no-open
+codex mcp add openwriter -- openwriter --no-open
 ```
 
-For Codex, OpenCode, Cursor and other MCP agents, see the [reference](REFERENCE.md#connect-your-agent).
+For any other MCP agent, add OpenWriter as a server in its config:
+
+```json
+{
+  "mcpServers": {
+    "openwriter": { "command": "openwriter", "args": ["--no-open"] }
+  }
+}
+```
+
+Per-agent details are in the [reference](https://github.com/travsteward/openwriter/blob/main/REFERENCE.md#connect-your-agent).
 </details>
 
----
+Rather not install anything? [Write in your browser](https://app.openwriter.io/_auth/signin): sign in with your email, on a laptop or a phone.
 
-## Features
+## What you can do
 
-Markdown native, agent first, no lock-in.
+### Put your ideas into words that sound like you
 
-- **Agent collaboration over MCP**: 24 tools to read, write, and organize documents, working with any MCP-compatible agent like Claude Code, Cursor, or Codex.
-- **Pending-change review**: Agent edits arrive as colored decorations, green inserts, blue rewrites, red deletes, accepted or rejected one keystroke at a time.
-- **Multi-document workspaces**: Group docs into projects with nested containers, tags, and shared context the agent reads to stay consistent.
-- **Markdown on disk**: Every document is a plain .md file with no database and no proprietary format, so you grep and move them freely.
-- **Git sync**: Push documents to GitHub straight from the editor.
-- **Export**: Markdown, HTML, Word, plain text, and PDF.
-- **Version history**: Automatic snapshots with full rollback.
-- **Writing in your voice**: Enhance, Shrink, Expand and the other right-click actions run on your own Claude API key (or your OpenWriter balance) and learn your voice from your documents.
-- **Plugin system**: Extend the agent with custom MCP tools, HTTP routes, and right-click actions.
+Give the agent your notes, sources and past writing. Ask for a draft, a tighter argument or a different opening, in your voice.
 
-See the [reference](REFERENCE.md) for the full MCP tool list, the review hotkeys, the token-efficient wire format, the plugin API, and architecture.
+![The editor with sources in the sidebar, a rewritten opening, and Claude explaining the change](https://raw.githubusercontent.com/travsteward/openwriter/main/assets/readme/voice.webp)
 
----
+### Keep the changes that make the piece yours
+
+Every edit the agent makes arrives as a proposal: green for insertions, blue for rewrites, red for deletions. Accept the parts you want, reject the rest, and give another instruction when the piece needs more work. Move through changes with `j` and `k`, accept with `a`, reject with `r`.
+
+![A rewrite, an insertion and a deletion with Accept and Reject controls and the agent's note](https://raw.githubusercontent.com/travsteward/openwriter/main/assets/readme/review.webp)
+
+### Reach readers on your site and in their inbox
+
+Publish a post, send it as a newsletter, or do both. Preview the page and the email, choose the audience, and release the version you're ready to share.
+
+![The publish page set to email 2,464 subscribers, and the newsletter as a subscriber reads it](https://raw.githubusercontent.com/travsteward/openwriter/main/assets/readme/publish.webp)
+
+### Let readers pay for more of your work
+
+Choose what everyone can read and what belongs to members. Set your paid plans and manage access from the same publication. Payments go through your own Stripe account.
+
+![Paid plans in the editor, and a reader choosing a subscription](https://raw.githubusercontent.com/travsteward/openwriter/main/assets/readme/paid.webp)
+
+### Turn a finished piece into your next social posts
+
+Adapt an idea for X or LinkedIn with your agent. Check each post in its own format, then publish now or schedule it for later.
+
+![An X thread beside the posting schedule for the week](https://raw.githubusercontent.com/travsteward/openwriter/main/assets/readme/social.webp)
+
+### Take the book from scattered notes to a manuscript
+
+Keep your brief, sources and chapters together. Build a manuscript in your chosen order, revise it as its own draft, and export it as EPUB or Word.
+
+![A book outline with linked chapters and word counts](https://raw.githubusercontent.com/travsteward/openwriter/main/assets/readme/books.webp)
+
+### Keep up with the people reading your work
+
+Find a subscriber, send to a chosen group, or follow a discussion. See how posts and paid readership are doing before you plan the next piece.
+
+![The subscribers page, and one subscriber's details on a phone](https://raw.githubusercontent.com/travsteward/openwriter/main/assets/readme/readers.webp)
+
+## Your work stays yours
+
+- **Plain files.** Every document is a Markdown file on your computer. No database and no proprietary format, so you can open, search and move them with anything.
+- **GitHub sync.** Connect a repository and your writing syncs both ways, between computers and with the browser app.
+- **Exports.** Markdown, HTML, Word, plain text and PDF, EPUB for manuscripts, and your subscriber list.
+- **Version history.** Automatic snapshots, with a one-click restore.
+
+## Works with the agent you already use
+
+OpenWriter doesn't ship its own agent. It works with Claude Code, Claude Desktop, Codex, Cursor, OpenCode and any other agent that speaks MCP, and it tells your agent how to use it as it goes.
+
+The right-click writing actions (Enhance, Shrink, Expand and more) run on your own Claude API key, or on your OpenWriter balance with a free daily allowance.
+
+## What it costs
+
+- **The editor** is free and open source.
+- **Your publication, social posting and scheduling** have no monthly fee.
+- **Reader payments:** OpenWriter takes 5%, through your own Stripe account.
+- **Email** is free through 2,500 active subscribers, then $1 per started 1,000 in a month you send.
+
+Details on [openwriter.io](https://openwriter.io/#pricing).
+
+## Build on it
+
+Plugins add MCP tools, HTTP routes and right-click actions. The [reference](https://github.com/travsteward/openwriter/blob/main/REFERENCE.md) covers the full tool list, the plugin API, the architecture and local development.
 
 ## Contributing
 
-Contributions welcome. Please open an issue first to discuss what you'd like to change. Local development setup is in the [reference](REFERENCE.md#development).
+Contributions are welcome. Please open an issue first to discuss what you'd like to change.
 
 ## License
 
-[MIT](LICENSE), by Travis Steward
+[MIT](https://github.com/travsteward/openwriter/blob/main/LICENSE)

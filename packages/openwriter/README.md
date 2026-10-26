@@ -1,337 +1,130 @@
-# OpenWriter
+<h1 align="center">OpenWriter</h1>
 
-**The open-source writing surface for the agentic era.**
+<p align="center"><strong>Write and publish with your agent.</strong></p>
 
-A markdown-native rich text editor built for human-agent collaboration. Your AI agent writes, you review. Plain `.md` files on disk — no database, no lock-in. Works with any MCP-compatible agent.
+<p align="center">
+Turn your ideas into posts, newsletters and books. Your agent drafts and edits, you review every change, and you publish to your site, your subscribers' inboxes, X and LinkedIn from the same place.
+</p>
 
-![OpenWriter — agent writes, you review](https://raw.githubusercontent.com/travsteward/openwriter/main/assets/screenshot.png)
+<p align="center">
+<a href="https://openwriter.io">Website</a> ·
+<a href="https://app.openwriter.io/_auth/signin">Write in your browser</a> ·
+<a href="https://openwriter.io/docs/getting-started/">Docs</a> ·
+<a href="https://github.com/travsteward/openwriter/blob/main/REFERENCE.md">Reference</a>
+</p>
 
----
+<p align="center">
+<a href="https://www.npmjs.com/package/openwriter"><img src="https://img.shields.io/npm/v/openwriter?color=111&label=npm" alt="npm version"></a>
+<a href="https://github.com/travsteward/openwriter/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-111" alt="MIT license"></a>
+</p>
 
-## Why OpenWriter?
+![Claude beside OpenWriter: Claude reports three changes, and the draft shows an insertion, a rewrite and a deletion waiting for review. On the phone, the finished article as a reader sees it.](https://raw.githubusercontent.com/travsteward/openwriter/main/assets/readme/hero.webp)
 
-Claude Code, OpenCode, Codex — these agents are transforming how people build software. But that power hasn't crossed over to writing. Ask an agent to edit your essay and you're staring at raw markdown in a terminal. There's no collaborative surface, no way to review changes, no real workflow.
+## Install
 
-Every writing tool is racing to bolt on its own weak agent. They have it backwards. The most powerful agents already exist — and they're designed to work with tools, not be trapped inside one. OpenWriter doesn't ship an agent. It's the first writing surface built for the agents you already use, with a review system that keeps you in control.
-
-Markdown is the native language of AI. Every LLM reads it, writes it, and thinks in it. OpenWriter treats `.md` files as first-class citizens — your documents are plain markdown on disk, and the editor adds rich formatting, workspaces, version history, and agent collaboration on top. No proprietary format. No database. Just files.
-
-**The agent writes. You accept or reject. That's it.**
-
-- Documents are plain `.md` files — open existing ones or create new ones
-- Agent makes changes → they appear as colored decorations (green for inserts, blue for rewrites, red for deletions)
-- You review with vim-style hotkeys (`j`/`k` navigate, `a` accept, `r` reject)
-- Cross-document navigation when an agent edits multiple files at once
-- Works with any MCP agent — no vendor lock-in
-
----
-
-## Quick Start
-
-```bash
-npx openwriter
-```
-
-That's it. Opens your browser to `localhost:5050` with a ready-to-use editor. Documents save as markdown files in `~/.openwriter/`.
-
-Already have markdown files? Open them directly — the agent can use `open_file` to load any `.md` from disk, or you can drag files into the sidebar.
-
-### Connect Your Agent
-
-**Claude Code** — one command installs OpenWriter, registers its MCP server and adds its background agents:
 ```bash
 npx openwriter setup
 ```
 
-Or register the MCP server by hand:
+Installs the editor and connects it to Claude Code. Restart Claude Code and ask it to write something in OpenWriter. The editor opens at `localhost:5050`, and your documents are plain Markdown files in `~/.openwriter/`.
+
+<details>
+<summary>Codex, Cursor, OpenCode and other agents</summary>
+
 ```bash
-claude mcp add -s user openwriter -- npx openwriter --no-open
+npm install -g openwriter
+codex mcp add openwriter -- openwriter --no-open
 ```
 
-There is no skill to install. OpenWriter tells the agent how to use it as it works: the tool descriptions, the server's instructions, and guidance that arrives with each document the agent opens.
-
-**Other MCP agents** (Cursor, OpenCode, etc.) — add to your MCP config:
+For any other MCP agent, add OpenWriter as a server in its config:
 
 ```json
 {
   "mcpServers": {
-    "openwriter": {
-      "command": "npx",
-      "args": ["openwriter", "--no-open"]
-    }
+    "openwriter": { "command": "openwriter", "args": ["--no-open"] }
   }
 }
 ```
 
-Now your agent has 24 tools to read, write, and organize documents — and every change goes through your review.
+Per-agent details are in the [reference](https://github.com/travsteward/openwriter/blob/main/REFERENCE.md#connect-your-agent).
+</details>
 
----
+Rather not install anything? [Write in your browser](https://app.openwriter.io/_auth/signin): sign in with your email, on a laptop or a phone.
 
-## Features
+## What you can do
 
-### Agent Collaboration via MCP
+### Put your ideas into words that sound like you
 
-24 tools across four categories:
+Give the agent your notes, sources and past writing. Ask for a draft, a tighter argument or a different opening, in your voice.
 
-| Category | Tools | What They Do |
-|----------|-------|-------------|
-| **Document** | `read_pad`, `write_to_pad`, `edit_text`, `get_pad_status`, + 5 more | Read/write document content, fine-grained text edits, metadata |
-| **Multi-doc** | `list_documents`, `switch_document`, `create_document` | Navigate and manage multiple documents |
-| **Workspace** | `create_workspace`, `get_workspace_structure`, `add_doc`, + 6 more | Organize docs into projects with containers and tags |
-| **Import** | `import_gdoc` | Import structured Google Docs, auto-split into chapters |
+![The editor with sources in the sidebar, a rewritten opening, and Claude explaining the change](https://raw.githubusercontent.com/travsteward/openwriter/main/assets/readme/voice.webp)
 
-Agents write in markdown or TipTap JSON. The server converts, assigns node IDs, and broadcasts changes to your browser in real-time via WebSocket.
+### Keep the changes that make the piece yours
 
-### Pending Change Review
+Every edit the agent makes arrives as a proposal: green for insertions, blue for rewrites, red for deletions. Accept the parts you want, reject the rest, and give another instruction when the piece needs more work. Move through changes with `j` and `k`, accept with `a`, reject with `r`.
 
-The core interaction model. When an agent (or the context menu) makes changes:
+![A rewrite, an insertion and a deletion with Accept and Reject controls and the agent's note](https://raw.githubusercontent.com/travsteward/openwriter/main/assets/readme/review.webp)
 
-- **Inserts** appear highlighted in green
-- **Rewrites** appear highlighted in blue (original content preserved for reject)
-- **Deletions** appear with red strikethrough
+### Reach readers on your site and in their inbox
 
-Review Panel (floating bottom bar):
+Publish a post, send it as a newsletter, or do both. Preview the page and the email, choose the audience, and release the version you're ready to share.
 
-| Key | Action |
-|-----|--------|
-| `j` / `k` | Next / previous change |
-| `h` / `l` | Previous / next document with changes |
-| `a` | Accept current change |
-| `r` | Reject current change |
-| `Shift+A` | Accept all in document |
-| `Shift+R` | Reject all in document |
+![The publish page set to email 2,464 subscribers, and the newsletter as a subscriber reads it](https://raw.githubusercontent.com/travsteward/openwriter/main/assets/readme/publish.webp)
 
-### Multi-Document Workspaces
+### Let readers pay for more of your work
 
-Documents are markdown files on disk. Organize them into workspaces with nested containers, cross-cutting tags, and shared context (characters, settings, rules) that agents can read for consistency.
+Choose what everyone can read and what belongs to members. Set your paid plans and manage access from the same publication. Payments go through your own Stripe account.
 
-Four sidebar views:
-- **Tree** — Hierarchical folders with drag-and-drop
-- **Timeline** — Sorted by last modified
-- **Board** — Card-based drill-down navigation
-- **Shelf** — Visual bookshelf metaphor with spine browsing
+![Paid plans in the editor, and a reader choosing a subscription](https://raw.githubusercontent.com/travsteward/openwriter/main/assets/readme/paid.webp)
 
-### Context Menu (Right-Click)
+### Turn a finished piece into your next social posts
 
-Select text and right-click for AI-powered transformations:
+Adapt an idea for X or LinkedIn with your agent. Check each post in its own format, then publish now or schedule it for later.
 
-| Action | Key | Description |
-|--------|-----|-------------|
-| Rewrite | `R` | Rewrite selection at similar length |
-| Shrink | `S` | Condense by 40-60% |
-| Expand | `E` | Expand by 50-100% |
-| Custom | — | Free-text instruction |
-| Fill | `F` | Generate content between paragraphs |
-| Insert after | `I` | Generate new content after selection |
-| Delete | `D` | Mark for deletion |
-| Link to doc | `L` | Create internal document links |
+![An X thread beside the posting schedule for the week](https://raw.githubusercontent.com/travsteward/openwriter/main/assets/readme/social.webp)
 
-The writing actions (Enhance, Shrink, Expand, Modify, Insert, Fill) run on your own Claude API key, added in Settings under Claude. They write in your voice, learned from the documents you right-click and choose "Learn my voice from this". Plugins can add more actions.
+### Take the book from scattered notes to a manuscript
 
-### Themes
+Keep your brief, sources and chapters together. Build a manuscript in your chosen order, revise it as its own draft, and export it as EPUB or Word.
 
-5 themes, each with light and dark modes:
+![A book outline with linked chapters and word counts](https://raw.githubusercontent.com/travsteward/openwriter/main/assets/readme/books.webp)
 
-- **Ink** — Clean, minimal, professional
-- **Novel** — Warm, serif-based, literary
-- **Mono** — Monospace, code-focused
-- **Editorial** — Bold magazine-style headings
-- **Studio** — Contemporary sans-serif
+### Keep up with the people reading your work
 
-Three typography presets (default, compact, expanded) work with any theme.
+Find a subscriber, send to a chosen group, or follow a discussion. See how posts and paid readership are doing before you plan the next piece.
 
-### Git Sync
+![The subscribers page, and one subscriber's details on a phone](https://raw.githubusercontent.com/travsteward/openwriter/main/assets/readme/readers.webp)
 
-Push your documents to GitHub directly from the editor. Three setup methods:
-- **GitHub CLI** — Auto-detected if `gh` is authenticated
-- **Personal Access Token** — Manual GitHub auth
-- **Existing repo** — Connect to a repo you already have
+## Your work stays yours
 
-### Export
+- **Plain files.** Every document is a Markdown file on your computer. No database and no proprietary format, so you can open, search and move them with anything.
+- **GitHub sync.** Connect a repository and your writing syncs both ways, between computers and with the browser app.
+- **Exports.** Markdown, HTML, Word, plain text and PDF, EPUB for manuscripts, and your subscriber list.
+- **Version history.** Automatic snapshots, with a one-click restore.
 
-Export any document to:
-- Markdown (`.md`)
-- HTML (styled web page)
-- Word (`.docx`)
-- Plain text (`.txt`)
-- PDF (via print preview)
+## Works with the agent you already use
 
-### Version History
+OpenWriter doesn't ship its own agent. It works with Claude Code, Claude Desktop, Codex, Cursor, OpenCode and any other agent that speaks MCP, and it tells your agent how to use it as it goes.
 
-Automatic snapshots with full rollback. Browse previous versions and restore any point.
+The right-click writing actions (Enhance, Shrink, Expand and more) run on your own Claude API key, or on your OpenWriter balance with a free daily allowance.
 
----
+## What it costs
 
-## Markdown Native
+- **The editor** is free and open source.
+- **Your publication, social posting and scheduling** have no monthly fee.
+- **Reader payments:** OpenWriter takes 5%, through your own Stripe account.
+- **Email** is free through 2,500 active subscribers, then $1 per started 1,000 in a month you send.
 
-Every document is a `.md` file on disk. What you see in the editor is markdown with rich rendering — headings, lists, tables, code blocks, images, links — all stored as plain text.
-
-```
-~/.openwriter/
-├── Getting Started.md
-├── Chapter 1 - Origins.md
-├── Research Notes.md
-└── _workspaces/
-    └── My Novel.json
-```
-
-- **No database.** The filesystem is the index. Move, copy, or `grep` your files however you want.
-- **Open any `.md` file.** Point OpenWriter at existing markdown from any project — it loads instantly.
-- **Git Sync built in.** Push your documents to GitHub directly from the editor. Your markdown files are version-controlled and portable — access them from any machine or future web client.
-- **Frontmatter metadata.** YAML frontmatter for tags, status, or any key-value pairs your workflow needs.
-- **Full markdown fidelity.** Bold, italic, strikethrough, code blocks with syntax highlighting, tables, task lists, images, links, subscript, superscript — all round-trip cleanly to `.md`.
-- **AI-native format.** Every LLM reads and writes markdown natively. No conversion layer, no token waste. The agent edits the same format the file is stored in.
-
----
-
-## Token-Efficient Wire Format
-
-Agents don't parse JSON. OpenWriter uses a compact tagged-line format that's ~10x more token-efficient:
-
-```
-title: My Document
-words: 1,205
-pending: 2
----
-[h1:a1b2c3d4] Chapter One
-[p:e5f6g7h8] The quick brown fox jumped over the **lazy** dog.
-[ul:i9j0k1l2]
-  [li:m3n4o5p6] First bullet
-  [li:q7r8s9t0] Second bullet
-```
-
-Each line: `[type:8-char-id] content` with inline markdown preserved. Agents read and write naturally.
-
----
-
-## Plugin System
-
-OpenWriter is extensible via plugins. A plugin can:
-
-- **Register MCP tools** — Extend the agent's capabilities
-- **Add HTTP routes** — Custom API endpoints on the server
-- **Contribute context menu items** — UI actions for text transformation
-
-```typescript
-import type { OpenWriterPlugin } from 'openwriter';
-
-const plugin: OpenWriterPlugin = {
-  name: 'my-plugin',
-  version: '1.0.0',
-
-  mcpTools(config) {
-    return [{
-      name: 'my-tool',
-      description: 'Does something useful',
-      inputSchema: { type: 'object', properties: {} },
-      handler: async (params) => ({ result: 'done' })
-    }];
-  },
-
-  contextMenuItems() {
-    return [{
-      label: 'My Action',
-      action: 'myplugin:do-thing',
-      condition: 'has-selection'
-    }];
-  }
-};
-
-export default plugin;
-```
-
-Load plugins at startup:
-
-```bash
-npx openwriter --plugins my-plugin,another-plugin
-```
-
----
-
-## CLI Options
-
-```bash
-npx openwriter [options]
-
-Options:
-  --port <number>       Port number (default: 5050)
-  --no-open             Don't auto-open browser
-  --plugins <names>     Comma-separated plugin names
-  --profile <name>      Run on this profile only, without changing the one OpenWriter normally opens
-
-Subcommands:
-  setup                 Install OpenWriter, register its MCP server with Claude Code,
-                        and add its background agents (alias: install-skill)
-```
-
----
-
-## Architecture
-
-```
-Browser (localhost:5050)
-  ├── TipTap 3.0 Editor (React)
-  ├── Decoration Plugin (pending insert/rewrite/delete)
-  ├── Review Panel (accept/reject with keyboard nav)
-  ├── Sidebar (4 views: tree, timeline, board, shelf)
-  └── Context Menu (plugin-provided AI actions)
-         │
-         │ WebSocket + HTTP
-         ▼
-Pad Server (Express + WebSocket + MCP stdio)
-  ├── Document state (in-memory + markdown on disk)
-  ├── 24 MCP tools + plugin tools
-  ├── Workspace management
-  ├── Git sync, versions, export
-  └── Plugin loader
-         │
-         │ MCP stdio
-         ▼
-AI Agent (Claude Code, Cursor, etc.)
-```
-
-Three interfaces:
-- **HTTP** — Browser UI operations, document CRUD, plugin proxying
-- **WebSocket** — Real-time push of agent changes to browser
-- **MCP stdio** — Agent reads/writes documents
-
-The server supports **multi-session mode**: if port 5050 is already taken, additional instances proxy MCP calls via HTTP to the running server. Multiple agents can safely share the same document state.
-
----
-
-## Development
-
-```bash
-# Clone and install
-git clone https://github.com/travsteward/openwriter.git
-cd openwriter
-npm install
-
-# Dev mode (hot reload)
-cd packages/openwriter
-npm run dev
-
-# Build
-npx turbo run build --force
-
-# Type check
-npx tsc --noEmit -p packages/openwriter/tsconfig.json        # frontend
-npx tsc --noEmit -p packages/openwriter/tsconfig.server.json  # server
-
-# Run production build
-node packages/openwriter/dist/bin/pad.js
-```
-
-Monorepo structure: `packages/openwriter` (editor + server), `plugins/` (optional extensions).
-
----
+Details on [openwriter.io](https://openwriter.io/#pricing).
+
+## Build on it
+
+Plugins add MCP tools, HTTP routes and right-click actions. The [reference](https://github.com/travsteward/openwriter/blob/main/REFERENCE.md) covers the full tool list, the plugin API, the architecture and local development.
 
 ## Contributing
 
-Contributions welcome. Please open an issue first to discuss what you'd like to change.
-
----
+Contributions are welcome. Please open an issue first to discuss what you'd like to change.
 
 ## License
 
-[MIT](LICENSE) — Travis Steward
+[MIT](https://github.com/travsteward/openwriter/blob/main/LICENSE)

@@ -1,7 +1,7 @@
 {
   "name": "openwriter",
   "version": "0.51.0",
-  "description": "The open-source writing surface for AI agents. Markdown-native editor with pending change review — your agent writes, you accept or reject.",
+  "description": "Write and publish with your agent. A Markdown editor where your agent drafts and you review every change, then publish to your site, newsletter, X and LinkedIn.",
   "type": "module",
   "license": "MIT",
   "author": "Travis Steward",
@@ -9,7 +9,7 @@
     "type": "git",
     "url": "https://github.com/travsteward/openwriter.git"
   },
-  "homepage": "https://github.com/travsteward/openwriter",
+  "homepage": "https://openwriter.io",
   "bugs": "https://github.com/travsteward/openwriter/issues",
   "keywords": [
     "editor",
@@ -32,7 +32,8 @@
     "./server": "./dist/server/embed.js"
   },
   "scripts": {
-    "build": "vite build && tsc -p tsconfig.server.json && npm run build:guidance && npm run build:plugins",
+    "build": "vite build && npm run build:clean && tsc -p tsconfig.server.json && npm run build:guidance && npm run build:plugins",
+    "build:clean": "node -e \"for (const d of ['dist/server', 'dist/bin']) require('fs').rmSync(d, { recursive: true, force: true })\"",
     "build:guidance": "node -e \"require('fs').cpSync('server/guidance', 'dist/server/guidance', { recursive: true })\"",
     "build:plugins": "node scripts/build-plugins.cjs",
     "prepublishOnly": "node scripts/prepublish.cjs",
