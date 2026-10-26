@@ -24,20 +24,47 @@ function getImagesDir(): string { return join(getDataDir(), '_images'); }
 type ImageSource = (filename: string) => Promise<string | null>;
 const imageSources = new Set<ImageSource>();
 
+/**
+ * What a source can also say about the images it keeps, so they can be handed on
+ * (the github plugin puts them in the writer's repo, adr/two-way-sync.md):
+ * every name it holds, and one image's bytes without writing a file. `read`
+ * returns null for an image it no longer has and throws when it cannot tell now.
+ */
+export interface ImageHoldings {
+  list(): Promise<string[]>;
+  read(filename: string): Promise<Buffer | null>;
+}
+const imageHoldings = new Map<ImageSource, ImageHoldings>();
+
+const validImageName = (filename: string) => !!filename && !/[/\\]/.test(filename) && !filename.startsWith('.');
+
 /** A source that keeps images outside _images/ answers for the ones missing there; the first to find one wins. */
-export function addImageSource(source: ImageSource): void {
+export function addImageSource(source: ImageSource, holdings?: ImageHoldings): void {
   imageSources.add(source);
+  if (holdings) imageHoldings.set(source, holdings);
 }
 
 /** The local path of /_images/<filename>, fetched first when it lives elsewhere. Null when there is no such image. */
 export async function imageFile(filename: string): Promise<string | null> {
-  if (!filename || /[/\\]/.test(filename) || filename.startsWith('.')) return null;
+  if (!validImageName(filename)) return null;
   const local = join(getImagesDir(), filename);
   if (existsSync(local)) return local;
   for (const source of imageSources) {
     try { const found = await source(filename); if (found) return found; } catch { /* try the next */ }
   }
   return null;
+}
+
+/** Every image a source holds that _images/ does not, with a way to read its bytes. */
+export async function imagesHeldElsewhere(): Promise<Array<{ name: string; read: () => Promise<Buffer | null> }>> {
+  const found = new Map<string, () => Promise<Buffer | null>>();
+  for (const holdings of imageHoldings.values()) {
+    for (const name of await holdings.list()) {
+      if (!validImageName(name) || found.has(name) || existsSync(join(getImagesDir(), name))) continue;
+      found.set(name, () => holdings.read(name));
+    }
+  }
+  return [...found].map(([name, read]) => ({ name, read }));
 }
 
 // ── SSRF guard for /api/download-image (MCP-8) ──────────────────────────────

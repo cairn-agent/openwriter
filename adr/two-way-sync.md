@@ -150,6 +150,17 @@ failure modes with ones that never drop a word.
   out; a pull that changes an image drops its cached copy. The `/_images/` route,
   newsletter and X uploads, and blog publishing all read through it. Rollback on a
   writing-only copy restores the writing; images keep their current version.
+- **Images another source keeps go into the repo** (`handOverImages`). When a copy's
+  image sources can list what they hold (`addImageSource(source, holdings)`, read
+  through core's `imagesHeldElsewhere`), every one that neither `_images/` nor the
+  repo has goes to GitHub through its Git Data API: each image read from its source
+  and sent as a blob on its own, a tree on the commit this copy just pushed, a commit
+  signed by the device, a ref update that never forces. Nothing is written to the
+  folder or to .git; the copy gets the commits on its next pull. Commits hold 50
+  images, so a stop partway keeps what went up. It runs after the connection's push
+  and after any sync that leaves this copy even with GitHub, until
+  `.git/openwriter-images-handed.json` says it is done; a new connection starts over.
+  A failed handover never fails the sync.
 - **A connection that stops partway leaves the folder as it was and unlinked**
   (`undoConnect`): merge aborted, reset to the commit made just before, GitHub's
   half-written files removed, remote and sparse checkout removed, the download
@@ -252,3 +263,15 @@ demand too (search, Claude and merges need every document's words; it would save
 cache can be trimmed (fetched objects in .git cannot be). A safe undo on any failed
 connect, for every copy, replaces "a full disk leaves a broken link". Test:
 `test-github-sync.mjs` ("A writing-only copy ...").
+
+### 2026-10-26 — images kept elsewhere are handed to the repo
+An online copy that moves images off its small disk into its own storage (before the writer
+connects GitHub) left them out of the repo, so a desktop copy showed them missing. Image sources
+may now list what they hold and hand over bytes in memory; the github plugin sends each one
+to GitHub's Git Data API. A local commit was rejected because it writes every image back to
+the disk the online copy moved them off. The handover runs after the connection's push rather
+than before its fetch: GitHub's API cannot add a blob to an empty repo, and the commit just
+pushed is a known parent that already holds this copy's writing. It retries on later syncs
+because a network stop or GitHub's rate limit should not fail a connection, and stops for good
+once done so an image later deleted from the repo is not brought back. Test:
+`test-github-sync.mjs` ("Images another source keeps ...").

@@ -50,6 +50,8 @@ export interface ServerModules {
   // registers itself as the source of images it left on GitHub. adr: adr/two-way-sync.md
   imageFile: (filename: string) => Promise<string | null>;
   addImageSource: (source: (filename: string) => Promise<string | null>) => void;
+  // Images another source keeps (an online copy's own storage), handed to the repo. adr: adr/two-way-sync.md
+  imagesHeldElsewhere: () => Promise<Array<{ name: string; read: () => Promise<Buffer | null> }>>;
 }
 
 /** Result of the pre-commit schema gate. Mirrors server/blog-schema-gate.ts. */
@@ -118,6 +120,7 @@ export async function getServerModules(): Promise<ServerModules> {
     validateBlogFrontmatter: schemaGate.validateBlogFrontmatter,
     imageFile: images.imageFile,
     addImageSource: images.addImageSource,
+    imagesHeldElsewhere: images.imagesHeldElsewhere,
   };
   return _cached;
 }

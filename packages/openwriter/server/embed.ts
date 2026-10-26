@@ -25,8 +25,10 @@ export type { OpenWriterPlugin, PluginHost, PluginRouteContext, PluginMcpTool, P
 export { appendDocGuidance } from './mcp.js';
 export { GUIDANCE_NOTICE } from './doc-guidance.js';
 // For an embedder that keeps images in its own storage: answer for an image missing from
-// _images/, and find the folder it sweeps. adr: adr/open-source-boundary.md
+// _images/ (and, with holdings, list them so GitHub sync can hand them to the repo), and find
+// the folder it sweeps. adr: adr/open-source-boundary.md
 export { addImageSource } from './image-upload.js';
+export type { ImageHoldings } from './image-upload.js';
 export { getDataDir, getActiveProfile } from './helpers.js';
 // The publish server as the signed-in writer (their key, the pinned API address, the active profile).
 export { platformFetch } from './connections.js';

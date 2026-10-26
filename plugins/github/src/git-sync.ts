@@ -73,6 +73,10 @@ const WRITING_ONLY_PATTERNS = ['/*', '!/_images/'];
 /** Images a writing-only copy fetched, inside .git so they never sync; the least recently shown go first. */
 const IMAGE_CACHE_DIR = 'openwriter-images';
 const IMAGE_CACHE_BYTES = 256 * 1024 * 1024;
+/** Says the images other sources held went into this repo (handOverImages). Inside .git, never synced. */
+const HANDOVER_FILE = 'openwriter-images-handed.json';
+/** Images per handover commit: what one stop partway can cost, well under GitHub's per-minute limit. */
+const HANDOVER_BATCH = 50;
 
 export type SyncState = 'unconfigured' | 'synced' | 'pending' | 'syncing' | 'offline' | 'error';
 
@@ -1141,6 +1145,7 @@ async function connectRemoteNow(remoteUrl: string): Promise<string[]> {
 
   try { await exec('git', ['remote', 'remove', 'origin'], dir); } catch { /* no remote */ }
   await exec('git', ['remote', 'add', 'origin', remoteUrl], dir);
+  try { unlinkSync(join(dir, '.git', HANDOVER_FILE)); } catch { /* a new repo gets its own handover */ }
   const start = await headSha(dir);
   const saved = snapshotLocalOnly(dir);
   let pulled: PullResult;
@@ -1166,6 +1171,7 @@ async function connectRemoteNow(remoteUrl: string): Promise<string[]> {
   const { changed, conflicts, before } = pulled;
   await applyToServer(dir, changed, before);
   await pushBranch(dir, LOCAL_WRITE_TIMEOUT);
+  await handOverImages(dir).catch((err) => console.error('[GitHub Plugin] image handover paused:', err?.message || err));
   writeLastSync(dir, new Date().toISOString());
   lastConflicts = conflicts;
   lastError = undefined;
@@ -1244,11 +1250,16 @@ async function imageBlob(dir: string, path: string): Promise<string | null> {
   return null;
 }
 
+/** `owner/name` of origin as configured, when it is on GitHub. */
+async function githubRepo(dir: string): Promise<string | null> {
+  let url = '';
+  try { url = await exec('git', ['config', '--get', 'remote.origin.url'], dir); } catch { return null; }
+  return /github\.com[/:]([\w.-]+\/[\w.-]+?)(?:\.git)?\/?$/.exec(url)?.[1] || null;
+}
+
 /** A blob's bytes from GitHub's API, without fetching it into .git. Null when the remote is not GitHub or it fails. */
 async function githubBlob(dir: string, sha: string): Promise<Buffer | null> {
-  let url = '';
-  try { url = await exec('git', ['remote', 'get-url', 'origin'], dir); } catch { return null; }
-  const repo = /github\.com[/:]([\w.-]+\/[\w.-]+?)(?:\.git)?\/?$/.exec(url)?.[1];
+  const repo = await githubRepo(dir);
   if (!repo) return null;
   const token = await readToken();
   try {
@@ -1257,6 +1268,58 @@ async function githubBlob(dir: string, sha: string): Promise<Buffer | null> {
     });
     return res.ok ? Buffer.from(await res.arrayBuffer()) : null;
   } catch { return null; }
+}
+
+/**
+ * Images another image source keeps (an online copy that moved them off its disk)
+ * go into the repo once, through GitHub's Git Data API: each blob read from the
+ * source and sent on its own, then a tree on top of what this copy just pushed, a
+ * commit and a ref update, so nothing is written to the folder or to .git. In
+ * commits of HANDOVER_BATCH, so a stop partway keeps what went up; the next sync
+ * goes on until the marker in .git says done. Runs only when this copy and GitHub
+ * agree (just pushed), and the copy picks the commits up on its next pull.
+ */
+async function handOverImages(dir: string): Promise<void> {
+  const marker = join(dir, '.git', HANDOVER_FILE);
+  if (existsSync(marker)) return;
+  const repo = await githubRepo(dir);
+  const token = await readToken();
+  if (!repo || !token) return;
+  const branch = await currentBranch(dir);
+  const head = await headSha(dir);
+  let tracking = '';
+  try { tracking = await exec('git', ['rev-parse', '--verify', '-q', `refs/remotes/origin/${branch}`], dir); } catch { return; }
+  if (!head || head !== tracking) return;
+
+  const inRepo = new Set((await exec('git', ['ls-tree', '-z', '--name-only', 'HEAD', '_images/'], dir)).split('\0').filter(Boolean));
+  const missing = (await (await getServerModules()).imagesHeldElsewhere()).filter((img) => !inRepo.has(`_images/${img.name}`));
+  const api = async (method: string, path: string, body: unknown) => {
+    const res = await fetch(`https://api.github.com/repos/${repo}/${path}`, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`GitHub refused ${method} ${path.split('/').slice(0, 2).join('/')} (${res.status})`);
+    return (await res.json()) as any;
+  };
+  const d = await device();
+  let parent = head;
+  let tree = await exec('git', ['rev-parse', 'HEAD^{tree}'], dir);
+  for (let i = 0; i < missing.length; i += HANDOVER_BATCH) {
+    const entries: Array<{ path: string; mode: string; type: string; sha: string }> = [];
+    for (const img of missing.slice(i, i + HANDOVER_BATCH)) {
+      const bytes = await img.read();
+      if (!bytes) continue; // The source no longer has it.
+      const blob = await api('POST', 'git/blobs', { content: bytes.toString('base64'), encoding: 'base64' });
+      entries.push({ path: `_images/${img.name}`, mode: '100644', type: 'blob', sha: blob.sha });
+    }
+    if (!entries.length) continue;
+    tree = (await api('POST', 'git/trees', { base_tree: tree, tree: entries })).sha;
+    const author = { name: d.name, email: `${d.id}@device.openwriter`, date: new Date().toISOString() };
+    parent = (await api('POST', 'git/commits', { message: `Add ${entries.length} image${entries.length === 1 ? '' : 's'} kept online`, tree, parents: [parent], author })).sha;
+    await api('PATCH', `git/refs/heads/${branch}`, { sha: parent, force: false });
+  }
+  writeFileSync(marker, JSON.stringify({ at: new Date().toISOString(), images: missing.length }));
 }
 
 /** Drop the least recently shown images until the cache fits its budget. */
@@ -1420,6 +1483,7 @@ async function runSync(onStatus: (status: SyncStatus) => void, push: boolean): P
     restoreLocalOnly(saved);
     await applyToServer(dir, changed, before);
     if (push && (await aheadOfGitHub(dir))) await pushBranch(dir, LOCAL_WRITE_TIMEOUT);
+    await handOverImages(dir).catch((err) => console.error('[GitHub Plugin] image handover paused:', err?.message || err));
 
     const now = new Date().toISOString();
     writeLastSync(dir, now);

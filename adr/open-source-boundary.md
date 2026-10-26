@@ -246,3 +246,12 @@ no settings: the writer can do nothing with it. Settings tabs can be opened by i
 `_images/`; every image read goes through `imageFile`, which asks each source in turn. The github
 plugin uses it for images a writing-only copy left on GitHub; an online host can keep images in
 its own storage. Without a source the local app reads `_images/` exactly as before.
+
+### 2026-10-26 — Image sources can list what they hold
+
+`addImageSource(source, holdings)` takes an optional second argument: `list()` (every image the
+source keeps) and `read(name)` (its bytes, in memory, or null once gone), typed `ImageHoldings`.
+Core's `imagesHeldElsewhere()` gathers the ones `_images/` lacks; the github plugin hands them to
+the writer's repo (adr/two-way-sync.md). Generic: any plugin or embedder that keeps images in its
+own storage gets them into GitHub sync without writing them back to disk. Without holdings
+nothing changes.

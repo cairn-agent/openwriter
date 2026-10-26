@@ -456,6 +456,86 @@ try {
   delete process.env.OW_GITHUB_IMAGES_ON_DEMAND;
 }
 
+console.log('\nImages another source keeps go into the repo on connect (GitHub\'s Git Data API faked over a bare repo):');
+const online = join(home, 'online.git');
+execFileSync('git', ['init', '--bare', '-q', '-b', 'main', online]);
+git(online, 'config', 'uploadpack.allowFilter', 'true');
+git(online, 'config', 'uploadpack.allowAnySHA1InWant', 'true');
+const seed = join(home, 'seed');
+execFileSync('git', ['init', '-q', '-b', 'main', seed]);
+mkdirSync(join(seed, '_images'));
+writeDoc(seed, 'Essay.md', 'Essay', 'e5e5e5e5', ['Already on GitHub.']);
+writeFileSync(join(seed, '_images', 'already.png'), Buffer.alloc(1000, 1));
+git(seed, 'add', '-A');
+git(seed, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'seed');
+git(seed, 'push', '-q', online, 'main');
+const onlineUrl = 'https://github.com/maya/online-docs.git';
+git(home, 'config', '--global', `url.${online.replace(/\\/g, '/')}.insteadOf`, onlineUrl);
+
+const kept = Buffer.alloc(300 * 1024, 9);
+const { addImageSource } = await import('../dist/server/image-upload.js');
+const reads = [];
+addImageSource(async () => null, {
+  list: async () => ['kept.png', 'already.png', 'gone.png'],
+  read: async (name) => { reads.push(name); return name === 'kept.png' ? kept : null; },
+});
+const api = [];
+globalThis.fetch = async (url, init) => {
+  const u = String(url);
+  const m = /^https:\/\/api\.github\.com\/repos\/maya\/online-docs\/(.+)$/.exec(u);
+  if (!m) throw new Error(`unexpected fetch ${u}`);
+  const body = JSON.parse(String(init.body));
+  api.push(`${init.method} ${m[1]}`);
+  const reply = (obj) => new Response(JSON.stringify(obj), { status: 201, headers: { 'Content-Type': 'application/json' } });
+  const plumb = (args, opts = {}) => execFileSync('git', args, { cwd: online, encoding: 'utf-8', ...opts }).trim();
+  if (m[1] === 'git/blobs') return reply({ sha: plumb(['hash-object', '-w', '--stdin'], { input: Buffer.from(body.content, 'base64') }) });
+  if (m[1] === 'git/trees') {
+    const env = { ...process.env, GIT_INDEX_FILE: join(home, 'fake-index') };
+    plumb(['read-tree', body.base_tree], { env });
+    for (const e of body.tree) plumb(['update-index', '--add', '--cacheinfo', `${e.mode},${e.sha},${e.path}`], { env });
+    return reply({ sha: plumb(['write-tree'], { env }) });
+  }
+  if (m[1] === 'git/commits') {
+    const a = body.author;
+    const env = { ...process.env, GIT_AUTHOR_NAME: a.name, GIT_AUTHOR_EMAIL: a.email, GIT_AUTHOR_DATE: a.date, GIT_COMMITTER_NAME: a.name, GIT_COMMITTER_EMAIL: a.email };
+    return reply({ sha: plumb(['commit-tree', body.tree, ...body.parents.flatMap((p) => ['-p', p]), '-m', body.message], { env }) });
+  }
+  if (m[1] === 'git/refs/heads/main') {
+    try { plumb(['merge-base', '--is-ancestor', 'main', body.sha]); } catch { return new Response('{}', { status: 422 }); }
+    plumb(['update-ref', 'refs/heads/main', body.sha]);
+    return reply({ object: { sha: body.sha } });
+  }
+  throw new Error(`unexpected GitHub call ${m[1]}`);
+};
+process.env.OW_GITHUB_IMAGES_ON_DEMAND = '1';
+try {
+  const W = side('W');
+  writeDoc(W, 'Web.md', 'Web', 'w0w0w0w0', ['Written online.']);
+  await sync.connectExisting(onlineUrl);
+  const keptSha = git(online, 'rev-parse', 'main:_images/kept.png');
+  assert(execFileSync('git', ['cat-file', 'blob', keptSha], { cwd: online }).equals(kept), 'the image the source kept is in the repo with its bytes');
+  assert(git(online, 'show', 'main:Web.md').includes('Written online.'), 'on top of what the copy pushed');
+  assert(api.filter((c) => c === 'POST git/blobs').length === 1, `only that image is sent: one GitHub already has and one the source lost are not (${api.join(', ')})`);
+  assert(!existsSync(join(W, '_images', 'kept.png')), 'nothing is written to the folder');
+  let inGit = true;
+  try { execFileSync('git', ['cat-file', '-e', keptSha], { cwd: W, env: { ...process.env, GIT_NO_LAZY_FETCH: '1' }, stdio: 'ignore' }); } catch { inGit = false; }
+  assert(!inGit, "and nothing enters the copy's .git");
+  assert((await sync.syncNow(noop)).state === 'synced', 'the copy syncs after');
+  assert(git(W, 'ls-tree', '--name-only', 'HEAD', '_images/').includes('_images/kept.png'), 'and its next pull knows the image is on GitHub');
+  const blobs = api.length;
+  await sync.syncNow(noop);
+  assert(api.length === blobs, 'a handover runs once');
+} finally {
+  delete process.env.OW_GITHUB_IMAGES_ON_DEMAND;
+}
+try {
+  const E = side('E');
+  await sync.connectExisting(onlineUrl);
+  assert(existsSync(join(E, '_images', 'kept.png')) && readFileSync(join(E, '_images', 'kept.png')).equals(kept), 'a desktop copy has the image');
+} finally {
+  globalThis.fetch = realFetch;
+}
+
 cancelDebouncedSave();
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);
