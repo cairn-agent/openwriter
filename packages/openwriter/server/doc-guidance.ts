@@ -19,8 +19,16 @@ const CONTRACTS: Record<string, { names: string[]; noun: string }> = {
   newsletter: { names: ['newsletter', 'long-form'], noun: 'a newsletter issue' },
 };
 
-/** For the MCP server instructions: what an agent needs before it first touches a document. */
-export const GUIDANCE_NOTICE = 'OpenWriter is the user\'s writing surface. Writing meant for the user (drafts, rewrites, outlines) goes into a document, where each change arrives as a proposal the user accepts or rejects; chat is for discussing it. The user reviews in their own browser, which shows one open document for every tab, so opening the editor in a browser yourself moves their view: work through the tools. When you mention a document, give the link get_doc_link returns. Every document carries editing guidance, including when an optional review note helps. X documents, blog posts and newsletter issues also have format contracts. Book workspaces deliver their attached brief and book guidance on document access; changed briefs or linked sources refresh that context. The first touch in an agent session delivers unseen contracts in full; later touches carry a reminder.';
+/** That documents carry their guidance. Embedders append it to their own agent's instructions. */
+export const GUIDANCE_NOTICE = 'Every document carries editing guidance, including when an optional review note helps. X documents, blog posts and newsletter issues also have format contracts. Book workspaces deliver their attached brief and book guidance on document access; changed briefs or linked sources refresh that context. The first touch in an agent session delivers unseen contracts in full; later touches carry a reminder.';
+
+/**
+ * The local MCP server's instructions: what an agent on the writer's own computer needs before it
+ * first touches a document, then GUIDANCE_NOTICE. Not for embedders: a hosted chat has its own
+ * instructions, no browser of the writer's to disturb, and get_doc_link answers with an address
+ * that only works on the machine running OpenWriter.
+ */
+export const LOCAL_AGENT_NOTICE = `OpenWriter is the user's writing surface. Writing meant for the user (drafts, rewrites, outlines) goes into a document, where each change arrives as a proposal the user accepts or rejects; chat is for discussing it. The user reviews in their own browser, which shows one open document for every tab, so opening the editor in a browser yourself moves their view: work through the tools. When you mention a document, give the link get_doc_link returns. ${GUIDANCE_NOTICE}`;
 
 interface Contract { name: string; version: number; body: string }
 

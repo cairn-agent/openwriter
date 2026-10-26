@@ -41,11 +41,13 @@ any longer.
   through read_pad) must not use up an agent's delivery or see contract text.
 - **The contract is an extra content block** after the tool's own result, so a caller reading
   `content[0]` (JSON results, compact reads) is unaffected.
-- **MCP instructions say contracts arrive with the document** (`GUIDANCE_NOTICE`, in both the
-  stdio server and the client-mode proxy). They also carry the few working norms an agent needs
-  before it touches any document: writing for the user goes into a document, the user's
-  browser view is shared so the agent never opens the editor itself, and a document mentioned
-  to the user is linked with get_doc_link.
+- **Instructions say contracts arrive with the document** (`GUIDANCE_NOTICE`). The local MCP
+  server and client-mode proxy send `LOCAL_AGENT_NOTICE`: the few norms a local agent needs
+  before it touches any document (writing for the user goes into a document, the user's browser
+  view is shared so the agent never opens the editor itself, a document mentioned to the user
+  is linked with get_doc_link), then `GUIDANCE_NOTICE`. Embedders append only `GUIDANCE_NOTICE`
+  to their own instructions: a hosted chat has no browser of the writer's and get_doc_link
+  answers with an address that only works on the machine running OpenWriter.
 - **OpenWriter has no skill.** An agent with only the MCP server gets everything it needs from
   tool descriptions, the server instructions, contracts and tool results. Nothing installs or
   offers a skill; `openwriter setup` installs the package, the MCP registration and the two
@@ -118,3 +120,9 @@ any longer.
   copy in prepublish, and install-skill.ts (now setup.ts, `install-skill` stays as an alias).
   The subagents moved to `packages/openwriter/agents/`, the one source for setup, the npm
   package and the Claude plugin.
+
+- **2026-10-26** — Split the local-only norms out of `GUIDANCE_NOTICE` into
+  `LOCAL_AGENT_NOTICE`, sent only by the stdio server and the client-mode proxy. The hosted web
+  chat appends `GUIDANCE_NOTICE` to its own instructions, and v0.51.0's version told it to link
+  documents with get_doc_link, which inside the hosted machine returns a localhost address the
+  writer cannot open. The local agent's instructions are unchanged.

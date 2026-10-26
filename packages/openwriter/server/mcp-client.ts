@@ -9,7 +9,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { randomUUID } from 'crypto';
-import { GUIDANCE_NOTICE } from './doc-guidance.js';
+import { LOCAL_AGENT_NOTICE } from './doc-guidance.js';
 
 export async function startMcpClientServer(port: number): Promise<void> {
   const baseUrl = `http://localhost:${port}`;
@@ -33,7 +33,7 @@ export async function startMcpClientServer(port: number): Promise<void> {
 
   const server = new Server(
     { name: 'openwriter-client', version: '0.2.0' },
-    { capabilities: { tools: {} }, instructions: GUIDANCE_NOTICE },
+    { capabilities: { tools: {} }, instructions: LOCAL_AGENT_NOTICE },
   );
   // This process serves one agent session; the server delivers each format contract to it
   // once in full. adr: adr/in-system-guidance.md

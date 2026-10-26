@@ -64,7 +64,7 @@ import { readBlame, summarizeBlame } from './attribution.js';
 import { outline, peek, searchInDoc, truncateRead, type PeekTarget } from './peek-outline.js';
 import { createEnrichmentTools } from './enrichment-tools.js';
 import { deriveContentType, resolveTypeMeta } from './content-type-meta.js';
-import { GUIDANCE_NOTICE } from './doc-guidance.js';
+import { LOCAL_AGENT_NOTICE } from './doc-guidance.js';
 import { appendDocGuidance } from './mcp-guidance.js';
 export { appendDocGuidance } from './mcp-guidance.js';
 import { listDocuments, switchDocument, createDocument, createDocumentFile, deleteDocument, openFile, getActiveFilename, updateDocumentTitle, promoteTempFile, archiveDocument, unarchiveDocument, resolveDocId, filenameByDocId, searchDocuments, listDirtyDocs, crawlDocs, enrichmentFooter, buildEnrichmentInstructions, listPendingSorts, sortFooter, buildSortInstructions, stagePendingTitle } from './documents.js';
@@ -2293,7 +2293,7 @@ export async function startMcpServer(): Promise<void> {
   // Stack notices in the MCP instructions field. Both notices stand on their
   // own — agents can read and dispatch them independently. Empty when neither
   // system has pending work.
-  const combinedNotice = [GUIDANCE_NOTICE, enrichmentNotice, sortNotice].filter(Boolean).join('\n');
+  const combinedNotice = [LOCAL_AGENT_NOTICE, enrichmentNotice, sortNotice].filter(Boolean).join('\n');
 
   const server = new McpServer({
     name: 'openwriter',
