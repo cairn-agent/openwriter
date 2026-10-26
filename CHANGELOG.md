@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.51.1] - 2026-10-26
+
 ### Changed
 - The README and the npm page now show what OpenWriter does, with screens of drafting, review, publishing, paid readers, social posts, books and subscribers, and link to [openwriter.io](https://openwriter.io).
 
