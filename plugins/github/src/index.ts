@@ -32,6 +32,7 @@ import {
   saveDeviceName,
   suggestDeviceName,
   syncNow,
+  writingOnlyImage,
   type SyncStatus,
 } from './git-sync.js';
 import { startDeviceFlow, pollDeviceFlow } from './device-flow.js';
@@ -206,6 +207,10 @@ const plugin: OpenWriterPlugin = {
       try { res.json(await rollbackTo(String(req.body?.at || ''), onStatus)); }
       catch (err: any) { fail(res, 'sync/rollback', err); }
     });
+
+    // A writing-only copy answers for the images it left on GitHub, wherever one is read.
+    void getServerModules().then((srv) => srv.setImageSource(writingOnlyImage))
+      .catch((err: any) => console.error('[GitHub Plugin] image source failed:', err?.message || err));
 
     // Every save is committed here and sent after the writer pauses.
     void startAutoSync(onStatus).catch((err: any) => console.error('[GitHub Plugin] auto-sync failed to start:', err?.message || err));

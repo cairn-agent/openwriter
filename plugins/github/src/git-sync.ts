@@ -18,7 +18,7 @@
  */
 
 import { execFile } from 'child_process';
-import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, watch, writeFileSync } from 'fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmdirSync, statSync, unlinkSync, utimesSync, watch, writeFileSync } from 'fs';
 import { randomBytes } from 'crypto';
 import { dirname, extname, join } from 'path';
 import { getServerModules } from './helpers.js';
@@ -61,6 +61,18 @@ const TYPING_MS = 3000;
 const COMMIT_DELAY_MS = 1500;
 /** Changes go to GitHub this long after the writer stops. */
 const PUSH_DELAY_MS = 20000;
+/**
+ * A writing-only copy (a copy started with OW_GITHUB_IMAGES_ON_DEMAND=1, such as
+ * an online one with a small disk) gets every file's name and all the writing;
+ * images stay on GitHub until shown. Git does the work: files over the filter
+ * size are left on GitHub (a partial clone), and _images/ stays out of the folder
+ * (sparse checkout). Decided once, at connection; the repo's own config says so after.
+ */
+const WRITING_ONLY_FILTER = 'blob:limit=256k';
+const WRITING_ONLY_PATTERNS = ['/*', '!/_images/'];
+/** Images a writing-only copy fetched, inside .git so they never sync; the least recently shown go first. */
+const IMAGE_CACHE_DIR = 'openwriter-images';
+const IMAGE_CACHE_BYTES = 256 * 1024 * 1024;
 
 export type SyncState = 'unconfigured' | 'synced' | 'pending' | 'syncing' | 'offline' | 'error';
 
@@ -110,11 +122,25 @@ let queue: Promise<unknown> = Promise.resolve();
 // SECURITY (MCP-1): no shell. Arguments are passed to git/gh as an argv array,
 // so each element is a single literal argument with no shell interpretation.
 // The optional `env` is merged over the parent process env for that one call.
-function exec(
+// Every git call carries the sign-in (gitAuth): in a writing-only copy any
+// command may need to fetch a file it does not have yet, a merge included.
+async function exec(
   cmd: string,
   args: string[],
   cwd: string,
   timeout = 10000,
+  env?: NodeJS.ProcessEnv,
+): Promise<string> {
+  if (cmd !== 'git') return run(cmd, args, cwd, timeout, env);
+  const auth = await gitAuth();
+  return run('git', [...auth.args, ...args], cwd, timeout, { ...auth.env, ...env });
+}
+
+function run(
+  cmd: string,
+  args: string[],
+  cwd: string,
+  timeout: number,
   env?: NodeJS.ProcessEnv,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -132,9 +158,10 @@ function exec(
 }
 
 /** A blob's exact bytes (exec trims, which would change files). */
-function gitBlob(sha: string, cwd: string): Promise<Buffer> {
+async function gitBlob(sha: string, cwd: string): Promise<Buffer> {
+  const auth = await gitAuth();
   return new Promise((resolve, reject) => {
-    execFile('git', ['cat-file', 'blob', sha], { cwd, encoding: 'buffer', maxBuffer: 256 * 1024 * 1024 }, (err, stdout) => {
+    execFile('git', [...auth.args, 'cat-file', 'blob', sha], { cwd, env: { ...process.env, ...auth.env }, encoding: 'buffer', maxBuffer: 256 * 1024 * 1024 }, (err, stdout) => {
       if (err) reject(err); else resolve(stdout);
     });
   });
@@ -150,18 +177,24 @@ const PAT_CRED_HELPER =
   '!f() { test "$1" = get && printf "username=x-access-token\\npassword=%s\\n" "$OW_GIT_PAT"; }; f';
 
 /**
- * Run a git command that talks to the remote (fetch, push). With a token, the
+ * The arguments and env that let a git command reach GitHub. With a token, the
  * `-c credential.helper=` first resets any inherited helper so only ours
  * answers; the token is passed via env, not argv. Without one, git's own
  * auth (gh, SSH, a credential manager) answers. Never prompts: a missing
  * credential fails instead of hanging the server.
  */
-async function execGitRemote(args: string[], cwd: string, timeout = NETWORK_TIMEOUT): Promise<string> {
+async function gitAuth(): Promise<{ args: string[]; env: NodeJS.ProcessEnv }> {
   const token = await readToken();
-  const env: NodeJS.ProcessEnv = { GIT_TERMINAL_PROMPT: '0' };
-  if (!token) return exec('git', args, cwd, timeout, env);
-  const authArgs = ['-c', 'credential.helper=', '-c', `credential.helper=${PAT_CRED_HELPER}`];
-  return exec('git', [...authArgs, ...args], cwd, timeout, { ...env, OW_GIT_PAT: token });
+  if (!token) return { args: [], env: { GIT_TERMINAL_PROMPT: '0' } };
+  return {
+    args: ['-c', 'credential.helper=', '-c', `credential.helper=${PAT_CRED_HELPER}`],
+    env: { GIT_TERMINAL_PROMPT: '0', OW_GIT_PAT: token },
+  };
+}
+
+/** A git command that talks to GitHub (fetch, push): the same sign-in, a network timeout. */
+function execGitRemote(args: string[], cwd: string, timeout = NETWORK_TIMEOUT): Promise<string> {
+  return exec('git', args, cwd, timeout);
 }
 
 // ── Token store ─────────────────────────────────────────────────────────────
@@ -513,9 +546,18 @@ async function initRepo(): Promise<void> {
   }
 }
 
-/** Stage everything and commit it as this device. False when there was nothing to commit. */
+/** True when this folder was connected writing-only: its GitHub remote may hold files it does not. */
+async function isWritingOnly(dir: string): Promise<boolean> {
+  try { return (await exec('git', ['config', '--get', 'remote.origin.promisor'], dir)) === 'true'; } catch { return false; }
+}
+
+/**
+ * Stage everything and commit it as this device. False when there was nothing to commit.
+ * In a writing-only copy `--sparse` lets a new image from this copy in; images left on
+ * GitHub are marked as not here (skip-worktree), so they are never staged as deleted.
+ */
 async function commitAll(dir: string, message: string): Promise<boolean> {
-  await exec('git', ['add', '-A'], dir, LOCAL_WRITE_TIMEOUT);
+  await exec('git', ['add', '-A', ...(await isWritingOnly(dir) ? ['--sparse'] : [])], dir, LOCAL_WRITE_TIMEOUT);
   const status = await exec('git', ['status', '--porcelain'], dir, LOCAL_WRITE_TIMEOUT);
   if (!status) return false;
   await gitAs(['commit', '-m', message], dir);
@@ -894,6 +936,11 @@ async function mergeRemote(dir: string, mode: 'sync' | 'connect' | 'fresh'): Pro
  */
 async function applyToServer(dir: string, changed: string[], before: string | null): Promise<void> {
   if (changed.length === 0) return;
+  // An image changed elsewhere: a writing-only copy fetches the new one when next shown.
+  for (const path of changed) {
+    const image = /[\\/]_images[\\/]([^\\/]+)$/.exec(path)?.[1];
+    if (image) { try { unlinkSync(join(dir, '.git', IMAGE_CACHE_DIR, image)); } catch { /* not cached */ } }
+  }
   const srv = await getServerModules();
   const title = srv.getTitle();
   const { deletedActive } = srv.reloadChangedFiles(changed);
@@ -1094,21 +1141,135 @@ async function connectRemoteNow(remoteUrl: string): Promise<string[]> {
 
   try { await exec('git', ['remote', 'remove', 'origin'], dir); } catch { /* no remote */ }
   await exec('git', ['remote', 'add', 'origin', remoteUrl], dir);
-  await execGitRemote(['fetch', 'origin'], dir, LOCAL_WRITE_TIMEOUT);
-
-  // Take GitHub's branch name so the push lands on the branch we merged.
-  const branch = await remoteBranch(dir);
-  if (branch && branch !== (await currentBranch(dir))) await exec('git', ['branch', '-M', branch], dir);
-
+  const start = await headSha(dir);
   const saved = snapshotLocalOnly(dir);
-  const { changed, conflicts, before } = await mergeRemote(dir, mode);
+  let pulled: PullResult;
+  try {
+    const writingOnly = process.env.OW_GITHUB_IMAGES_ON_DEMAND === '1';
+    if (writingOnly) {
+      await exec('git', ['config', 'remote.origin.promisor', 'true'], dir);
+      await exec('git', ['config', 'remote.origin.partialclonefilter', WRITING_ONLY_FILTER], dir);
+      await exec('git', ['sparse-checkout', 'set', '--no-cone', ...WRITING_ONLY_PATTERNS], dir, LOCAL_WRITE_TIMEOUT);
+    }
+    await execGitRemote(['fetch', ...(writingOnly ? [`--filter=${WRITING_ONLY_FILTER}`] : []), 'origin'], dir, LOCAL_WRITE_TIMEOUT);
+
+    // Take GitHub's branch name so the push lands on the branch we merged.
+    const branch = await remoteBranch(dir);
+    if (branch && branch !== (await currentBranch(dir))) await exec('git', ['branch', '-M', branch], dir);
+
+    pulled = await mergeRemote(dir, mode);
+  } catch (err) {
+    await undoConnect(dir, start, saved);
+    throw err;
+  }
   restoreLocalOnly(saved);
+  const { changed, conflicts, before } = pulled;
   await applyToServer(dir, changed, before);
   await pushBranch(dir, LOCAL_WRITE_TIMEOUT);
   writeLastSync(dir, new Date().toISOString());
   lastConflicts = conflicts;
   lastError = undefined;
   return conflicts;
+}
+
+/**
+ * A connection that stopped partway (no network, a full disk) leaves the folder as it
+ * was before and unlinked from GitHub, so nothing half-brought-in can ever be pushed
+ * back as deletions. The writer's own files were all committed in `start`.
+ */
+async function undoConnect(dir: string, start: string | null, saved: Map<string, Buffer>): Promise<void> {
+  const quietly = async (args: string[]) => { try { await exec('git', args, dir, LOCAL_WRITE_TIMEOUT); } catch { /* best-effort */ } };
+  let theirs: string[] = [];
+  try {
+    const branch = await remoteBranch(dir);
+    if (branch) theirs = (await exec('git', ['ls-tree', '-r', '--name-only', '-z', `origin/${branch}`], dir, LOCAL_WRITE_TIMEOUT)).split('\0').filter(Boolean);
+  } catch { /* nothing was fetched */ }
+  await quietly(['merge', '--abort']);
+  if (start) await quietly(['reset', '-q', '--hard', start]);
+  // GitHub's files a stopped checkout left behind (never this copy's: those are tracked).
+  let tracked = new Set<string>();
+  try { tracked = new Set((await exec('git', ['ls-files', '-z'], dir, LOCAL_WRITE_TIMEOUT)).split('\0')); } catch { /* keep everything */ }
+  for (const path of theirs) if (!tracked.has(path)) { try { unlinkSync(join(dir, path)); } catch { /* not written */ } }
+  for (const folder of new Set(theirs.map((p) => dirname(p)).filter((d) => d !== '.'))) {
+    try { rmdirSync(join(dir, folder)); } catch { /* holds this copy's files */ }
+  }
+  restoreLocalOnly(saved);
+  await quietly(['remote', 'remove', 'origin']);
+  await quietly(['sparse-checkout', 'disable']);
+  // Free the space the download took. A writing-only download is marked as GitHub's
+  // (.promisor), which gc keeps; unmarked, it goes with everything nothing points to.
+  const packs = join(dir, '.git', 'objects', 'pack');
+  try { for (const f of readdirSync(packs)) if (f.endsWith('.promisor')) unlinkSync(join(packs, f)); } catch { /* no packs */ }
+  await quietly(['reflog', 'expire', '--expire=now', '--all']);
+  await quietly(['gc', '-q', '--prune=now']);
+}
+
+/**
+ * The file of an image a writing-only copy left on GitHub, fetched when it is
+ * shown or published and kept in a cache of recently used ones. Null when this
+ * copy is not writing-only or has no such image. Registered as core's image source.
+ */
+export async function writingOnlyImage(filename: string): Promise<string | null> {
+  const dir = await dataDir();
+  if (!(await isWritingOnly(dir))) return null;
+  const cacheDir = join(dir, '.git', IMAGE_CACHE_DIR);
+  const cached = join(cacheDir, filename);
+  if (existsSync(cached)) {
+    const now = new Date();
+    try { utimesSync(cached, now, now); } catch { /* order is best-effort */ }
+    return cached;
+  }
+  const sha = await imageBlob(dir, `_images/${filename}`);
+  if (!sha) return null;
+  // GitHub's copy first (it never grows .git); a file this copy made and has not pushed is in .git already.
+  const bytes = (await githubBlob(dir, sha)) ?? (await gitBlob(sha, dir).catch(() => null));
+  if (!bytes) return null;
+  mkdirSync(cacheDir, { recursive: true });
+  writeFileSync(cached, bytes);
+  trimImageCache(cacheDir);
+  return cached;
+}
+
+/** The blob of an image path: as it is now, else as it was before a later change deleted it. */
+async function imageBlob(dir: string, path: string): Promise<string | null> {
+  const blobAt = async (rev: string) => {
+    try { return (await exec('git', ['--literal-pathspecs', 'ls-tree', rev, '--', path], dir)).split(/\s+/)[2] || null; } catch { return null; }
+  };
+  const now = await blobAt('HEAD');
+  if (now) return now;
+  try {
+    const last = await exec('git', ['--literal-pathspecs', 'rev-list', '-1', 'HEAD', '--', path], dir);
+    if (last) return await blobAt(`${last}^`);
+  } catch { /* never in history */ }
+  return null;
+}
+
+/** A blob's bytes from GitHub's API, without fetching it into .git. Null when the remote is not GitHub or it fails. */
+async function githubBlob(dir: string, sha: string): Promise<Buffer | null> {
+  let url = '';
+  try { url = await exec('git', ['remote', 'get-url', 'origin'], dir); } catch { return null; }
+  const repo = /github\.com[/:]([\w.-]+\/[\w.-]+?)(?:\.git)?\/?$/.exec(url)?.[1];
+  if (!repo) return null;
+  const token = await readToken();
+  try {
+    const res = await fetch(`https://api.github.com/repos/${repo}/git/blobs/${sha}`, {
+      headers: { Accept: 'application/vnd.github.raw', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+    return res.ok ? Buffer.from(await res.arrayBuffer()) : null;
+  } catch { return null; }
+}
+
+/** Drop the least recently shown images until the cache fits its budget. */
+function trimImageCache(cacheDir: string): void {
+  const files = readdirSync(cacheDir).map((name) => {
+    const path = join(cacheDir, name);
+    try { const s = statSync(path); return { path, size: s.size, used: s.mtimeMs }; } catch { return null; }
+  }).filter((f): f is { path: string; size: number; used: number } => !!f);
+  let total = files.reduce((n, f) => n + f.size, 0);
+  for (const f of files.sort((a, b) => a.used - b.used)) {
+    if (total <= IMAGE_CACHE_BYTES) break;
+    try { unlinkSync(f.path); total -= f.size; } catch { /* in use */ }
+  }
 }
 
 export async function setupWithGh(repoName: string, isPrivate: boolean): Promise<string[]> {

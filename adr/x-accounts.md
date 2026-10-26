@@ -55,3 +55,10 @@ take an optional `docId` (helpers.ts `withDocId`). Named, that document opens in
 the editor first and is the one used, so the chat never publishes whatever
 happened to be open. `schedule_post`'s account fallback then reads `xAccount`
 from the named document.
+
+### 2026-10-26 — X images read through core's imageFile
+
+The platform-connection image upload (`uploadLocalImage` here, `uploadImages` in the
+publish plugin) reads the image through `imageFile` instead of `_images/` directly, so
+an online copy that keeps images on GitHub until shown still uploads them
+(adr/two-way-sync.md). Account resolution is unchanged.

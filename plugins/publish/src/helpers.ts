@@ -27,30 +27,33 @@ export interface ServerModules {
   platformFetch: (path: string, options?: RequestInit) => Promise<Response>;
   /** Open a document by docId in the editor, as switch_document does; throws for an unknown id. */
   openDocument: (docId: string) => void;
+  /** The local path of /_images/<filename>, fetched first when this copy keeps it elsewhere. */
+  imageFile: (filename: string) => Promise<string | null>;
 }
 
 let _cached: ServerModules | null = null;
 
 async function tryImport(base: string) {
-  const [markdown, state, helpers, connections, ws, documents] = await Promise.all([
+  const [markdown, state, helpers, connections, ws, documents, images] = await Promise.all([
     import(base + 'markdown.js'),
     import(base + 'state.js'),
     import(base + 'helpers.js'),
     import(base + 'connections.js'),
     import(base + 'ws.js'),
     import(base + 'documents.js'),
+    import(base + 'image-upload.js'),
   ]);
-  return { markdown, state, helpers, connections, ws, documents };
+  return { markdown, state, helpers, connections, ws, documents, images };
 }
 
 export async function getServerModules(): Promise<ServerModules> {
   if (_cached) return _cached;
   // Try npm package layout first, fall back to monorepo layout
-  let markdown, state, helpers, connections, ws, documents;
+  let markdown, state, helpers, connections, ws, documents, images;
   try {
-    ({ markdown, state, helpers, connections, ws, documents } = await tryImport(npmBase));
+    ({ markdown, state, helpers, connections, ws, documents, images } = await tryImport(npmBase));
   } catch {
-    ({ markdown, state, helpers, connections, ws, documents } = await tryImport(monoBase));
+    ({ markdown, state, helpers, connections, ws, documents, images } = await tryImport(monoBase));
   }
   _cached = {
     tiptapToMarkdown: markdown.tiptapToMarkdown,
@@ -64,6 +67,7 @@ export async function getServerModules(): Promise<ServerModules> {
     save: state.save,
     broadcastMetadataChanged: ws.broadcastMetadataChanged,
     platformFetch: connections.platformFetch,
+    imageFile: images.imageFile,
     openDocument: (docId: string) => {
       const opened = documents.switchDocument(documents.resolveDocId(docId));
       ws.broadcastDocumentSwitched(opened.document, opened.title, opened.filename, undefined, 'open', 'all');
@@ -180,7 +184,8 @@ export async function extractLocalImages(
   html: string,
   dataDir?: string,
 ): Promise<Array<{ path: string; data: string; content_type: string }>> {
-  dataDir ??= (await getServerModules()).getDataDir();
+  const server = await getServerModules();
+  dataDir ??= server.getDataDir();
   const images: Array<{ path: string; data: string; content_type: string }> = [];
 
   const regex = /\/_images\/[^\s"'<>]+/g;
@@ -192,8 +197,10 @@ export async function extractLocalImages(
     if (seen.has(imgPath)) continue;
     seen.add(imgPath);
 
-    const localFile = join(dataDir, imgPath);
-    if (!existsSync(localFile)) continue;
+    // An image this copy keeps elsewhere (a writing-only synced copy) is fetched first.
+    const localFile = existsSync(join(dataDir, imgPath)) ? join(dataDir, imgPath)
+      : dataDir === server.getDataDir() ? await server.imageFile(imgPath.slice('/_images/'.length)) : null;
+    if (!localFile) continue;
 
     const data = readFileSync(localFile).toString('base64');
     const ext = extname(imgPath).toLowerCase();

@@ -1074,14 +1074,13 @@ export function blogTools(): PluginMcpTool[] {
         }
 
         // Copy images
-        const dataDir = srv.getDataDir();
         const imageDirAbs = join(clonePath, site.image_dir);
         mkdirSync(imageDirAbs, { recursive: true });
         let imagesCopied = 0;
-        // Inline images — copied under their source filename
+        // Inline images — copied under their source filename (fetched first when kept elsewhere)
         for (const fn of imageRefs) {
-          const src = join(dataDir, '_images', fn);
-          if (!existsSync(src)) continue;
+          const src = await srv.imageFile(fn);
+          if (!src) continue;
           const dst = join(imageDirAbs, fn);
           mkdirSync(dirname(dst), { recursive: true });
           copyFileSync(src, dst);
@@ -1089,8 +1088,8 @@ export function blogTools(): PluginMcpTool[] {
         }
         // Cover — copied under the deterministic slug-based name
         if (coverSrcFile && coverDestFile) {
-          const src = join(dataDir, '_images', coverSrcFile);
-          if (existsSync(src)) {
+          const src = await srv.imageFile(coverSrcFile);
+          if (src) {
             const dst = join(imageDirAbs, coverDestFile);
             mkdirSync(dirname(dst), { recursive: true });
             copyFileSync(src, dst);

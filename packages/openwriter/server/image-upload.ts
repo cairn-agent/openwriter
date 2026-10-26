@@ -15,6 +15,28 @@ import express from 'express';
 
 function getImagesDir(): string { return join(getDataDir(), '_images'); }
 
+// ── Where an image's file comes from ────────────────────────────────────────
+// Normally _images/. A plugin may keep some images elsewhere and fetch one when
+// it is needed (the github plugin's writing-only copy leaves them on GitHub,
+// adr/two-way-sync.md). Everything that reads an image's bytes asks here.
+
+type ImageSource = (filename: string) => Promise<string | null>;
+let imageSource: ImageSource | null = null;
+
+/** A plugin that keeps images outside _images/ answers for the ones missing there. */
+export function setImageSource(source: ImageSource | null): void {
+  imageSource = source;
+}
+
+/** The local path of /_images/<filename>, fetched first when it lives elsewhere. Null when there is no such image. */
+export async function imageFile(filename: string): Promise<string | null> {
+  if (!filename || /[/\\]/.test(filename) || filename.startsWith('.')) return null;
+  const local = join(getImagesDir(), filename);
+  if (existsSync(local)) return local;
+  if (!imageSource) return null;
+  try { return await imageSource(filename); } catch { return null; }
+}
+
 // ── SSRF guard for /api/download-image (MCP-8) ──────────────────────────────
 // The endpoint server-side-fetches a caller-supplied URL. Without a guard an
 // attacker can point it at internal services, the cloud metadata endpoint
@@ -170,6 +192,11 @@ export function createImageRouter(): Router {
   ensureImagesDir();
   router.use('/_images', (req, res, next) => {
     express.static(getImagesDir())(req, res, next);
+  });
+  router.get('/_images/:name', async (req, res, next) => {
+    const path = await imageFile(req.params.name);
+    if (!path) { next(); return; }
+    res.sendFile(path, { dotfiles: 'allow', maxAge: '1d' });
   });
 
   // Upload endpoint

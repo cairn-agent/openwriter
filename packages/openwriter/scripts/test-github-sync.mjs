@@ -428,6 +428,34 @@ try {
   globalThis.fetch = realFetch;
 }
 
+console.log('\nA writing-only copy gets the writing; images stay on GitHub until shown:');
+git(remote, 'config', 'uploadpack.allowFilter', 'true');
+git(remote, 'config', 'uploadpack.allowAnySHA1InWant', 'true');
+A = side('A');
+mkdirSync(join(A, '_images'), { recursive: true });
+const photo = Buffer.alloc(300 * 1024, 7);
+writeFileSync(join(A, '_images', 'photo.png'), photo);
+await sync.syncNow(noop);
+process.env.OW_GITHUB_IMAGES_ON_DEMAND = '1';
+try {
+  let C = side('C');
+  writeDoc(C, 'Mine.md', 'Mine', 'c0c00001', ['Written here first.']);
+  await sync.connectExisting(join(home, 'no-such-repo.git')).then(() => assert(false, 'a missing repo fails to connect'), () => {});
+  assert(!(await sync.isConfigured()), 'a connection that failed leaves the copy unlinked');
+  assert(read(C, 'Mine.md').includes('Written here first.'), "and the copy's own writing in place");
+  await sync.connectExisting(remote);
+  assert(read(C, 'Essay.md').includes('Essay'), 'the writing-only copy has the writing');
+  assert(!existsSync(join(C, '_images', 'photo.png')), 'the image stays on GitHub');
+  const shown = await sync.writingOnlyImage('photo.png');
+  assert(!!shown && readFileSync(shown).equals(photo), 'the image is fetched when shown');
+  writeDoc(C, 'Mine.md', 'Mine', 'c0c00001', ['Written here first.', 'Edited on the writing-only copy.']);
+  assert((await sync.syncNow(noop)).state === 'synced', 'the writing-only copy syncs');
+  assert(git(remote, 'ls-tree', '-r', '--name-only', 'main').includes('_images/photo.png'), 'its sync never sends the missing image as a deletion');
+  assert(git(remote, 'show', 'main:Mine.md').includes('Edited on the writing-only copy.'), 'its edit reaches GitHub');
+} finally {
+  delete process.env.OW_GITHUB_IMAGES_ON_DEMAND;
+}
+
 cancelDebouncedSave();
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

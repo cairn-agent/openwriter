@@ -133,6 +133,28 @@ failure modes with ones that never drop a word.
   then restores every tracked file from the last commit at or before it
   (`git restore --source`) as one new commit, so the rollback can itself be undone.
 
+- **A writing-only copy has every name and all the writing; images stay on GitHub
+  until shown.** A copy started with `OW_GITHUB_IMAGES_ON_DEMAND=1` (an online copy
+  on a small disk) connects as a partial clone (`blob:limit=256k`: history and text
+  come down, big files stay on GitHub) with sparse checkout `/*` `!/_images/`, so
+  images are index entries marked not-here (skip-worktree). The repo's own config
+  (`remote.origin.promisor`) says a folder is writing-only from then on. Commits use
+  `git add -A --sparse` so a new image made on this copy goes in; a missing image is
+  never staged as a deletion. Every git call carries the sign-in (`gitAuth`), since
+  any command may need to fetch a file it lacks.
+- **Every image read goes through core's `imageFile`** (`server/image-upload.ts`):
+  `_images/` first, then the plugin's image source. The github plugin registers
+  `writingOnlyImage`: the image's blob (as now, or before a later delete) from
+  GitHub's blob API, else from .git (this copy's own, not yet pushed), cached in
+  `.git/openwriter-images/` (never synced) up to 256 MB, least recently shown first
+  out; a pull that changes an image drops its cached copy. The `/_images/` route,
+  newsletter and X uploads, and blog publishing all read through it. Rollback on a
+  writing-only copy restores the writing; images keep their current version.
+- **A connection that stops partway leaves the folder as it was and unlinked**
+  (`undoConnect`): merge aborted, reset to the commit made just before, GitHub's
+  half-written files removed, remote and sparse checkout removed, the download
+  pruned. Nothing half-brought-in can be pushed back as deletions.
+
 ## Decision log
 
 ### 2026-10-10 — two-way sync with conflict copies
@@ -217,3 +239,16 @@ drops it with `git rm --cached` and every copy keeps its own. The voice profile
 (`voice/profile.json`) and the `_blame/` attribution cache keep syncing as before: the
 profile is the writer's, and the blame cache already keeps ours on a clash. Test:
 `packages/openwriter/scripts/test-github-sync.mjs` ("The app's own files never sync").
+
+### 2026-10-26 — the online copy is writing-only, and a failed connect undoes itself
+The first real connection of the online copy (1 GB disk) to a 852 MB documents repo
+with 375 MB of history filled the disk partway through checkout and left the folder
+half-written but still linked, so the next commit could have pushed the missing files
+as deletions. Measured: images were 656 MB of 685 MB of files; all the writing was
+about 25 MB. Chosen: git's own partial clone and sparse checkout over a hand-built
+placeholder scheme (one sync engine for both copies) and over downloading text on
+demand too (search, Claude and merges need every document's words; it would save
+25 MB). Image bytes come from GitHub's blob API rather than a lazy git fetch so the
+cache can be trimmed (fetched objects in .git cannot be). A safe undo on any failed
+connect, for every copy, replaces "a full disk leaves a broken link". Test:
+`test-github-sync.mjs` ("A writing-only copy ...").

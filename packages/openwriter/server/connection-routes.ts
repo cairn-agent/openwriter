@@ -9,6 +9,7 @@ import { join, extname } from 'path';
 import { platformFetch, isAuthenticated } from './connections.js';
 import { getDocument, getTitle, getMetadata } from './state.js';
 import { getDataDir } from './helpers.js';
+import { imageFile } from './image-upload.js';
 import { tiptapToDraftjs } from './tiptap-draftjs.js';
 
 export function createConnectionRouter(): Router {
@@ -278,8 +279,8 @@ export function createConnectionRouter(): Router {
   async function uploadLocalImage(connId: string, src: string): Promise<{ mediaId: string } | { error: string }> {
     if (!/^\/_images\/[^/\\]+$/.test(src)) return { error: 'Invalid image path — must be /_images/<filename>' };
     const filename = src.replace('/_images/', '');
-    const filePath = join(getDataDir(), '_images', filename);
-    if (!existsSync(filePath)) return { error: `Image not found: ${filename}` };
+    const filePath = await imageFile(filename);
+    if (!filePath) return { error: `Image not found: ${filename}` };
     const mimeMap: Record<string, string> = {
       '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
       '.png': 'image/png', '.webp': 'image/webp',

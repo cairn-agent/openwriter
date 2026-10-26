@@ -164,3 +164,9 @@ the moment a real repo diverged from the assumption.
   byte-identical to before. The section fails against the pre-fix build
   (`imageRef(prefix, fn, pathStyleOf(relSite))` emitted `images/og/...`) and
   passes after; the other 45 assertions are unchanged.
+
+### 2026-10-26 — images read through core's imageFile
+
+`post_to_blog` copies inline and cover images from `imageFile(name)` instead of
+`_images/<name>`, so an online copy that keeps images on GitHub until shown still
+publishes them (adr/two-way-sync.md). Naming and path style are unchanged.

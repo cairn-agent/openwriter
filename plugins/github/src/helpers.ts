@@ -46,6 +46,10 @@ export interface ServerModules {
   // blog-schema-gate.js — validate built frontmatter against the target site's
   // live Astro content schema before commit/push. adr: adr/blog-publish-schema-gate.md
   validateBlogFrontmatter: (opts: { repoRoot: string; contentDir: string; frontmatter: string }) => Promise<BlogFrontmatterValidation>;
+  // image-upload.js — where an image's file comes from. A writing-only synced copy
+  // registers itself as the source of images it left on GitHub. adr: adr/two-way-sync.md
+  imageFile: (filename: string) => Promise<string | null>;
+  setImageSource: (source: ((filename: string) => Promise<string | null>) | null) => void;
 }
 
 /** Result of the pre-commit schema gate. Mirrors server/blog-schema-gate.ts. */
@@ -67,24 +71,25 @@ const monoBase = new URL('../../../packages/openwriter/dist/server/', import.met
 let _cached: ServerModules | null = null;
 
 async function tryImport(base: string) {
-  const [helpers, state, ws, markdown, schemaGate, documents] = await Promise.all([
+  const [helpers, state, ws, markdown, schemaGate, documents, images] = await Promise.all([
     import(base + 'helpers.js'),
     import(base + 'state.js'),
     import(base + 'ws.js'),
     import(base + 'markdown.js'),
     import(base + 'blog-schema-gate.js'),
     import(base + 'documents.js'),
+    import(base + 'image-upload.js'),
   ]);
-  return { helpers, state, ws, markdown, schemaGate, documents };
+  return { helpers, state, ws, markdown, schemaGate, documents, images };
 }
 
 export async function getServerModules(): Promise<ServerModules> {
   if (_cached) return _cached;
-  let helpers, state, ws, markdown, schemaGate, documents;
+  let helpers, state, ws, markdown, schemaGate, documents, images;
   try {
-    ({ helpers, state, ws, markdown, schemaGate, documents } = await tryImport(npmBase));
+    ({ helpers, state, ws, markdown, schemaGate, documents, images } = await tryImport(npmBase));
   } catch {
-    ({ helpers, state, ws, markdown, schemaGate, documents } = await tryImport(monoBase));
+    ({ helpers, state, ws, markdown, schemaGate, documents, images } = await tryImport(monoBase));
   }
   _cached = {
     getDataDir: helpers.getDataDir,
@@ -111,6 +116,8 @@ export async function getServerModules(): Promise<ServerModules> {
     broadcastToast: ws.broadcastToast,
     tiptapToMarkdown: markdown.tiptapToMarkdown,
     validateBlogFrontmatter: schemaGate.validateBlogFrontmatter,
+    imageFile: images.imageFile,
+    setImageSource: images.setImageSource,
   };
   return _cached;
 }

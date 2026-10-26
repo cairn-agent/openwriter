@@ -354,12 +354,11 @@ const plugin: OpenWriterPlugin = {
 
           const uploadImages = async (srcs: string[], connId: string): Promise<string[]> => {
             const ids: string[] = [];
-            const dataDir = server.getDataDir();
             for (const src of srcs) {
               if (!src.startsWith('/_images/')) continue;
               const filename = src.replace('/_images/', '');
-              const filePath = join(dataDir, '_images', filename);
-              if (!existsSync(filePath)) continue;
+              const filePath = await server.imageFile(filename);
+              if (!filePath) continue;
               const ext = extname(filename).toLowerCase();
               const mediaType = mimeMap[ext] || 'image/jpeg';
               const mediaBase64 = readFileSync(filePath).toString('base64');
