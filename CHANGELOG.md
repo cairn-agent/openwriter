@@ -6,11 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.51.0] - 2026-10-26
+
 ### Removed
 - The OpenWriter skill. Your agent no longer needs one: OpenWriter tells it how to work as it goes, through its tools and the guidance that arrives with each document. `npx openwriter setup` now installs OpenWriter, connects it to Claude Code and adds its two background helpers, and removes the old skill copy an earlier setup left behind.
 
 ### Changed
 - An agent now learns from OpenWriter itself to put writing in a document rather than the chat, not to open the editor in its own browser, that sending a whole body again duplicates a document, and the footnote syntax. Agents without the sorting helper are told how to file sort requests themselves.
+
+### Fixed
+- Connecting a folder to GitHub that stops partway (a full disk, no network) now puts the folder back as it was, so a half-downloaded copy can never be pushed back as deletions.
 
 ## [0.50.2] - 2026-10-25
 
