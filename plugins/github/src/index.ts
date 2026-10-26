@@ -209,7 +209,7 @@ const plugin: OpenWriterPlugin = {
     });
 
     // A writing-only copy answers for the images it left on GitHub, wherever one is read.
-    void getServerModules().then((srv) => srv.setImageSource(writingOnlyImage))
+    void getServerModules().then((srv) => srv.addImageSource(writingOnlyImage))
       .catch((err: any) => console.error('[GitHub Plugin] image source failed:', err?.message || err));
 
     // Every save is committed here and sent after the writer pauses.

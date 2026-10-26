@@ -49,7 +49,7 @@ export interface ServerModules {
   // image-upload.js — where an image's file comes from. A writing-only synced copy
   // registers itself as the source of images it left on GitHub. adr: adr/two-way-sync.md
   imageFile: (filename: string) => Promise<string | null>;
-  setImageSource: (source: ((filename: string) => Promise<string | null>) | null) => void;
+  addImageSource: (source: (filename: string) => Promise<string | null>) => void;
 }
 
 /** Result of the pre-commit schema gate. Mirrors server/blog-schema-gate.ts. */
@@ -117,7 +117,7 @@ export async function getServerModules(): Promise<ServerModules> {
     tiptapToMarkdown: markdown.tiptapToMarkdown,
     validateBlogFrontmatter: schemaGate.validateBlogFrontmatter,
     imageFile: images.imageFile,
-    setImageSource: images.setImageSource,
+    addImageSource: images.addImageSource,
   };
   return _cached;
 }

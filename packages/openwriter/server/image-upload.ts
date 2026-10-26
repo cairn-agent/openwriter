@@ -16,16 +16,17 @@ import express from 'express';
 function getImagesDir(): string { return join(getDataDir(), '_images'); }
 
 // ── Where an image's file comes from ────────────────────────────────────────
-// Normally _images/. A plugin may keep some images elsewhere and fetch one when
-// it is needed (the github plugin's writing-only copy leaves them on GitHub,
-// adr/two-way-sync.md). Everything that reads an image's bytes asks here.
+// Normally _images/. A plugin or an embedding program may keep some images
+// elsewhere and fetch one when it is needed (the github plugin's writing-only
+// copy leaves them on GitHub, adr/two-way-sync.md; an online host may keep them
+// in its own storage). Everything that reads an image's bytes asks here.
 
 type ImageSource = (filename: string) => Promise<string | null>;
-let imageSource: ImageSource | null = null;
+const imageSources = new Set<ImageSource>();
 
-/** A plugin that keeps images outside _images/ answers for the ones missing there. */
-export function setImageSource(source: ImageSource | null): void {
-  imageSource = source;
+/** A source that keeps images outside _images/ answers for the ones missing there; the first to find one wins. */
+export function addImageSource(source: ImageSource): void {
+  imageSources.add(source);
 }
 
 /** The local path of /_images/<filename>, fetched first when it lives elsewhere. Null when there is no such image. */
@@ -33,8 +34,10 @@ export async function imageFile(filename: string): Promise<string | null> {
   if (!filename || /[/\\]/.test(filename) || filename.startsWith('.')) return null;
   const local = join(getImagesDir(), filename);
   if (existsSync(local)) return local;
-  if (!imageSource) return null;
-  try { return await imageSource(filename); } catch { return null; }
+  for (const source of imageSources) {
+    try { const found = await source(filename); if (found) return found; } catch { /* try the next */ }
+  }
+  return null;
 }
 
 // ── SSRF guard for /api/download-image (MCP-8) ──────────────────────────────

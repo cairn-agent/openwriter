@@ -238,3 +238,11 @@ off), not its `enabled`, which older versions saved as false for every plugin
 Settings > Plugins leaves out a plugin that is part of the embedding program (no switch) and has
 no settings: the writer can do nothing with it. Settings tabs can be opened by id through
 `openRailTab` ('billing', 'accounts', 'plugins').
+
+### 2026-10-26 — Image sources
+
+`addImageSource(source)` (`server/image-upload.ts`, exported from `openwriter/server` with
+`getDataDir`, `getActiveProfile` and `platformFetch`, the publish server as the signed-in writer) lets a plugin or embedder answer for an image missing from
+`_images/`; every image read goes through `imageFile`, which asks each source in turn. The github
+plugin uses it for images a writing-only copy left on GitHub; an online host can keep images in
+its own storage. Without a source the local app reads `_images/` exactly as before.
