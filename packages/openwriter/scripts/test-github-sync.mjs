@@ -536,6 +536,22 @@ try {
   globalThis.fetch = realFetch;
 }
 
+console.log('\nTyping that lands while a pull runs stays when the open document reloads:');
+{
+  const { keepTypedBlocks } = await import('../dist/server/keep-typed-blocks.js');
+  const p = (id, text) => ({ type: 'paragraph', attrs: { id }, content: [{ type: 'text', text }] });
+  const base = { type: 'doc', content: [p('a', 'One.'), p('b', 'Two.'), p('c', 'Three.')] };
+  const mine = { type: 'doc', content: [p('a', 'One.'), p('b', 'Two, typed just now.'), p('n', 'A new line.'), p('c', 'Three.')] };
+  const theirs = { type: 'doc', content: [p('a', 'One, from the other device.'), p('b', 'Two.'), p('c', 'Three.')] };
+  const kept = keepTypedBlocks(base, mine, theirs);
+  assert(kept?.content.map((b) => b.content[0].text).join(' | ') === 'One, from the other device. | Two, typed just now. | A new line. | Three.',
+    "the writer's typed and new paragraphs stay, every other paragraph takes GitHub's copy");
+  assert(keepTypedBlocks(base, base, theirs) === null, 'with nothing typed, the new copy shows as it is');
+  const reIded = { type: 'doc', content: [p('x', 'One.'), p('y', 'Two.'), p('z', 'Three, from the other device.')] };
+  assert(keepTypedBlocks(base, mine, reIded)?.content.map((b) => b.content[0].text).join(' | ') === 'One. | Two, typed just now. | A new line. | Three, from the other device.',
+    'a copy whose paragraphs came back with new ids pairs them by their words, with nothing doubled');
+}
+
 cancelDebouncedSave();
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

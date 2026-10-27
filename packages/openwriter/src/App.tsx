@@ -19,7 +19,8 @@ import SyncSetupModal from './sync/SyncSetupModal';
 import { useAutoSync } from './sync/useAutoSync';
 import DeletedNotice from './sync/DeletedNotice';
 import { setSyncNotices, forceSyncNoticeRefresh } from './sync/sync-notice-plugin';
-import { useWebSocket, type PendingDocsPayload, type SyncStatus, type DocumentSwitchedPayload } from './ws/client';
+import { useWebSocket, type PendingDocsPayload, type SyncStatus, type DocumentSwitchedPayload, type DocumentReloadedPayload } from './ws/client';
+import { keepTypedBlocks } from '../server/keep-typed-blocks';
 import { showToast } from './utils/toast';
 import { applyNodeChangesToEditor, applyIdRewritesToEditor } from './decorations/bridge';
 import { setCommentsData, forceCommentRefresh } from './decorations/comments-plugin';
@@ -255,6 +256,8 @@ export default function App() {
     reloadCount: number;
   } | null>(null);
   const docUpdateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The autosave entry point, for handlers defined before it.
+  const handleDocUpdateRef = useRef<(json: any) => void>(() => {});
   const lastDocJson = useRef<any>(null); // Latest merged doc JSON (covers tweet compose where editorRef is only first tweet)
   // Diff-gate: docKey() of what we last successfully synced with the server (the
   // editor fills unset attributes with null and the server omits them, so raw
@@ -546,25 +549,21 @@ export default function App() {
    *
    * adr: adr/active-doc-watcher.md
    */
-  const handleDocumentReloaded = useCallback((payload: {
-    document: any;
-    title: string;
-    filename: string;
-    docId?: string;
-    metadata?: Record<string, any>;
-    orphanCount: number;
-    staleBaselineCount: number;
-  }) => {
+  const handleDocumentReloaded = useCallback((payload: DocumentReloadedPayload) => {
     // Cancel any in-flight debounced doc-update — its baseline is now stale.
     if (docUpdateTimer.current) {
       clearTimeout(docUpdateTimer.current);
       docUpdateTimer.current = null;
     }
-    lastDocJson.current = payload.document;
+    // Paragraphs typed since the server's copy stay on top of the new one and
+    // save as a normal edit. adr: adr/two-way-sync.md
+    const kept = payload.base && lastDocJson.current ? keepTypedBlocks(payload.base, lastDocJson.current, payload.document) : null;
+    lastDocJson.current = kept || payload.document;
     // Authoritative state from disk — diff-gate baseline resets to this.
     lastSentDocJson.current = docKey(payload.document);
     setUnsent(false);
-    setInitialContent(payload.document);
+    setInitialContent(kept || payload.document);
+    if (kept) handleDocUpdateRef.current(kept);
     setTitle(payload.title);
     setMetadata(payload.metadata || {});
 
@@ -1164,6 +1163,7 @@ export default function App() {
       }
     }, 1000);
   }, [sendMessage, docVersionRef, setUnsent]);
+  handleDocUpdateRef.current = handleDocUpdate;
 
   // Send title changes to server explicitly (not bundled with doc-update)
   const handleTitleChange = useCallback((newTitle: string) => {

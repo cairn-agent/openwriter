@@ -36,7 +36,11 @@ failure modes with ones that never drop a word.
   from <device>, <time> · Undo · See earlier version" (`sync-notice-plugin.ts`).
   Undo (`undoNotice`) writes the earlier lines back as a new edit; the other version
   stays in history. A paragraph being typed in is never replaced: pulls wait while
-  the writer types.
+  the writer types, and typing that lands while a pull already runs is kept. The
+  pull names the open doc as it committed it (`setPullBase`); both reloads it
+  causes (the file watcher's and `reloadChangedFiles`') carry that copy, and the
+  browser puts back every paragraph changed since it (`keepTypedBlocks`) and saves
+  them as a normal edit.
 - **Pending changes merge entry by entry** (`mergePending`): an entry that existed at
   the merge base and is gone on either side was decided and stays gone, new entries
   from both sides are kept, an entry both changed takes the newer side. This runs on
@@ -282,3 +286,17 @@ Waiting up to 0.8 s for GitHub before asking for the document made every open ta
 If GitHub had a newer copy of that document, the server already reloads the open document in
 place (`reloadChangedFiles`), so nothing is lost by not waiting. A pull already running is not
 started again, so clicking through documents starts one pull, not one per click.
+
+### 2026-10-27 — typing during a pull is kept
+Opening at once moved a pull to the moment the writer starts typing. A pull checks for typing
+only when it starts, so keystrokes made while it fetched and merged were replaced when the open
+document reloaded. A two-copy check on the Test profile (a local bare repo for GitHub, a second
+clone pushing an edit, 97 characters typed through the pull) lost 18 of them. The fix sends the
+copy the pull committed with the reload; the browser keeps every paragraph changed since it and
+saves the result. Waiting for the pull before showing the document was rejected (that was the
+0.9 s delay), and so was holding the reload until the writer pauses (the merged file is already
+on disk, so the next save would write the old copy over it). Both reloads had to carry it: the
+file watcher reloads first, as soon as git writes the file. Paragraphs pair by id, else by
+their words, because a file written without ids gets new ones on load; without that the typed
+paragraph came back twice. Reruns kept all 97 characters and took the other copy's edit. Test:
+`test-github-sync.mjs` ("Typing that lands while a pull runs ...").

@@ -1471,6 +1471,8 @@ async function runSync(onStatus: (status: SyncStatus) => void, push: boolean): P
   try {
     srv.cancelDebouncedSave();
     srv.save();
+    // The open doc as committed: typing that lands while the sync runs is kept on reload.
+    srv.setPullBase({ docId: srv.getDocId(), document: structuredClone(srv.getDocument()) });
 
     await ensureGitignore();
     await ensureLocalExcludes(dir);
@@ -1482,6 +1484,7 @@ async function runSync(onStatus: (status: SyncStatus) => void, push: boolean): P
     const { changed, conflicts, before } = await mergeRemote(dir, 'sync');
     restoreLocalOnly(saved);
     await applyToServer(dir, changed, before);
+    srv.setPullBase(null);
     if (push && (await aheadOfGitHub(dir))) await pushBranch(dir, LOCAL_WRITE_TIMEOUT);
     await handOverImages(dir).catch((err) => console.error('[GitHub Plugin] image handover paused:', err?.message || err));
 
@@ -1495,6 +1498,7 @@ async function runSync(onStatus: (status: SyncStatus) => void, push: boolean): P
     onStatus(result);
     return result;
   } catch (err: any) {
+    srv.setPullBase(null);
     console.error('[GitHub Plugin] sync failed:', err?.message || err);
     const { state, ...described } = describeSyncError(String(err?.message || err));
     currentSyncState = state;

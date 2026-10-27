@@ -70,6 +70,8 @@ export interface DocumentReloadedPayload {
   metadata?: Record<string, any>;
   orphanCount: number;
   staleBaselineCount: number;
+  /** The doc the server held before the new copy; blocks typed since stay. adr: adr/two-way-sync.md */
+  base?: any;
 }
 
 export interface PendingDocsPayload {
@@ -331,6 +333,7 @@ export function useWebSocket({ onNodeChanges, onAgentStatus, onDocumentSwitched,
               metadata: msg.metadata,
               orphanCount: typeof msg.orphanCount === 'number' ? msg.orphanCount : 0,
               staleBaselineCount: typeof msg.staleBaselineCount === 'number' ? msg.staleBaselineCount : 0,
+              base: msg.base,
             });
           }
 

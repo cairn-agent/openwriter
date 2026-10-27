@@ -519,6 +519,9 @@ export interface DocumentReloaded {
   metadata: Record<string, any>;
   orphans: PendingEntry[];
   staleBaseline: PendingEntry[];
+  /** After a GitHub pull: the doc as the sync committed it. The browser keeps
+   *  blocks the writer changed since then (keepTypedBlocks). adr: adr/two-way-sync.md */
+  base?: PadDocument;
 }
 type DocumentReloadedListener = (event: DocumentReloaded) => void;
 const documentReloadedListeners: Set<DocumentReloadedListener> = new Set();
@@ -575,8 +578,17 @@ function handleWatcherEvent(): void {
   reloadActiveAndNotify('external write');
 }
 
+/** While a GitHub pull runs: the open doc as the pull committed it. Both
+ *  reloads a pull causes (the file watcher's, then reloadChangedFiles') carry
+ *  it, so the browser keeps what was typed since. adr: adr/two-way-sync.md */
+let pullBase: { docId: string; document: PadDocument } | null = null;
+export function setPullBase(base: { docId: string; document: PadDocument } | null): void {
+  pullBase = base;
+}
+
 /** Reload the active doc from disk and tell the tabs showing it. */
 function reloadActiveAndNotify(reason: string): void {
+  const base = pullBase?.docId === state.docId ? pullBase.document : undefined;
   const reloaded = reloadActiveDocFromDisk();
   if (!reloaded) return;
 
@@ -592,6 +604,7 @@ function reloadActiveAndNotify(reason: string): void {
     metadata: state.metadata,
     orphans: reloaded.orphans,
     staleBaseline: reloaded.staleBaseline,
+    base,
   });
 
   const orphanCount = reloaded.orphans.length;

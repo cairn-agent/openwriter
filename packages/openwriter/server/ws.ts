@@ -338,6 +338,7 @@ export function setupWebSocket(server: Server): void {
       version: getDocVersion(),
       orphanCount: event.orphans.length,
       staleBaselineCount: event.staleBaseline.length,
+      base: event.base,
     });
     sendToAttached(msg);
     // Pending count may have shifted (orphan rewrites convert to inserts).

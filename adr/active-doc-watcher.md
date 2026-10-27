@@ -124,3 +124,7 @@ Reload notices clear when document identity changes; same-document external relo
 ### 2026-10-10 — a GitHub pull reloads through the same pathway
 
 `handleWatcherEvent`'s reload-and-notify step is now `reloadActiveAndNotify(reason)`, shared with `reloadChangedFiles` (`server/state.ts`). After a two-way sync merges GitHub's changes, the active doc reloads through the same single pathway as any external write, without waiting for fs.watch. If the merge deleted the active doc, it is written back from memory instead and the watcher restarted. adr: adr/two-way-sync.md
+
+### 2026-10-27 — a reload during a GitHub pull keeps the writer's typing
+
+While a pull runs, `reloadActiveAndNotify` sends the copy the pull committed (`setPullBase`) with `document-reloaded`, from this watcher too: git writes the file before the pull reloads it, so the watcher's reload arrives first. The browser keeps paragraphs changed since that copy instead of adopting the disk copy wholesale. Other external writes are unchanged: disk wins. adr: adr/two-way-sync.md

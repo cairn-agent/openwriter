@@ -22,6 +22,8 @@ export interface ServerModules {
   // After a GitHub pull: reload the changed files into the running server.
   // adr: adr/two-way-sync.md
   reloadChangedFiles: (changedPaths: string[]) => { deletedActive: string | null };
+  // While a pull runs: the open doc as committed, so its reloads keep what the writer typed since.
+  setPullBase: (base: { docId: string; document: any } | null) => void;
   // documents.js: close the open doc another device deleted (switches to a neighbour).
   deleteDocument: (filename: string) => Promise<{ switched: boolean; newDoc?: { document: any; title: string; filename: string } }>;
   broadcastDocumentSwitched: (document: any, title: string, filename: string, metadata?: Record<string, any>, navigation?: 'open' | 'fallback' | 'create') => void;
@@ -107,6 +109,7 @@ export async function getServerModules(): Promise<ServerModules> {
     setMetadata: state.setMetadata,
     bumpDocVersion: state.bumpDocVersion,
     reloadChangedFiles: state.reloadChangedFiles,
+    setPullBase: state.setPullBase,
     msSinceHumanEdit: state.msSinceHumanEdit,
     deleteDocument: documents.deleteDocument,
     broadcastDocumentSwitched: ws.broadcastDocumentSwitched,
