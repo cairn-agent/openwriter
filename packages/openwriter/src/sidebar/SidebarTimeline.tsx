@@ -7,13 +7,24 @@ import DocContextMenu, { docMenuTarget, useSidebarPlugins, type DocMenuTarget } 
 import './SidebarTimeline.css';
 import { sidebarRowProps } from './sidebar-keyboard';
 import BookWorkspacePins from './BookWorkspacePins';
-import WorkspaceFilter from './WorkspaceFilter';
-import { workspaceDocuments } from '../../server/book-workspace-model';
+import WorkspacePicker from './WorkspacePicker';
+import { DOCUMENTS, setWorkspacePick } from './workspace-pick';
 
-export default function SidebarTimeline({ docs, docsLoaded, workspaces, assignedFiles, pendingDocs, onSwitchDocument, onCreateDocument, onWorkspaceSettings, actions, scrollRef, searchQuery, searchResults, searchLoading, searchError }: SidebarModeProps) {
-  const [workspaceFile, setWorkspaceFile] = useState('');
-  const selectedWorkspace = workspaces.find(w => w.filename === workspaceFile);
-  const scopedDocs = selectedWorkspace?.workspace ? workspaceDocuments(selectedWorkspace.workspace, docs) : docs;
+export default function SidebarTimeline({ docs, docsLoaded, workspaces, pendingDocs, onSwitchDocument, onCreateDocument, onWorkspaceSettings, actions, scrollRef, searchQuery, searchResults, searchLoading, searchError, pick, pendingPicks, picksOf, workspaceLabel }: SidebarModeProps) {
+  // One workspace (or Documents) at a time, shared with the other layouts. adr: adr/workspace-pick.md
+  const selectedWorkspace = workspaces.find(w => w.filename === pick);
+  const scopedDocs = docs.filter(d => picksOf(d.filename).includes(pick));
+  const hasLooseDocs = docs.some(d => picksOf(d.filename).includes(DOCUMENTS));
+  const [naming, setNaming] = useState<{ filename: string; value: string } | null>(null);
+  const createWorkspace = async () => {
+    const filename = await actions.handleCreateWorkspace();
+    if (filename) { setWorkspacePick(filename); setNaming({ filename, value: 'Untitled Workspace' }); }
+  };
+  const commitNaming = () => {
+    if (naming) actions.handleRenameWorkspace(naming.filename, naming.value);
+    setNaming(null);
+  };
+  const newDocument = () => selectedWorkspace ? actions.handleCreateInWorkspace(selectedWorkspace.filename, null) : onCreateDocument();
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   // Right-click offers the same doc menu as the file tree.
   const [menu, setMenu] = useState<DocMenuTarget | null>(null);
@@ -28,7 +39,7 @@ export default function SidebarTimeline({ docs, docsLoaded, workspaces, assigned
 
   // Search mode
   if (searchResults !== null) {
-    return <SearchResults results={searchResults} query={searchQuery} onSwitchDocument={onSwitchDocument} actions={actions} loading={searchLoading} error={searchError} />;
+    return <SearchResults results={searchResults} query={searchQuery} onSwitchDocument={onSwitchDocument} actions={actions} loading={searchLoading} error={searchError} workspaceLabel={workspaceLabel} />;
   }
 
   // Sort by latest activity (saves or pending agent changes), most recent first
@@ -67,9 +78,12 @@ export default function SidebarTimeline({ docs, docsLoaded, workspaces, assigned
     <div className="sidebar-scroll tl-scroll" ref={scrollRef}>
       <div className="tl-header">
         <span className="tl-title">Timeline</span>
-        <button className="sidebar-new-btn" onClick={() => selectedWorkspace ? actions.handleCreateInWorkspace(selectedWorkspace.filename, null) : onCreateDocument()} title="New document">+</button>
+        <button className="sidebar-new-btn" onClick={newDocument} title="New document">+</button>
       </div>
-      {workspaces.length > 0 && <div className="tl-workspace-filter"><WorkspaceFilter workspaces={workspaces} value={selectedWorkspace?.filename ?? ''} onChange={setWorkspaceFile} />
+      {workspaces.length > 0 && <div className="ws-picker-row"><WorkspacePicker workspaces={workspaces} value={pick} pending={pendingPicks} hasLooseDocs={hasLooseDocs} onCreateWorkspace={() => void createWorkspace()}
+        renameInput={naming ? <input className="sidebar-rename-input" aria-label="Workspace name" value={naming.value} autoFocus onFocus={e => e.currentTarget.select()}
+          onChange={e => setNaming({ ...naming, value: e.target.value })} onBlur={commitNaming}
+          onKeyDown={e => { if (e.key === 'Enter') commitNaming(); if (e.key === 'Escape') setNaming(null); }} /> : undefined} />
         {selectedWorkspace && <button type="button" className="workspace-menu-button" aria-label={`Workspace type for ${selectedWorkspace.title}`} onClick={() => onWorkspaceSettings(selectedWorkspace.filename)}>⋯</button>}</div>}
       {selectedWorkspace && <BookWorkspacePins workspace={selectedWorkspace} docs={docs} onOpen={onSwitchDocument} onSettings={() => onWorkspaceSettings(selectedWorkspace.filename)} />}
 
@@ -120,7 +134,9 @@ export default function SidebarTimeline({ docs, docsLoaded, workspaces, assigned
         </div>
       ))}
 
-      {scopedDocs.length === 0 && <div className="sidebar-empty">{docsLoaded ? 'No documents yet' : 'Loading…'}</div>}
+      {scopedDocs.length === 0 && (docsLoaded
+        ? <div className="ws-empty">No documents yet<button type="button" onClick={newDocument}>New document</button></div>
+        : <div className="sidebar-empty">Loading…</div>)}
 
       <DocContextMenu
         menu={menu}

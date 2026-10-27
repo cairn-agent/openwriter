@@ -46,3 +46,8 @@ ReviewTab shares the same loader.
   and navigates through the existing tab action only after success. Hidden
   selections are retained and repeated workspace appearances are deduplicated.
   It does not infer chapters or change the source documents.
+
+- **2026-10-27 — Move to, and the new workspace's name.** With one workspace on screen
+  (adr/workspace-pick.md), right-click "Move to" moves a document between workspaces through the
+  same checked contract, using the routes the drag already used. Creating a workspace resolves to
+  its filename so the picker can switch to it and name it.

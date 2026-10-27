@@ -17,6 +17,7 @@ import './sidebar-keyboard.css';
 import { useDocumentSearch } from './use-document-search';
 import { moveSidebarFocus, searchInputKeyDown } from './sidebar-keyboard';
 import { usePanelVisibility } from '../hooks/usePanelVisibility';
+import { effectivePick, pickIndex, setWorkspacePick, useWorkspacePick } from './workspace-pick';
 
 interface SidebarProps {
   open: boolean;
@@ -57,7 +58,7 @@ export const SIDEBAR_DEFAULT_WIDTH = 260;
 export default function Sidebar({ open, onSwitchDocument, onCreateDocument, refreshKey, docTagsRefreshKey, workspacesRefreshKey, pendingDocs, writingTitle, writingTarget, pendingWriteFilenames, activeFilename, onClose, width, onWidthChange, floating }: SidebarProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   usePanelVisibility(panelRef, open, '[title="Open sidebar"]');
-  const { docs: fetchedDocs, docsLoaded, workspaces, assignedFiles, fetchDocs, fetchWorkspaces, scrollRef } = useSidebarData(refreshKey, workspacesRefreshKey);
+  const { docs: fetchedDocs, docsLoaded, workspaces, workspacesLoaded, assignedFiles, fetchDocs, fetchWorkspaces, scrollRef } = useSidebarData(refreshKey, workspacesRefreshKey);
 
   // The highlighted doc is the one THIS tab shows. The server's isActive
   // marks its single live doc, which another tab (or an agent) can move, so
@@ -71,6 +72,26 @@ export default function Sidebar({ open, onSwitchDocument, onCreateDocument, refr
     : fetchedDocs, [fetchedDocs, shownFilename]);
   const actions = useSidebarActions(fetchDocs, fetchWorkspaces, docs);
   const mode = getSidebarMode();
+
+  // One workspace at a time, shared by every layout. It follows the doc this tab opens; opening
+  // the app keeps the remembered pick. adr: adr/workspace-pick.md
+  const storedPick = useWorkspacePick();
+  const pick = effectivePick(storedPick, workspaces);
+  const picksOf = useMemo(() => pickIndex(docs, workspaces), [docs, workspaces]);
+  const followed = useRef<string | null>(null);
+  useEffect(() => {
+    if (!docsLoaded || !workspacesLoaded || !shownFilename || followed.current === shownFilename) return;
+    const opening = followed.current === null;
+    followed.current = shownFilename;
+    if (opening && storedPick !== null) return;
+    const homes = picksOf(shownFilename);
+    if (!homes.includes(pick)) setWorkspacePick(homes[0]);
+  }, [shownFilename, docsLoaded, workspacesLoaded, picksOf, pick, storedPick]);
+  const pendingPicks = useMemo(() => new Set(pendingDocs.filenames.flatMap(picksOf)), [pendingDocs, picksOf]);
+  const workspaceLabel = useCallback((filename: string) => {
+    const names = picksOf(filename).flatMap(p => workspaces.find(w => w.filename === p)?.title ?? []);
+    return names.length ? names.join(', ') : null;
+  }, [picksOf, workspaces]);
 
   // Sidebar width is owned by App (controlled via `width`/`onWidthChange`) so
   // the responsive-overlay formula can react to drags live. Persistence to
@@ -201,6 +222,7 @@ export default function Sidebar({ open, onSwitchDocument, onCreateDocument, refr
     pendingWriteFilenames,
     onSwitchDocument: optimisticSwitchDocument, onCreateDocument, actions, scrollRef,
     searchQuery, searchResults, searchLoading, searchError, onSearchChange,
+    pick, pendingPicks, picksOf, workspaceLabel,
   };
 
   const renderMode = () => {

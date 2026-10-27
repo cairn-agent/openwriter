@@ -195,3 +195,8 @@ stale revision from another tab, makes the doc live like any tab write, then
 applies. A flush that names no doc, or an unknown one, writes nothing.
 `tabOf` keeps each socket's tab id after it closes, since the beacon can
 arrive after its socket is gone.
+
+### 2026-10-27 — The sidebar's workspace follows this tab's view
+The sidebar's workspace pick (adr/workspace-pick.md) follows the doc this tab shows (the clicked
+doc, or the server's switch for this tab), never another tab's navigation, so one tab opening a doc
+in another workspace leaves this tab's sidebar where it was.

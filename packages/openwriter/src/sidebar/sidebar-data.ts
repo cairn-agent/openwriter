@@ -14,6 +14,8 @@ export function useSidebarData(refreshKey: number, workspacesRefreshKey: number)
   // False until the first list arrives, so "loading" never reads as "no documents".
   const [docsLoaded, setDocsLoaded] = useState(false);
   const [workspaces, setWorkspaces] = useState<WorkspaceWithData[]>([]);
+  // False until the first workspace list arrives, so the picker never follows a doc against an empty list.
+  const [workspacesLoaded, setWorkspacesLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const docsRequest = useRef(0);
   const workspacesRequest = useRef(0);
@@ -38,10 +40,10 @@ export function useSidebarData(refreshKey: number, workspacesRefreshKey: number)
   const fetchWorkspaces = useCallback(async () => {
     const request = ++workspacesRequest.current;
     const list = await loadWorkspaces();
-    if (list && request === workspacesRequest.current) setWorkspaces(list);
+    if (list && request === workspacesRequest.current) { setWorkspaces(list); setWorkspacesLoaded(true); }
   }, []);
 
   useEffect(() => { void fetchDocs().catch(() => {}); }, [fetchDocs, refreshKey]);
   useEffect(() => { void fetchWorkspaces().catch(() => {}); }, [fetchWorkspaces, workspacesRefreshKey]);
-  return { docs, docsLoaded, setDocs, workspaces, assignedFiles, fetchDocs, fetchWorkspaces, scrollRef };
+  return { docs, docsLoaded, setDocs, workspaces, workspacesLoaded, assignedFiles, fetchDocs, fetchWorkspaces, scrollRef };
 }

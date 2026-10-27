@@ -9,6 +9,8 @@ interface SearchResultsProps {
   actions: SidebarActions;
   loading?: boolean;
   error?: string | null;
+  /** The workspace a result is in, since the sidebar shows one at a time. adr: adr/workspace-pick.md */
+  workspaceLabel?: (filename: string) => string | null;
 }
 
 /** Highlight matching text with <mark> tags. */
@@ -34,18 +36,18 @@ function highlightText(text: string, query: string): (string | JSX.Element)[] {
 }
 
 
-function ResultContent({ result: r, query }: { result: SearchResult; query: string }) {
+function ResultContent({ result: r, query, workspace }: { result: SearchResult; query: string; workspace: string | null }) {
   return <>
     <span className="sidebar-item-title"><span className="sidebar-item-title-text">{r.matchType === 'title' ? highlightText(r.title, query) : r.title}</span>
       {r.isArchived && <span className="search-archived-badge">archived</span>}
     </span>
     {r.matchType === 'tag' && r.matchedTag && <span className="search-result-tag">Tag: {highlightText(r.matchedTag, query)}</span>}
     {r.matchType === 'content' && r.snippet && <span className="search-result-snippet">{highlightText(r.snippet, query)}</span>}
-    <span className="sidebar-item-meta">{r.wordCount.toLocaleString()} words &middot; {formatDate(r.lastModified)}</span>
+    <span className="sidebar-item-meta">{workspace ? <>{workspace} &middot; </> : null}{r.wordCount.toLocaleString()} words &middot; {formatDate(r.lastModified)}</span>
   </>;
 }
 
-export default function SearchResults({ results, query, onSwitchDocument, actions, loading, error }: SearchResultsProps) {
+export default function SearchResults({ results, query, onSwitchDocument, actions, loading, error, workspaceLabel }: SearchResultsProps) {
   const [restoring, setRestoring] = useState<string | null>(null);
   const open = (result: SearchResult) => {
     if (result.matchType === 'content') {
@@ -67,11 +69,11 @@ export default function SearchResults({ results, query, onSwitchDocument, action
       : <div className="search-results">{ordered.map(r => (
         <div key={r.filename} className={`sidebar-item search-result-item ${r.isActive ? 'active' : ''} ${r.isArchived ? 'search-result-archived' : ''}`}>
           {r.isArchived ? <>
-            <ResultContent result={r} query={query} />
+            <ResultContent result={r} query={query} workspace={workspaceLabel?.(r.filename) ?? null} />
             <button type="button" className="search-result-restore" data-search-action aria-label={`Restore ${r.title}`}
               disabled={restoring !== null} onClick={() => void restore(r.filename)}>{restoring === r.filename ? 'Restoring…' : 'Restore'}</button>
           </> : <button type="button" className="search-result-open" data-search-action aria-label={`Open ${r.title}`} onClick={() => open(r)}>
-            <ResultContent result={r} query={query} />
+            <ResultContent result={r} query={query} workspace={workspaceLabel?.(r.filename) ?? null} />
           </button>}
         </div>
       ))}</div>}

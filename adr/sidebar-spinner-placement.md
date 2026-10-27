@@ -51,3 +51,10 @@ in one aligned slot; spinner placement and child indentation remain unchanged.
 - **Change made.** `SidebarDefault.tsx:524` and `SidebarFiles.tsx:622` reduced to `writingTarget.containerId === null`. Also removed the now-unused `hasContainer` helper at `SidebarDefault.tsx:21`. Files: `packages/openwriter/src/sidebar/SidebarDefault.tsx`, `packages/openwriter/src/sidebar/SidebarFiles.tsx`. Parent commit before fix: 39d24ac.
 - **Trade-off accepted.** The spinner is invisible for the ~100–200ms window between `writing-started` and the workspaces refetch settling. That's better than a flicker into the wrong location and back. If this window is later considered too long, the right fix is to send the workspaces snapshot inline with the `writing-started` payload — NOT to reintroduce the workspace-root fallback.
 - **Invariant for future edits.** Do not add "show the spinner somewhere visible if its container can't be found" defensive code to either sidebar. A missing container in the client tree means a refetch is in flight — wait it out.
+
+### 2026-10-27 — One workspace at a time
+The file tree shows one workspace (or Documents) under the picker (adr/workspace-pick.md), with no
+section header row, so the workspace root renders at depth 0: root docs and the root spinner sit at
+12, a root container's children at 28 (`12 + depth * 16` unchanged). Documents' loose docs and
+their spinner also sit at 12. A spinner for a workspace that is not shown does not render; that
+workspace's dot shows in the picker once the agent's changes arrive.

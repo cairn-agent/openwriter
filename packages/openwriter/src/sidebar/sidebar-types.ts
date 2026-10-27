@@ -124,6 +124,14 @@ export interface SidebarModeProps {
   searchLoading?: boolean;
   searchError?: string | null;
   onSearchChange: (query: string) => void;
+  /** The workspace shown, or DOCUMENTS (workspace-pick.ts). */
+  pick: string;
+  /** Picks with agent changes waiting. */
+  pendingPicks: Set<string>;
+  /** Every pick that shows this document. */
+  picksOf: (filename: string) => string[];
+  /** The workspace names a document is in, for search results; null when it is in none. */
+  workspaceLabel: (filename: string) => string | null;
 }
 
 export interface SidebarActions {
@@ -132,7 +140,10 @@ export interface SidebarActions {
   handleArchive: (filename: string) => void;
   handleUnarchive: (filename: string) => Promise<boolean>;
   handleRename: (filename: string, originalTitle: string, newTitle: string) => void;
-  handleCreateWorkspace: () => void;
+  /** Resolves to the new workspace's filename, or null when it could not be made. */
+  handleCreateWorkspace: () => Promise<string | null>;
+  /** Move a document from one pick to another (workspace filename or DOCUMENTS), at the target's top level. */
+  handleMoveToWorkspace: (docFile: string, title: string, from: string, to: string) => Promise<boolean>;
   handleDeleteWorkspace: (wsFilename: string) => void;
   handleCreateInWorkspace: (wsFilename: string, containerId: string | null, metadata?: Record<string, any>) => void;
   handleRemoveFromWorkspace: (wsFilename: string, docFilename: string) => void;

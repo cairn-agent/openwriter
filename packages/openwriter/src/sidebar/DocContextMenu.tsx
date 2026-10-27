@@ -17,6 +17,7 @@ import SchedulePostModal from './SchedulePostModal';
 import PostToBlogModal from './PostToBlogModal';
 import { TAB_HEADER } from '../ws/client';
 import { showToast } from '../utils/toast';
+import { DOCUMENTS, effectivePick, getWorkspacePick, pickIndex, setWorkspacePick } from './workspace-pick';
 
 export interface DocMenuTarget {
   x: number;
@@ -169,6 +170,23 @@ export default function DocContextMenu({ menu, onClose, docs, workspaces, action
             onRename(menu.filename, menu.title);
             onClose();
           }}
+          {...(() => {
+            // Move to: from the workspace it shows in to any other, or to Documents. adr: adr/workspace-pick.md
+            if (menu.bulkCount) return {};
+            const shown = effectivePick(getWorkspacePick(), workspaces);
+            const homes = pickIndex(docs, workspaces)(menu.filename);
+            const from = homes.includes(shown) ? shown : homes[0];
+            const targets = [{ key: DOCUMENTS, label: 'Documents' }, ...workspaces.map(w => ({ key: w.filename, label: w.title }))]
+              .filter(t => !homes.includes(t.key));
+            return {
+              moveTargets: targets,
+              onMoveTo: (to: string) => {
+                void actions.handleMoveToWorkspace(menu.filename, menu.title, from, to).then(ok => {
+                  if (ok && docs.find(d => d.filename === menu.filename)?.isActive) setWorkspacePick(to);
+                });
+              },
+            };
+          })()}
           onArchive={() => actions.handleArchive(menu.filename)}
           onDelete={() => actions.handleDelete(menu.filename)}
           onPluginAction={(action, item) => handlePluginAction(action, item, menu.filename, menu.title)}

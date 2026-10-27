@@ -6,6 +6,7 @@ import './SidebarBoard.css';
 import SearchResults from './SearchResults';
 import { sidebarRowProps, searchInputKeyDown } from './sidebar-keyboard';
 import BookWorkspacePins from './BookWorkspacePins';
+import { DOCUMENTS, setWorkspacePick } from './workspace-pick';
 
 interface PathEntry {
   type: 'workspace' | 'container';
@@ -14,8 +15,17 @@ interface PathEntry {
   wsFilename: string;
 }
 
-export default function SidebarBoard({ docs, workspaces, assignedFiles, pendingDocs, onSwitchDocument, onWorkspaceSettings, actions, scrollRef, searchQuery, searchResults, searchLoading, searchError, onSearchChange }: SidebarModeProps) {
+export default function SidebarBoard({ docs, workspaces, assignedFiles, pendingDocs, onSwitchDocument, onWorkspaceSettings, actions, scrollRef, searchQuery, searchResults, searchLoading, searchError, onSearchChange, pick, pendingPicks, workspaceLabel }: SidebarModeProps) {
   const [path, setPath] = useState<PathEntry[]>([]);
+  // The chip row is the workspace picker: Board opens inside the picked workspace, and back returns
+  // to the chips without changing the pick. adr: adr/workspace-pick.md
+  const workspacesReady = workspaces.length > 0;
+  useEffect(() => {
+    const ws = workspaces.find(w => w.filename === pick);
+    if (!ws) { setPath([]); return; }
+    setPath(p => p[0]?.wsFilename === ws.filename ? p : [{ type: 'workspace', key: ws.filename, title: ws.title, wsFilename: ws.filename }]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pick, workspacesReady]);
   const [dropdownKey, setDropdownKey] = useState<string | null>(null);
   // Flat mode — no folders to expand; just center + pulse the active row.
   useRevealActiveDoc(scrollRef, docs, workspaces.length);
@@ -167,7 +177,7 @@ export default function SidebarBoard({ docs, workspaces, assignedFiles, pendingD
     if (stripEl) stripEl.scrollLeft += dir * stripEl.clientWidth * 0.8;
   };
 
-  const parentLabel = path.length > 1 ? path[path.length - 2].title : 'All';
+  const parentLabel = path.length > 1 ? path[path.length - 2].title : 'Workspaces';
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
   const [searchDropdownPos, setSearchDropdownPos] = useState<{ top: number; left: number } | null>(null);
@@ -245,11 +255,14 @@ export default function SidebarBoard({ docs, workspaces, assignedFiles, pendingD
 
       {/* Anchor pill — always present to prevent layout shift */}
       {path.length === 0 ? (
-        <button className="board-back board-back--static" tabIndex={-1}>All</button>
+        <button className="board-back board-back--static" tabIndex={-1}>Workspaces</button>
       ) : (
-        <button className="board-back" onClick={goBack} title={`Back to ${parentLabel}`}>
-          &larr; {parentLabel}
-        </button>
+        <>
+          <button className="board-back" onClick={goBack} title={`Back to ${parentLabel}`}>
+            &larr; {parentLabel}
+          </button>
+          <span className="board-current">{path[path.length - 1].title}</span>
+        </>
       )}
 
       {/* Top level: workspace chips + unassigned */}
@@ -258,32 +271,30 @@ export default function SidebarBoard({ docs, workspaces, assignedFiles, pendingD
           {unassignedDocs.length > 0 && (
             <button
               className={`board-chip ${dropdownKey === '__unassigned__' ? 'open' : ''}`}
-              onClick={(e) => toggleDropdown('__unassigned__', e)}
+              onClick={(e) => { setWorkspacePick(DOCUMENTS); toggleDropdown('__unassigned__', e); }}
             >
               Documents <span className="board-chip-count">{unassignedDocs.length}</span>
+              {pendingPicks.has(DOCUMENTS) && <span className="board-pending-dot" />}
             </button>
           )}
           {workspaces.map(ws => {
-            const hasContainers = ws.workspace?.workspaceType === 'book' || ws.workspace?.root.some(n => n.type === 'container');
             return (
               <span className="board-workspace-entry" key={ws.filename}>
               <button
                 key={ws.filename}
                 onContextMenu={e => { e.preventDefault(); onWorkspaceSettings(ws.filename); }}
                 className={`board-chip ${dropdownKey === ws.filename ? 'open' : ''}`}
-                onClick={(e) => hasContainers
-                  ? drillIn({ type: 'workspace', key: ws.filename, title: ws.title, wsFilename: ws.filename })
-                  : toggleDropdown(ws.filename, e)
-                }
+                onClick={() => { setWorkspacePick(ws.filename); drillIn({ type: 'workspace', key: ws.filename, title: ws.title, wsFilename: ws.filename }); }}
               >
                 {ws.title} <span className="board-chip-count">{ws.docCount}</span>
-                {hasContainers && <span className="board-chip-arrow">&rsaquo;</span>}
+                {pendingPicks.has(ws.filename) && <span className="board-pending-dot" />}
+                <span className="board-chip-arrow">&rsaquo;</span>
               </button>
               <button type="button" className="workspace-menu-button" aria-label={`Workspace type for ${ws.title}`} onClick={() => onWorkspaceSettings(ws.filename)}>⋯</button>
               </span>
             );
           })}
-          <button className="board-chip board-chip-add" onClick={actions.handleCreateWorkspace} title="New workspace">+</button>
+          <button className="board-chip board-chip-add" onClick={() => void actions.handleCreateWorkspace().then(f => { if (f) setWorkspacePick(f); })} title="New workspace">+</button>
         </>
       )}
 
@@ -355,7 +366,7 @@ export default function SidebarBoard({ docs, workspaces, assignedFiles, pendingD
           ref={searchDropdownRef}
           style={{ position: 'fixed', top: searchDropdownPos.top, left: searchDropdownPos.left }}
         >
-          <SearchResults results={searchResults} query={searchQuery} onSwitchDocument={onSwitchDocument} actions={actions} loading={searchLoading} error={searchError} />
+          <SearchResults results={searchResults} query={searchQuery} onSwitchDocument={onSwitchDocument} actions={actions} loading={searchLoading} error={searchError} workspaceLabel={workspaceLabel} />
         </div>
       )}
     </div>

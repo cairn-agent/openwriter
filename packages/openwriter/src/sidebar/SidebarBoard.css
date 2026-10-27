@@ -89,6 +89,16 @@
   border-color: var(--ink-light);
 }
 
+/* The workspace (or folder) Board is inside, so the strip always says where it is. adr: adr/workspace-pick.md */
+.board-current {
+  flex-shrink: 0;
+  padding: 0 4px;
+  color: var(--ink-dark);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .board-back--static {
   cursor: default;
   color: var(--ink-muted, var(--ink-light));

@@ -11,6 +11,8 @@ import CreateOutlineDialog from '../outline/CreateOutlineDialog';
 import BookWorkspacePins from './BookWorkspacePins';
 import { TAB_HEADER } from '../ws/client';
 import SearchResults from './SearchResults';
+import WorkspacePicker from './WorkspacePicker';
+import { setWorkspacePick } from './workspace-pick';
 import './SidebarFiles.css';
 import { sidebarRowProps } from './sidebar-keyboard';
 
@@ -160,8 +162,11 @@ export default function SidebarFiles({
   onSwitchDocument, onCreateDocument, actions, scrollRef,
   writingTitle, writingTarget, pendingWriteFilenames,
   searchQuery, searchResults, searchLoading, searchError, onSearchChange,
+  docsLoaded, pick, pendingPicks, workspaceLabel,
 }: SidebarModeProps) {
   const isPending = (filename: string) => !!pendingWriteFilenames && pendingWriteFilenames.has(filename);
+  // One workspace (or Documents) at a time, shared with the other layouts. adr: adr/workspace-pick.md
+  const shownWorkspace = workspaces.find(w => w.filename === pick);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => {
     try {
       const saved = localStorage.getItem('ow-files-collapsed');
@@ -349,12 +354,10 @@ export default function SidebarFiles({
         }
       }
     };
-    if (!collapsed.has('docs')) unassignedDocs.forEach(addDocWithVariants);
-    for (const ws of workspaces) {
-      if (!collapsed.has(ws.filename)) walk(ws.workspace?.root || []);
-    }
+    if (shownWorkspace) walk(shownWorkspace.workspace?.root || []);
+    else unassignedDocs.forEach(addDocWithVariants);
     return result;
-  }, [docs, workspaces, unassignedDocs, variantFilenames, variantsByMaster, collapsed]);
+  }, [docs, shownWorkspace, unassignedDocs, variantFilenames, variantsByMaster, collapsed]);
 
   const clearSelection = useCallback(() => {
     setSelection(new Set());
@@ -416,8 +419,20 @@ export default function SidebarFiles({
   const requestSortFor = useCallback((filenames: string[]) => requestSort(filenames, actions), [actions]);
 
   if (searchResults !== null) {
-    return <SearchResults results={searchResults} query={searchQuery} onSwitchDocument={onSwitchDocument} actions={actions} loading={searchLoading} error={searchError} />;
+    return <SearchResults results={searchResults} query={searchQuery} onSwitchDocument={onSwitchDocument} actions={actions} loading={searchLoading} error={searchError} workspaceLabel={workspaceLabel} />;
   }
+
+  const createWorkspace = async () => {
+    const filename = await actions.handleCreateWorkspace();
+    if (filename) { setWorkspacePick(filename); startRename('workspace', filename, 'Untitled Workspace'); }
+  };
+  const newDocument = (anchor: DOMRect) => setCreateDropdown(shownWorkspace ? { anchor, wsFilename: shownWorkspace.filename, containerId: null } : { anchor });
+  const wsRoot = shownWorkspace?.workspace?.root || [];
+  const wsAutoAccept = shownWorkspace?.workspace?.autoAccept === true || (shownWorkspace as any)?.autoAccept === true;
+  // Empty as the writer sees it: a placeholder the agent has not written yet is not a row.
+  const shownEmpty = !writingTitle && (shownWorkspace
+    ? !wsRoot.some(n => n.type === 'container' || (!isPending(n.file) && docs.some(d => d.filename === n.file)))
+    : unassignedDocs.length === 0);
 
   const renderRenameInput = (onCommit: () => void) => (
     <input
@@ -583,17 +598,29 @@ export default function SidebarFiles({
 
   return (
     <div className="files-scroll" ref={scrollRef}>
-      {/* Unassigned documents section */}
-      <div className="files-section">
-        <div className={`files-row is-section${collapsed.has('docs') && activeTrail !== null && activeTrail.wsFilename === null ? ' active-within' : ''}`} data-section-key="docs" onClick={() => toggle('docs')}>
-          <span className={`files-row-chevron leading${collapsed.has('docs') ? ' collapsed' : ''}`}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
-          <span {...sidebarRowProps(!collapsed.has('docs'))} className="files-row-label">Documents</span>
-          <button className="files-section-btn" onClick={(e) => { e.stopPropagation(); setCreateDropdown({ anchor: (e.target as HTMLElement).getBoundingClientRect() }); }} title="New document">+</button>
-        </div>
-        <div className={`files-section-list files-children${collapsed.has('docs') ? ' collapsed' : ''}`} data-drop-ws="__docs__">
-          {writingTitle && !writingTarget?.parentDocId && (!writingTarget || !workspaces.some(w => w.filename === writingTarget?.wsFilename)) && (
-            // adr: adr/sidebar-spinner-placement.md — match unassignedDocs indent (28)
-            <div className="sidebar-item sidebar-writing-placeholder" style={{ paddingLeft: 28 }}>
+      {/* The workspace picker: one workspace (or Documents) at a time. adr: adr/workspace-pick.md */}
+      <div className="ws-picker-row">
+        {workspaces.length > 0
+          ? <WorkspacePicker workspaces={workspaces} value={pick} pending={pendingPicks} hasLooseDocs={unassignedDocs.length > 0}
+              onCreateWorkspace={() => void createWorkspace()}
+              renameInput={renaming?.type === 'workspace' ? renderRenameInput(commitRename) : undefined} />
+          : <span className="ws-picker-static">Documents</span>}
+        {shownWorkspace && (
+          <button className="workspace-menu-button" type="button" data-workspace-menu={shownWorkspace.filename} aria-label={`Workspace menu for ${shownWorkspace.title}`} onClick={e => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setFolderMenu({ x: rect.left, y: rect.bottom, type: 'workspace', wsFilename: shownWorkspace.filename, title: shownWorkspace.title, nodes: wsRoot, autoAccept: wsAutoAccept });
+          }}>⋯</button>
+        )}
+        <button className="files-section-btn" type="button" onClick={e => newDocument(e.currentTarget.getBoundingClientRect())} title="New document">+</button>
+        {shownWorkspace && <button className="files-section-btn" type="button" onClick={() => actions.handleCreateContainer(shownWorkspace.filename, null)} title="New container">&#9744;</button>}
+      </div>
+
+      {shownWorkspace ? (
+        <div className="files-section-list files-children" data-drop-ws={shownWorkspace.filename}>
+          <BookWorkspacePins workspace={shownWorkspace} docs={docs} onOpen={onSwitchDocument} onSettings={() => onWorkspaceSettings(shownWorkspace.filename)} />
+          {/* adr: adr/sidebar-spinner-placement.md — match workspace-root child indent (renderNode depth=0 → 12) */}
+          {writingTitle && !writingTarget?.parentDocId && writingTarget?.wsFilename === shownWorkspace.filename && writingTarget.containerId === null && (
+            <div className="sidebar-item sidebar-writing-placeholder" style={{ paddingLeft: 12 }}>
               <div className="sidebar-item-title">
                 <span className="sidebar-writing-spinner" />
                 <span className="sidebar-item-title-text">{writingTitle}</span>
@@ -601,76 +628,31 @@ export default function SidebarFiles({
               <div className="sidebar-item-meta">Writing...</div>
             </div>
           )}
-          {unassignedDocs.map(doc => renderDocWithVariants(doc, 28))}
+          {wsRoot.filter(n => n.type !== 'doc' || !isPending(n.file)).map(node => renderNode(node, 0, shownWorkspace.filename, null, wsAutoAccept))}
         </div>
-      </div>
-
-      {/* Workspace sections */}
-      {workspaces.map(ws => {
-        const wsRoot = ws.workspace?.root || [];
-        const isCollapsedWs = collapsed.has(ws.filename);
-        const count = countDocs(wsRoot);
-        const wsAutoAccept = (ws as any).workspace?.autoAccept === true || (ws as any).autoAccept === true;
-
-        return (
-          <div key={ws.filename} className={`files-section ${isDragging(ws.filename) ? 'dragging' : ''} ${dropIndicator?.itemId === ws.filename ? (dropIndicator.position === 'before' ? 'files-ws-drop-before' : 'files-ws-drop-after') : ''}`}>
-            <div
-              className={`files-row is-section${isCollapsedWs && activeTrail?.wsFilename === ws.filename ? ' active-within' : ''}${dropIndicator?.itemId === '__section__' && dropIndicator.wsFilename === ws.filename && dropIndicator.position === 'inside' ? ' files-ws-drop-target' : ''}`}
-              data-section-key={ws.filename}
-              data-ws-drag={ws.filename}
-              onPointerDown={e => handlePointerDown(e, { type: 'workspace', filename: ws.filename }, ws.title)}
-              onClick={() => !draggedItem && toggle(ws.filename)}
-              onDoubleClick={e => { e.stopPropagation(); startRename('workspace', ws.filename, ws.title); }}
-              onContextMenu={e => {
-                e.preventDefault();
-                e.stopPropagation();
-                setFolderMenu({ x: e.clientX, y: e.clientY, type: 'workspace', wsFilename: ws.filename, title: ws.title, nodes: wsRoot, autoAccept: (ws as any).workspace?.autoAccept === true || (ws as any).autoAccept === true });
-              }}
-            >
-              {renaming?.type === 'workspace' && renaming.key === ws.filename ? (
-                <>
-                  <span className={`files-row-chevron leading${isCollapsedWs ? ' collapsed' : ''}`}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
-                  {renderRenameInput(commitRename)}
-                </>
-              ) : (
-                <>
-                  <span className={`files-row-chevron leading${isCollapsedWs ? ' collapsed' : ''}`}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
-                  <span {...sidebarRowProps(!isCollapsedWs)} className="files-row-label">{ws.title}</span>
-                  {ws.workspace?.workspaceType === 'book' && <span className="workspace-type-badge">Book</span>}
-                  {((ws as any).workspace?.autoAccept === true || (ws as any).autoAccept === true) && <span className="sidebar-auto-accept-dot" title="Auto-accept on for this workspace" />}
-                  <span className="files-row-count">{count}</span>
-                  <div className="files-section-actions">
-                    <button className="workspace-menu-button" type="button" data-workspace-menu={ws.filename} aria-label={`Workspace menu for ${ws.title}`} onPointerDown={e => e.stopPropagation()} onClick={e => {
-                      e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect();
-                      setFolderMenu({ x: rect.left, y: rect.bottom, type: 'workspace', wsFilename: ws.filename, title: ws.title, nodes: wsRoot, autoAccept: wsAutoAccept });
-                    }}>⋯</button>
-                    <button className="files-section-btn" onClick={(e) => { e.stopPropagation(); setCreateDropdown({ anchor: (e.target as HTMLElement).getBoundingClientRect(), wsFilename: ws.filename, containerId: null }); }} title="New document">+</button>
-                    <button className="files-section-btn" onClick={(e) => { e.stopPropagation(); actions.handleCreateContainer(ws.filename, null); }} title="New container">&#9744;</button>
-                  </div>
-                </>
-              )}
+      ) : (
+        <div className="files-section-list files-children" data-drop-ws="__docs__">
+          {writingTitle && !writingTarget?.parentDocId && (!writingTarget || !workspaces.some(w => w.filename === writingTarget?.wsFilename)) && (
+            // adr: adr/sidebar-spinner-placement.md — match unassignedDocs indent (12)
+            <div className="sidebar-item sidebar-writing-placeholder" style={{ paddingLeft: 12 }}>
+              <div className="sidebar-item-title">
+                <span className="sidebar-writing-spinner" />
+                <span className="sidebar-item-title-text">{writingTitle}</span>
+              </div>
+              <div className="sidebar-item-meta">Writing...</div>
             </div>
-            <div className={`files-section-list files-children${isCollapsedWs ? ' collapsed' : ''}`} data-drop-ws={ws.filename}>
-              <BookWorkspacePins workspace={ws} docs={docs} onOpen={onSwitchDocument} onSettings={() => onWorkspaceSettings(ws.filename)} />
-              {/* adr: adr/sidebar-spinner-placement.md — match workspace-root child indent (renderNode depth=1 → 28) */}
-              {writingTitle && !writingTarget?.parentDocId && writingTarget?.wsFilename === ws.filename && writingTarget.containerId === null && (
-                <div className="sidebar-item sidebar-writing-placeholder" style={{ paddingLeft: 28 }}>
-                  <div className="sidebar-item-title">
-                    <span className="sidebar-writing-spinner" />
-                    <span className="sidebar-item-title-text">{writingTitle}</span>
-                  </div>
-                  <div className="sidebar-item-meta">Writing...</div>
-                </div>
-              )}
-              {wsRoot.filter(n => n.type !== 'doc' || !isPending(n.file)).map(node => renderNode(node, 1, ws.filename, null, wsAutoAccept))}
-            </div>
-          </div>
-        );
-      })}
+          )}
+          {unassignedDocs.map(doc => renderDocWithVariants(doc, 12))}
+        </div>
+      )}
 
-      <div className="files-new-ws">
-        <button onClick={actions.handleCreateWorkspace}>+ New Workspace</button>
-      </div>
+      {shownEmpty && docsLoaded && <div className="ws-empty">No documents yet<button type="button" onClick={e => newDocument(e.currentTarget.getBoundingClientRect())}>New document</button></div>}
+
+      {workspaces.length === 0 && (
+        <div className="files-new-ws">
+          <button onClick={() => void createWorkspace()}>+ New workspace</button>
+        </div>
+      )}
 
       {/* Folder context menu (workspace/container) — reuses SidebarContextMenu in folderMode */}
       {folderMenu && (

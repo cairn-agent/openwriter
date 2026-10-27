@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import type { DocumentInfo, SidebarActions } from './sidebar-types';
 import { checkedFetch, jsonRequest } from '../utils/request';
 import { showToast } from '../utils/toast';
+import { DOCUMENTS } from './workspace-pick';
 
 // Mutations commit at the server before refreshing the affected projection.
 // Keeping the last acknowledged view removes rollback races and phantom deletes.
@@ -45,7 +46,18 @@ export function useSidebarActions(
       if (!title.trim() || title.trim() === original) return;
       return run('Could not rename document', () => checkedFetch(docUrl(file), jsonRequest('PUT', { title: title.trim() })));
     },
-    handleCreateWorkspace: () => run('Could not create workspace', () => checkedFetch('/api/workspaces', jsonRequest('POST', { title: 'Untitled Workspace' })), 'workspaces'),
+    handleCreateWorkspace: async () => {
+      let filename: string | null = null;
+      const ok = await run('Could not create workspace', async () => {
+        filename = (await (await checkedFetch('/api/workspaces', jsonRequest('POST', { title: 'Untitled Workspace' }))).json()).filename ?? null;
+      }, 'workspaces');
+      return ok ? filename : null;
+    },
+    handleMoveToWorkspace: (doc, title, from, to) => run('Could not move document', () => {
+      if (from === DOCUMENTS) return checkedFetch(`${workspaceUrl(to)}/docs`, jsonRequest('POST', { file: doc, title, containerId: null }));
+      if (to === DOCUMENTS) return checkedFetch(`${workspaceUrl(from)}/docs/${encodeURIComponent(doc)}`, { method: 'DELETE' });
+      return checkedFetch(`${workspaceUrl(to)}/docs/${encodeURIComponent(doc)}/cross-move`, jsonRequest('POST', { sourceWorkspace: from, containerId: null, afterFile: null, title }));
+    }),
     handleDeleteWorkspace: file => run('Could not delete workspace', () => checkedFetch(workspaceUrl(file), { method: 'DELETE' })),
     handleRenameWorkspace: (file, title) => {
       if (!title.trim()) return;

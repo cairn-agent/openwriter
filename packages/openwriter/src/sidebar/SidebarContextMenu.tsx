@@ -23,13 +23,15 @@ const VARIANT_TYPES: { key: string; label: string }[] = [
   { key: 'blog', label: 'Blog' },
 ];
 
-/** "Create variant ▸" flyout. Anchored to the trigger button's own on-screen
+/** A "Label ▸" flyout ("Create variant", "Move to"). Anchored to the trigger button's own on-screen
  *  rect (NOT offsetTop — once the flyout is position:fixed, offsetTop is measured
  *  against the viewport, so the old `offsetTop + parentRect.top` double-counted
  *  and the flyout drifted ~one-menu-height below its row). Flips left / clamps
  *  vertically to stay on-screen. Same approach as PluginSubmenu below. */
-function VariantSubmenu({ onPick }: {
-  onPick: (variantType: string) => void;
+function FlyoutSubmenu({ label, options, onPick }: {
+  label: string;
+  options: { key: string; label: string }[];
+  onPick: (key: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const subRef = useRef<HTMLDivElement>(null);
@@ -56,12 +58,12 @@ function VariantSubmenu({ onPick }: {
         onMouseEnter={() => setOpen(true)}
         onClick={() => setOpen((v) => !v)}
       >
-        <span>Create variant</span>
+        <span>{label}</span>
         <span className="context-menu-submenu-arrow">&#9656;</span>
       </button>
       {open && (
         <div ref={subRef} className="context-menu context-menu-submenu" style={style}>
-          {VARIANT_TYPES.map((t) => (
+          {options.map((t) => (
             <button key={t.key} className="context-menu-item" onClick={() => onPick(t.key)}>
               <span>{t.label}</span>
             </button>
@@ -82,6 +84,9 @@ interface SidebarContextMenuProps {
   /** Create a "copy of master" variant of this doc, typed as variantType. Omitted when the doc has no docId to link to. */
   onCreateVariant?: (variantType: string) => void;
   onRename: () => void;
+  /** "Move to ▸": every other workspace, and Documents. adr: adr/workspace-pick.md */
+  moveTargets?: { key: string; label: string }[];
+  onMoveTo?: (key: string) => void;
   onArchive: () => void;
   onDelete: () => void;
   onPluginAction: (action: string, item: SidebarMenuItem) => void;
@@ -223,7 +228,7 @@ function PluginSubmenu({ items, onAction }: {
   return <>{result}</>;
 }
 
-export default function SidebarContextMenu({ x, y, filename, title, onClose, onDuplicate, onCreateVariant, onRename, onArchive, onDelete, onPluginAction, pluginItems, onSchedulePost, onPostNow, isAlreadyPublished, onViewAnalytics, viewAnalyticsLabel, onMarkSent, isAlreadySent, isApproved, onToggleApprove, isAutoAccept, onToggleAutoAccept, sortState, sortProposalLabel, sortProposalReasoning, onRequestSort, onCancelSort, onAcceptSortProposal, onRejectSortProposal, folderMode, onWorkspaceType, onNewDoc, onNewContainer, onAcceptAll, onRejectAll, folderAutoAccept, onToggleFolderAutoAccept, folderAutoAcceptLabel, onRequestSortAll, folderDocCount, onDeleteWithDocs, bulkCount, onBulkDelete, onBulkRequestSort, onCreateOutline }: SidebarContextMenuProps) {
+export default function SidebarContextMenu({ x, y, filename, title, onClose, onDuplicate, onCreateVariant, onRename, moveTargets, onMoveTo, onArchive, onDelete, onPluginAction, pluginItems, onSchedulePost, onPostNow, isAlreadyPublished, onViewAnalytics, viewAnalyticsLabel, onMarkSent, isAlreadySent, isApproved, onToggleApprove, isAutoAccept, onToggleAutoAccept, sortState, sortProposalLabel, sortProposalReasoning, onRequestSort, onCancelSort, onAcceptSortProposal, onRejectSortProposal, folderMode, onWorkspaceType, onNewDoc, onNewContainer, onAcceptAll, onRejectAll, folderAutoAccept, onToggleFolderAutoAccept, folderAutoAcceptLabel, onRequestSortAll, folderDocCount, onDeleteWithDocs, bulkCount, onBulkDelete, onBulkRequestSort, onCreateOutline }: SidebarContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
@@ -382,11 +387,14 @@ export default function SidebarContextMenu({ x, y, filename, title, onClose, onD
         <span>Duplicate</span>
       </button>
       {onCreateVariant && (
-        <VariantSubmenu onPick={(vt) => { onCreateVariant(vt); onClose(); }} />
+        <FlyoutSubmenu label="Create variant" options={VARIANT_TYPES} onPick={(vt) => { onCreateVariant(vt); onClose(); }} />
       )}
       <button className="context-menu-item" onClick={() => { onRename(); onClose(); }}>
         <span>Rename</span>
       </button>
+      {onMoveTo && moveTargets && moveTargets.length > 0 && (
+        <FlyoutSubmenu label="Move to" options={moveTargets} onPick={(key) => { onMoveTo(key); onClose(); }} />
+      )}
       {confirmArchive ? (
         <div className="context-menu-item sidebar-ctx-confirm" onClick={(e) => e.stopPropagation()}>
           <span>Archive?</span>
