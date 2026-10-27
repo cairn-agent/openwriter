@@ -4,6 +4,11 @@
   box-sizing: border-box;
 }
 
+/* The reset above also removes the browser's centering of pop-up dialogs. */
+dialog:modal {
+  margin: auto;
+}
+
 html, body, #root {
   height: 100%;
 }
