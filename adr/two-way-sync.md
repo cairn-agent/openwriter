@@ -97,7 +97,7 @@ failure modes with ones that never drop a word.
   this device, with no network, so commit time is edit time and offline work is
   already committed. A one-shot timer armed by that commit syncs (fetch, merge, push)
   20 s after the last save. The browser (`useAutoSync`) pulls (`/api/sync/pull`) when
-  the app opens, on window focus, before a document opens (waiting at most 0.8 s),
+  the app opens, on window focus, as a document opens (alongside it, never before it),
   and every 60 s while visible, and sends `/api/sync/push` by `sendBeacon` when the
   page closes. Nothing repeats on the server, so a copy with no browser and no writing
   runs no timers. `pullOnStart` (env `OW_GITHUB_PULL_ON_START=1`) still pulls once at
@@ -275,3 +275,10 @@ pushed is a known parent that already holds this copy's writing. It retries on l
 because a network stop or GitHub's rate limit should not fail a connection, and stops for good
 once done so an image later deleted from the repo is not brought back. Test:
 `test-github-sync.mjs` ("Images another source keeps ...").
+
+### 2026-10-27 — a document opens at once; the pull runs beside it
+Waiting up to 0.8 s for GitHub before asking for the document made every open take about
+0.9 s, since a fetch always takes longer than that. The pull now starts as the switch is sent.
+If GitHub had a newer copy of that document, the server already reloads the open document in
+place (`reloadChangedFiles`), so nothing is lost by not waiting. A pull already running is not
+started again, so clicking through documents starts one pull, not one per click.

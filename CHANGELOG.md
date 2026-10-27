@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Fixed
 - The Workspace type window opens centered with a solid background, and every other pop-up window is centered again.
+- Documents open at once when GitHub sync is on. Opening one used to wait almost a second for GitHub; the check now runs alongside, and a newer copy from GitHub still reloads the document in place.
 
 ## [0.51.1] - 2026-10-26
 

@@ -123,7 +123,7 @@ export default function App() {
   const [workspacesRefreshKey, setWorkspacesRefreshKey] = useState(0);
   const [pendingDocs, setPendingDocs] = useState<PendingDocsPayload>({ filenames: [], counts: {} });
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ state: 'unconfigured' });
-  const { pullBeforeOpen } = useAutoSync(syncStatus.state !== 'unconfigured', setSyncStatus);
+  const { pullOnOpen } = useAutoSync(syncStatus.state !== 'unconfigured', setSyncStatus);
   const [showSyncSetup, setShowSyncSetup] = useState(false);
   const [metadata, setMetadata] = useState<Record<string, any>>({});
   // Author-attribution heatmap (voice-shape view). adr: adr/document-history-attribution.md
@@ -776,15 +776,14 @@ export default function App() {
     saveCurrentScroll();
     navIntent.current = 'push';
     flushCurrentDoc();
-    // Bring in GitHub's changes first (briefly), so the doc opens as it is
-    // everywhere. adr: adr/two-way-sync.md
-    void pullBeforeOpen().then(() => {
-      sendMessage({ type: 'switch-document', filename });
-      const tSend = performance.now();
-      (window as any).__lastSwitch.tSend = tSend;
-      console.log(`[Switch] SEND filename=${filename} clickToSend=${(tSend - tClick).toFixed(1)}ms`);
-    });
-  }, [flushCurrentDoc, sendMessage, pullBeforeOpen]);
+    sendMessage({ type: 'switch-document', filename });
+    const tSend = performance.now();
+    (window as any).__lastSwitch.tSend = tSend;
+    console.log(`[Switch] SEND filename=${filename} clickToSend=${(tSend - tClick).toFixed(1)}ms`);
+    // Ask GitHub for changes alongside, never before: a newer copy reloads the
+    // open doc in place. adr: adr/two-way-sync.md
+    pullOnOpen();
+  }, [flushCurrentDoc, sendMessage, pullOnOpen]);
 
   // Pending scroll target — consumed by handleEditorReady after the new doc mounts.
   // Set by handleLinkClick on every doc-link navigation. `toTop` is the default
